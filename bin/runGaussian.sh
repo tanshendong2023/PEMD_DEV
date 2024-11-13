@@ -4,7 +4,7 @@
 shopt -s extglob
 
 # Define the directory containing input files and where outputs will be stored
-gaussian_dir="./conformer_search/gaussian_work"
+gaussian_dir="${1:-./conformer_search/gaussian_work}"
 
 # Loop over all conf_*.gjf files in the directory where * is any digit
 for input_file in "${gaussian_dir}"/conf_*([0-9]).gjf; do
@@ -36,4 +36,4 @@ done
 ## Merge all *xtbopt.xyz files into the merged xyz file, ensuring files include digits only
 #cat "${gaussian_dir}"/conf_*([0-9]).xyz > "$merged_filename"
 
-echo "The generated conformers have been merged and saved to ${merged_filename}"
+# echo "The generated conformers have been merged and saved to ${merged_filename}"

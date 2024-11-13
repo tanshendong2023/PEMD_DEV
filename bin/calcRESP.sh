@@ -4,8 +4,14 @@
 # Example of calculation of RESP2 charges: ./calcRESP.sh H2CO_gas.fchk H2CO_water.fchk
 
 #!/bin/bash
+
+# Load Multiwfn module
+module load Multiwfn/3.8
+input_dir=$(dirname "$1")
+cd "$input_dir"
+
 echo Calculating RESP charge for $1 ...
-Multiwfn $1 << EOF > /dev/null -nt 32
+Multiwfn $1 -nt 32 << EOF > /dev/null
 7
 18
 1
@@ -14,13 +20,13 @@ y
 0
 q
 EOF
-chgfile=${1%.*}.chg
+chgfile="${1%.*}.chg"
 echo RESP charges for $1 has been exported to $chgfile in current folder
 
 if [ $2 ];then
 echo
 echo Calculating RESP charge for $2 ...
-Multiwfn $2 << EOF > /dev/null -nt 32
+Multiwfn $2 -nt 32 << EOF > /dev/null
 7
 18
 1

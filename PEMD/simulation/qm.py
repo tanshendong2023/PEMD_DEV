@@ -16,27 +16,29 @@ from simple_slurm import Slurm
 from PEMD.simulation import sim_lib
 from PEMD.model import model_lib
 from importlib import resources
+
+from PEMD.simulation.multiwfn import PEMDMultiwfn
 from PEMD.simulation.xtb import PEMDXtb
 from PEMD.simulation.gaussian import PEMDGaussian
 from PEMD.simulation.slurm import PEMDSlurm
+from PEMD.simulation.sim_lib import build_directory
 
-
-# Input: smiles (str)
-# Output: a xyz file
-# Description: Generates multiple conformers for a molecule from a SMILES string, optimizes them using the MMFF94
-# force field, and saves the optimized conformers to a single XYZ file.
 def gen_conf_rdkit(
         work_dir,
         smiles,
         max_conformers,
         top_n_MMFF
 ):
-
-    # build dir
+    """
+    Generates multiple conformers for a molecule from a SMILES string, optimizes them using the MMFF94
+    force field, and saves the optimized conformers to a single XYZ file.
+    """
+    # Build dir "./conformer_search/rdkit_work"
     rdkit_dir = os.path.join(work_dir, 'conformer_search', 'rdkit_work')
-    os.makedirs(rdkit_dir, exist_ok=True)
+    # If the folder exists, clear its contents
+    build_directory(rdkit_dir)
 
-    # Generate multiple conformers
+    # Generate max_conformers random conformers form SMILES structure
     mol = Chem.MolFromSmiles(smiles)
     mol = Chem.AddHs(mol)
     ids = AllChem.EmbedMultipleConfs(mol, numConfs=max_conformers, randomSeed=1)
@@ -49,27 +51,24 @@ def gen_conf_rdkit(
         energy = ff.Minimize()
         minimized_conformers.append((conf_id, energy))
 
-    # Sort the conformers by energy and select the top N conformers
+    # Sort the conformers by energy and select the top_n_MMFF conformers with the lowest energy
     minimized_conformers.sort(key=lambda x: x[1])
     top_conformers = minimized_conformers[:top_n_MMFF]
 
-    # save the top conformers to xyz files
+    # Save the coordinates of top_n_MMFF conformers to xyz files
     for conf_id, _ in top_conformers:
         xyz_file = os.path.join(rdkit_dir, f'conf_{conf_id}.xyz')
         model_lib.mol_to_xyz(mol, conf_id, xyz_file)
+
+    # Save all the coordinates to merged_file
     filenames = glob.glob(os.path.join(rdkit_dir, '*.xyz'))
     merged_file = os.path.join(work_dir, 'merged_rdkit.xyz')
     with open(merged_file, 'w') as outfile:
         for fname in filenames:
             with open(fname, 'r') as infile:
                 outfile.write(infile.read())
-    print(f"The generated conformers based on rdkit saved to {merged_file}")
-    # return merged_file
+    print(f"The generated conformers based on rdkit were saved to {merged_file}")
 
-# input: a xyz file
-# output:  a xyz file
-# Description: Sorts the conformers in a XYZ file by energy calculated by xTB and saves the sorted conformers to a
-# new file
 def opt_conf_xtb(
         work_dir,
         xyz_file,
@@ -82,15 +81,14 @@ def opt_conf_xtb(
         ntasks_per_node=64,
         partition='standard',
 ):
-
-    # build dir
+    # Perform xtb energy optimization on the conformational structure obtained by rdkit calculation.
+    # Build xtb_dir.
     xtb_dir = os.path.join(work_dir, 'conformer_search', 'xtb_work')
-    os.makedirs(xtb_dir, exist_ok=True)
+    build_directory(xtb_dir)
 
-    # read xyz file as a list of structures
+    # Read xyz file as a list of structures.
     structures = sim_lib.read_xyz_file(xyz_file)
-
-    # Perform xTB optimization on the selected conformers
+    # Perform xTB optimization on the selected conformers.
     for conf_id, structure in enumerate(structures):
         conf_xyz_file = os.path.join(xtb_dir, f'conf_{conf_id}.xyz')
         outfile_headname = f'conf_{conf_id}'
@@ -98,13 +96,11 @@ def opt_conf_xtb(
             num_atoms = structure['num_atoms']
             comment = structure['comment']
             atoms = structure['atoms']
-
             file.write(f"{num_atoms}\n{comment}\n")
-
             for atom in atoms:
                 file.write(f"{atom}\n")
 
-        # Create xtb object
+        # Run xTB locally.
         if not slurm:
             PEMDXtb(
                 work_dir,
@@ -117,31 +113,19 @@ def opt_conf_xtb(
                 outfile_headname
             )
 
-        # Run xtb local or generate SLURM script
-        # if not slurm:
-        #     xtb.run_local()
-        # else:
-        #     script_name = f'sub.xtb_{conf_id}'
-        #     xtb.gen_slurm(
-        #         script_name,
-        #         job_name,
-        #         nodes,
-        #         ntasks_per_node,
-        #         partition
-        #     )
-
     if not slurm:
-        print("XTB run locally successfully!")
+        # Integrate the optimized structure and energy results of xTB calculation into one xyz file.
         filenames = glob.glob(os.path.join(xtb_dir, '*.xtbopt.xyz'))
-        merged_file = os.path.join(xtb_dir, 'merged.xyz')
+        merged_file = os.path.join(work_dir, 'merged_xtb.xyz')
         with open(merged_file, 'w') as outfile:
             for fname in filenames:
                 with open(fname, 'r') as infile:
                     outfile.write(infile.read())
-        return merged_file
+        print(f"XTB run locally successfully!\nThe optimization conformers based on xtb were saved to {merged_file}")
     else:
+        # Generate XTB submit script.
         script_name = f'sub.xtb'
-        PEMDXtb(
+        script_path = PEMDXtb(
             work_dir,
             chg,
             mult,
@@ -153,12 +137,8 @@ def opt_conf_xtb(
             ntasks_per_node,
             partition
         )
-        print("XTB submit scripts generated successfully!")
-        # return xtb_dir   # Optionally return a list of script names or paths
+        print(f"XTB submit script generated successfully!\nThe submit script was saved to {script_path}/sub.xtb")
 
-# input: a xyz file
-# output: a xyz file
-# description:
 def opt_conf_gaussian(
         work_dir,
         xyz_file,
@@ -173,19 +153,17 @@ def opt_conf_gaussian(
         ntasks_per_node=64,
         partition='standard',
 ):
-
+    # Build the gasussian_dir.
     gaussian_dir = os.path.join(work_dir, 'conformer_search', 'gaussian_work')
-    os.makedirs(gaussian_dir, exist_ok=True)
+    build_directory(gaussian_dir)
 
+    # Read xyz file as a list of structures.
     structures = sim_lib.read_xyz_file(xyz_file)
-
-    # job_ids = []
+    # Generate Gaussian input files of selected conformers.
     for i, structure in enumerate(structures):
-
-        # 调用 QMcalc_gaussian 函数生成 Gaussian 输入文件
         filename = f"conf_{i}.gjf"
         Gau = PEMDGaussian(
-            gaussian_dir,
+            work_dir,
             ntasks_per_node,
             mem,
             chg,
@@ -194,168 +172,126 @@ def opt_conf_gaussian(
             basis_set,
             epsilon,
         )
-
         Gau.generate_input_file(
-            work_dir,
+            gaussian_dir,
             structure,
             filename=filename
         )
 
-        script_name = f'sub.gaussian'
-        Gau.gen_slurm(
-            script_name,
-            job_name,
-            nodes,
-            ntasks_per_node,
-            partition
-        )
-
-    print("Gaussian input files generated successfully!")
-
+    # Generate Gaussian submit script.
+    script_name = f'sub.gaussian'
+    script_path = Gau.gen_slurm(
+        script_name,
+        job_name,
+        nodes,
+        ntasks_per_node,
+        partition
+    )
+    print(f"Gaussian submit script generated successfully!\nThe submit script was saved to {script_path}/sub.gaussian")
 
 def calc_resp_gaussian(
-        sorted_df,
-        epsilon,
-        core=32,
-        memory='64GB',
-        method='resp2',
+        work_dir,
+        xyz_file,
+        chg=0,
+        mult=1,
+        function='B3LYP',
+        basis_set='6-311+g(d,p)',
+        epsilon=5.0,
+        mem='64GB',
+        job_name='g16',
+        nodes=1,
+        ntasks_per_node=32,
+        partition='standard',
 ):
+    # Build the resp_dir.
+    resp_dir = os.path.join(work_dir, 'resp_charge_fitting')
+    build_directory(resp_dir)
 
-    current_path = os.getcwd()
-    resp_dir = os.path.join(current_path, 'RESP_work')
-    os.makedirs(resp_dir, exist_ok=True)
+    # Read xyz file as a list of structures.
+    structures = sim_lib.read_xyz_file(xyz_file)
 
-    job_ids = []
-    for i in range(5):    # only calculate the first 5 conformers
-        log_file_path = sorted_df.iloc[0]['File_Path']
-        chk_name = log_file_path.replace('.log', '.chk')
+    # Generate Gaussian input files of selected conformers.
+    for idx, structure in enumerate(structures):
+        filename = f"conf_{idx}.gjf"
+        Gau = PEMDGaussian(
+            work_dir,
+            ntasks_per_node,
+            mem,
+            chg,
+            mult,
+            function,
+            basis_set,
+            epsilon,
+        )
+        Gau.generate_input_file_resp(
+            resp_dir,
+            structure,
+            filename = filename,
+            idx = idx,
+        )
 
-        # RESP template
-        file_contents = f"nprocshared={core}\n"
-        file_contents += f"%mem={memory}\n"
-        file_contents += f"%oldchk={chk_name}\n"
-        file_contents += f"%chk={resp_dir}/SP_gas_conf_{i}.chk\n"
-        file_contents += f"# B3LYP/def2TZVP em=GD3BJ geom=allcheck\n\n"
-        file_contents += "--link1--\n"
-        file_contents += f"nprocshared={core}\n"
-        file_contents += f"%mem={memory}\n"
-        file_contents += f"%oldchk={chk_name}\n"
-        file_contents += f"%chk={resp_dir}/SP_solv_conf_{i}.chk\n"
-        file_contents += f"# B3LYP/def2TZVP em=GD3BJ scrf=(pcm,solvent=generic,read) geom=allcheck\n\n"
-        file_contents += f"eps={epsilon}\n"
-        file_contents += f"epsinf=2.1\n"
-        file_contents += '\n\n'
+    # Generate Gaussian submit script.
+    script_name = f'sub.gaussian_resp'
+    script_path = Gau.gen_slurm(
+        script_name,
+        job_name,
+        nodes,
+        ntasks_per_node,
+        partition,
+    )
+    print(
+        f"Gaussian submit script generated successfully!\nThe submit script was saved to {script_path}/sub.gaussian_resp")
 
-        # create gjf file
-        out_file = os.path.join(resp_dir, f'resp_conf_{i}.gjf')
-        with open(out_file, 'w') as file:
-            file.write(file_contents)
-
-        slurm = Slurm(J='g16',
-                      N=1,
-                      n=f'{core}',
-                      output=f'{resp_dir}/slurm.%A.out'
-                      )
-
-        job_id = slurm.sbatch(f'g16 {resp_dir}/resp_conf_{i}.gjf')
-        time.sleep(1)
-        job_ids.append(job_id)
-
-    # check the status of the gaussian job
-    while True:
-        all_completed = True
-        for job_id in job_ids:
-            status = sim_lib.get_slurm_job_status(job_id)
-            if status not in ['COMPLETED', 'FAILED', 'CANCELLED']:
-                all_completed = False
-                break
-        if all_completed:
-            print("All gaussian tasks finished, order structure with energy calculated by gaussian...")
-            print("RESP calculation finish, executing the resp fit with Multiwfn...")
-            df = RESP_fit_Multiwfn(resp_dir, method,)
-            break
-        else:
-            print("RESP calculation not finish, waiting...")
-            time.sleep(10)  # wait for 30 seconds
-
-    return df
-
-
-def RESP_fit_Multiwfn(out_dir, method,):
-
-    current_path = os.getcwd()
-    resp_dir = os.path.join(current_path, 'RESP_work')
-    os.makedirs(resp_dir, exist_ok=True)
-
-    chk_files = glob.glob('*.chk')
+def RESP_fit_Multiwfn(resp_dir, method = "resp2"):
+    # Fina chk files, convert them to fchk files.
+    chk_files = glob.glob(os.path.join(resp_dir, 'SP*.chk'))
     for chk_file in chk_files:
         model_lib.convert_chk_to_fchk(chk_file)
 
-    # 初始化DataFrame
-    resp_chg_df = pd.DataFrame()
+    # Calculation RESP charges using Multiwfn.
+    PEMDMultiwfn(resp_dir).resp_run_local(method)
 
-    # 使用importlib.resources获取脚本路径
-    with resources.path("PEMD.analysis", "calcRESP.sh") as script_path:
-        for i in range(5):   # only calculate the first 5 conformers
-            if method == 'resp':
-                command = ["bash", str(script_path), f"SP_gas_conf_{i}.fchk"]
-            elif method == 'resp2':
-                command = ["bash", str(script_path), f"SP_gas_conf_{i}.fchk", f"SP_solv_conf_{i}.fchk"]
-            else:
-                raise ValueError("Unsupported method. Please choose 'resp' or 'resp2'.")
+def calculate_average_charges(resp_dir, method='resp2', delta=0.5):
+    # Read charges data of solvation state.
+    solv_chg_df = pd.DataFrame()
+    solv_chg_files = glob.glob(os.path.join(resp_dir, 'SP_solv_conf*.chg'))
+    # Calculate average charges of solvation state.
+    for file in solv_chg_files:
+        data = pd.read_csv(file, delim_whitespace=True, names=['Atom', 'X', 'Y', 'Z', 'Charge'])
+        data['Position'] = data.index
+        solv_chg_df = pd.concat([solv_chg_df, data], ignore_index=True)
+    average_charges_solv = solv_chg_df.groupby('Position')['Charge'].mean().reset_index()
 
-            # 使用subprocess模块调用脚本
-            process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # If using RESP2 method, calculate weighted charge of both solvation and gas states.
+    if method == 'resp2':
+        # Read charges data of gas state.
+        gas_chg_df = pd.DataFrame()
+        gas_chg_files = glob.glob(os.path.join(resp_dir, 'SP_gas_conf*.chg'))
+        # Calculate average charges of gas state.
+        for file in gas_chg_files:
+            data = pd.read_csv(file, delim_whitespace=True, names=['Atom', 'X', 'Y', 'Z', 'Charge'])
+            data['Position'] = data.index
+            gas_chg_df = pd.concat([gas_chg_df, data], ignore_index=True)
+        average_charges_gas = gas_chg_df.groupby('Position')['Charge'].mean().reset_index()
+        # Combine the average charges of solvation and gas states, calculated by weight.
+        average_charges = average_charges_solv.copy()
+        average_charges['Charge'] = average_charges_solv['Charge'] * delta + average_charges_gas['Charge'] * (1 - delta)
+    else:
+        # If using RESP method, just calculate average charges of solvation state.
+        average_charges = average_charges_solv
 
-            # 输出命令执行结果
-            if process.returncode == 0:
-                print(f"RESP fitting for the {i + 1}-th structure has been successfully completed.")
-            else:
-                print(f"RESP fitting for the {i + 1}-th structure failed : {process.stderr}")
+    # Extract atomic types and add to the results.
+    reference_file = solv_chg_files[0]
+    ref_data = pd.read_csv(reference_file, delim_whitespace=True, names=['Atom', 'X', 'Y', 'Z', 'Charge'])
+    atom_types = ref_data['Atom']
+    average_charges['Atom'] = atom_types.values
+    average_charges = average_charges[['Atom', 'Charge']]
 
-            if method == 'resp':
-                with open('SP_solv.chg', 'r') as file:
-                    lines = file.readlines()
-            elif method == 'resp2':
-                with open('RESP2.chg', 'r') as file:
-                    lines = file.readlines()
+    # Save to csv file.
+    csv_filepath = os.path.join(resp_dir, f'{method}_average_chg.csv')
+    average_charges.to_csv(csv_filepath, index=False)
 
-            # 第一次循环时读取原子和电荷，后续只更新电荷
-            if i == 0:
-                data = []
-                for line in lines:
-                    parts = line.split()
-                    if len(parts) == 5:  # 假设格式为：Atom X Y Z Charge
-                        atom_name = parts[0]
-                        charge = float(parts[-1])
-                        data.append((atom_name, charge))
-
-                resp_chg_df = pd.DataFrame(data, columns=['atom', f'charge_{i}'])
-            else:
-                charges = []
-                for line in lines:
-                    parts = line.split()
-                    if len(parts) == 5:
-                        charge = float(parts[-1])
-                        charges.append(charge)
-
-                # 将新的电荷数据添加为DataFrame的新列
-                resp_chg_df[f'charge_{i}'] = charges
-
-    # 计算所有charge列的平均值，并将结果存储在新列'charge'中
-    charge_columns = [col for col in resp_chg_df.columns if 'charge' in col]
-    resp_chg_df['charge'] = resp_chg_df[charge_columns].mean(axis=1)
-    # 删除原始的charge列
-    resp_chg_df.drop(columns=charge_columns, inplace=True)
-
-    os.chdir(current_path)
-
-    # to csv file
-    csv_filepath = os.path.join(resp_dir, f'{method}_chg.csv')
-    resp_chg_df.to_csv(csv_filepath, index=False)
-
-    return resp_chg_df
-
+    return average_charges
 
 def apply_chg_topoly(model_info, out_dir, end_repeating=2, method='resp2', target_sum_chg=0):
 

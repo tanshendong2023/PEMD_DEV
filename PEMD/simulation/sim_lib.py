@@ -17,6 +17,7 @@ from simple_slurm import Slurm
 from PEMD.model import model_lib
 import PEMD.model.MD_lib as MDlib
 from pysimm import system, lmps, forcefield
+import shutil
 
 # OpenBabel setup
 obConversion = ob.OBConversion()
@@ -39,24 +40,28 @@ def get_slurm_job_status(job_id):
     else:
         return 'RUNNING'
 
-# Modified order_energy_xtb function
 def order_energy_xtb(work_dir, xyz_file, numconf):
-
+    # Path of sorted_xtb_file
     sorted_xtb_file = os.path.join(work_dir, f'sorted_xtb_top{numconf}.xyz')
-
     structures = []
     current_structure = []
 
+    # Extract energy and structures from "merged_xtb.xyz" file.
     with open(xyz_file, 'r') as file:
         for line in file:
             line = line.strip()
+            # Checks whether the string line consists solely of digits, which is the sign of the beginning of a new structure
             if line.isdigit():
+                # Checks whether the current_structure is empty.
                 if current_structure:
                     if len(current_structure) >= 2:
+                        # The second line contains energy of this structure.
                         energy_line = current_structure[1]
                         try:
+                            # Use regular expression to find the first numeric value in energy_line.
                             energy_match = re.search(r"[-+]?\d*\.\d+|\d+", energy_line)
                             if energy_match:
+                                # Extract energy values and convert them into floating-point numbers
                                 energy = float(energy_match.group())
                             else:
                                 raise ValueError("No numeric value found")
@@ -67,11 +72,12 @@ def order_energy_xtb(work_dir, xyz_file, numconf):
                     else:
                         print("Malformed structure encountered.")
                     current_structure = []
+                # If the current_structure is empty, adds its contents continually.
                 current_structure.append(line)
             else:
                 current_structure.append(line)
 
-    # 处理最后一个结构
+    # Process the last structure.
     if current_structure:
         if len(current_structure) >= 2:
             energy_line = current_structure[1]
@@ -88,13 +94,12 @@ def order_energy_xtb(work_dir, xyz_file, numconf):
         else:
             print("Malformed structure encountered.")
 
-    # 根据能量排序
+    # Sort structures by energy.
     structures.sort(key=lambda x: x[0])
-
-    # 选择最低能量的结构
+    # Select numconf structures with the lowest energy.
     selected_structures = structures[:numconf]
 
-    # 写入到输出文件
+    # Write to output file.
     with open(sorted_xtb_file, 'w') as outfile:
         for energy, structure in selected_structures:
             for line_num, line in enumerate(structure):
@@ -102,21 +107,21 @@ def order_energy_xtb(work_dir, xyz_file, numconf):
                     outfile.write(f"Energy = {energy}\n")
                 else:
                     outfile.write(f"{line}\n")
+    print(f"The {numconf} structures with lowest energy have been written to {sorted_xtb_file}")
 
-    print(f"The lowest {numconf} energy structures have been written to {sorted_xtb_file}")
-    # return sorted_xtb_file
-
-# input: a xyz file
-# output: a list store the xyz structure
-# Description: read the xyz file and store the structure in a list
 def read_xyz_file(file_path):
+    """
+    input: a xyz file
+    output: a list store the xyz structures
+    Description: read the xyz file and store its structure in a list
+    """
     structures = []
     with open(file_path, 'r') as f:
         lines = f.readlines()
     i = 0
     while i < len(lines):
         num_atoms_line = lines[i].strip()
-        if num_atoms_line.isdigit():
+        if num_atoms_line.isdigit(): # Obtain the number of atoms in each structure.
             num_atoms = int(num_atoms_line)
             comment_line = lines[i + 1].strip()
             atoms = []
@@ -164,7 +169,7 @@ def submit_job_to_slurm(command, job_name, node, core, mem, gaussian_dir, file, 
 
 def read_energy_from_gaussian(log_file_path):
     """
-    从 Gaussian 输出文件中读取能量（自由能）
+    Read energy (free energy) from Gaussian output file.
     """
     with open(log_file_path, 'r') as file:
         lines = file.readlines()
@@ -175,26 +180,27 @@ def read_energy_from_gaussian(log_file_path):
     return energy
 
 def read_final_structure_from_gaussian(log_file_path):
+    # Read final structure after Gaussian optimization.
     if not os.path.exists(log_file_path):
         print(f"File not found: {log_file_path}")
         return None
 
     with open(log_file_path, 'r') as file:
         lines = file.readlines()
-
     start_idx = None
     end_idx = None
 
     for i, line in enumerate(lines):
         if 'Standard orientation:' in line:
-            start_idx = i + 5  # 坐标数据从 'Standard orientation:' 后的第5行开始
-            # 从 start_idx 开始寻找结束的分隔线
+            start_idx = i + 5  # Coordinate data starts from the 5th line after 'Standard orientation:'.
+            # Starting from start_idx, search for the dividing line that ends.
             for j in range(start_idx, len(lines)):
                 if '---------------------------------------------------------------------' in lines[j]:
                     end_idx = j
-                    break  # 找到当前块的结束位置
-    # 循环结束后，start_idx 和 end_idx 对应最后一个 'Standard orientation:' 块
+                    break  # Find the end position of the current structure.
 
+    # After the loop ends, start_idx and end_idx correspond to the last 'Standard orientation:' block.
+    # Extract coordinates of optimized structure.
     if start_idx is not None and end_idx is not None and start_idx < end_idx:
         atoms = []
         for line in lines[start_idx:end_idx]:
@@ -206,17 +212,17 @@ def read_final_structure_from_gaussian(log_file_path):
                 atoms.append(f"{atom_symbol}   {x}   {y}   {z}")
         return atoms
 
+    # If atomic coordinates are not found, print prompt.
     print(f"No valid atomic coordinates found between lines {start_idx} and {end_idx}")
     return None
 
 def order_energy_gaussian(work_dir, numconf):
-
+    # Path of Gaussian log file.
     gaussian_dir = os.path.join(work_dir, 'conformer_search', 'gaussian_work')
-    os.makedirs(gaussian_dir, exist_ok=True)
-
     data = []
     file_pattern = re.compile(r'^conf_\d+\.log$')
-    # Traverse all files in the specified folder
+
+    # Traverse all files in the specified folder and extract their energy and coordinates.
     for file in os.listdir(gaussian_dir):
         if file_pattern.match(file):
             log_file_path = os.path.join(gaussian_dir, file)
@@ -225,21 +231,21 @@ def order_energy_gaussian(work_dir, numconf):
             if energy is not None and atoms is not None:
                 data.append({"Energy": energy, "Atoms": atoms})
 
-    # Check if data is not empty
-    output_file=f"sorted_gaussian_top{numconf}.xyz"
+    # Write to output file.
+    sorted_gaussian_file = os.path.join(work_dir, f"sorted_gaussian_top{numconf}.xyz")
     if data:
         # Sort the structures by energy
         sorted_data = sorted(data, key=lambda x: x['Energy'])
         selected_data = sorted_data[:numconf]
-        # Write the sorted structures to an .xyz file
-        with open(output_file, 'w') as outfile:
+        # Write the sorted structures with their number of atoms and energy to an .xyz file
+        with open(sorted_gaussian_file, 'w') as outfile:
             for item in selected_data:
                 num_atoms = len(item['Atoms'])
                 outfile.write(f"{num_atoms}\n")
                 outfile.write(f"Energy = {item['Energy']}\n")
                 for atom_line in item['Atoms']:
                     outfile.write(f"{atom_line}\n")
-        print(f"The lowest {numconf} energy structures have been saved to {output_file}")
+        print(f"The {numconf} structures with lowest energy have been written to {sorted_gaussian_file}")
     else:
         print(f"No successful Gaussian output files found in {gaussian_dir}")
 
@@ -349,3 +355,20 @@ def relax_polymer_lmp(unit_name, length, relax_polymer_lmp_dir, core):
             print("polymer relax not finish, waiting...")
             time.sleep(10)
 
+
+def build_directory(dir_path):
+    """
+    Clears all files and subdirectories in the specified directory.
+    If the directory does not exist, it creates it.
+
+    Args:
+        dir_path (str): The path of the directory to clear and create.
+    """
+    if os.path.exists(dir_path):
+        for filename in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+    os.makedirs(dir_path, exist_ok=True)

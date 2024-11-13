@@ -621,7 +621,7 @@ def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
         file.writelines(extracted_lines)
 
 def mol_to_xyz(mol, conf_id, filename):
-    """将RDKit分子对象的构象保存为XYZ格式文件"""
+    # Save the conformation of RDKit molecular objects as an XYZ format file
     xyz = Chem.MolToXYZBlock(mol, confId=conf_id)
     with open(filename, 'w') as f:
         f.write(xyz)
@@ -674,7 +674,7 @@ def log_to_xyz(log_file_path, xyz_file_path):
 
 
 def convert_chk_to_fchk(chk_file_path):
-
+    # Convert chk file to fchk file.
     fchk_file_path = chk_file_path.replace('.chk', '.fchk')
 
     try:
