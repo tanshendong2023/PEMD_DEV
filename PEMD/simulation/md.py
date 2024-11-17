@@ -8,183 +8,167 @@ Date: 2024.03.26
 
 import os
 import time
-import shutil
-import subprocess
-import parmed as pmd
-from PEMD.simulation import qm
 from foyer import Forcefield
 from simple_slurm import Slurm
-from LigParGenPEMD import Converter
-from PEMD.model import model_lib, build
 from PEMD.simulation import sim_lib
-import importlib.resources as pkg_resources
+from PEMD.model import model_lib, build
+from PEMD.simulation.lammps import PEMDLAMMPS
+from PEMD.core.forcefields import Forcefield
+from PEMD.simulation.gromacs import PEMDGROMACS
 
 
-def gen_poly_gmx_oplsaa(
-        poly_name,
-        poly_resname,
-        scaling_factor,
-        charge,
-        length,
+def relax_poly_chain(
+        work_dir,
+        pdb_file,
+        core,
+        atom_typing
 ):
 
-    current_path = os.getcwd()
-    MD_dir = os.path.join(current_path, 'MD_dir')
+    file_prefix, file_extension = os.path.splitext(pdb_file)
+    relax_dir = os.path.join(work_dir, 'relax_polymer_lmp')
+    os.makedirs(relax_dir, exist_ok=True)
+
+    Forcefield.get_gaff2(
+        relax_dir,
+        pdb_file,
+        atom_typing
+    )
+
+    lmp = PEMDLAMMPS(
+        relax_dir,
+        core,
+    )
+
+    lmp.generate_input_file(
+        file_prefix
+    )
+
+    lmp.run_local()
+
+    return sim_lib.lmptoxyz(
+        relax_dir,
+        pdb_file,
+    )
+
+def anneal_amorph_poly(
+        work_dir,
+        molecules,
+        temperature,
+        T_high_increase,
+        anneal_rate,
+        anneal_npoints,
+        packmol_pdb,
+        density,
+        add_length,
+):
+    MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
-    files_to_check = [
-        ("pdb", f"{poly_name}.pdb"),
-        ("itp", f"{poly_name}_bonded.itp"),
-        ("itp", f"{poly_name}_nonbonded.itp")
-    ]
+    gmx = PEMDGROMACS(
+        MD_dir,
+        molecules,
+        temperature,
+    )
 
-    copied_any_file = False  # Flag to check if any file was successfully copied
-    # 使用importlib.resources检查和复制文件
-    for folder, filename in files_to_check:
-        package_path = f'PEMD.forcefields.{folder}'
-        if pkg_resources.is_resource(package_path, filename):
-            with pkg_resources.path(package_path, filename) as src_path:
-                dest_path = os.path.join(MD_dir, filename)
-                shutil.copy(str(src_path), dest_path)
-                print(f"Copied {filename} to MD_dir successfully.")
-                copied_any_file = True
-        else:
-            print(f"File {filename} does not exist in {package_path}.")
+    gmx.gen_top_file(
+        top_filename = 'topol.top'
+    )
 
-    if copied_any_file:
-        itp_filename = os.path.join(MD_dir, f"{poly_name}_bonded.itp")
-        qm.scale_chg_itp(poly_name, itp_filename, scaling_factor, charge)
-        print("Scale charge successfully.")
-    else:
-        desc_dir = os.path.join(current_path, f'{poly_name}_N{length}')
-        relax_polymer_lmp_dir = os.path.join(desc_dir, 'relax_polymer_lmp')
-        os.makedirs(relax_polymer_lmp_dir, exist_ok=True)
+    gmx.gen_em_mdp_file(
+        filename = 'em.mdp'
+    )
 
-        file_base = f'{poly_name}_N{length}'
-        xyz_filename = os.path.join(relax_polymer_lmp_dir, f"{file_base}_gmx.xyz")
-        pdb_filename = os.path.join(relax_polymer_lmp_dir, f"{file_base}_gmx.pdb")
-        mol2_filename = os.path.join(relax_polymer_lmp_dir, f"{file_base}_gmx.mol2")
+    gmx.gen_nvt_mdp_file(
+        filename = 'nvt.mdp'
+    )
 
-        model_lib.convert_xyz_to_pdb(xyz_filename, pdb_filename, poly_name, poly_resname)
-        model_lib.convert_xyz_to_mol2(xyz_filename, mol2_filename, poly_name, poly_resname)
+    gmx.gen_npt_anneal_mdp_file(
+        T_high_increase,
+        anneal_rate,
+        anneal_npoints,
+        filename = 'npt_anneal.mdp'
+    )
 
-        untyped_str = pmd.load_file(mol2_filename, structure=True)
-        with pkg_resources.path("PEMD.forcefields", "oplsaa.xml") as oplsaa_path:
-            oplsaa = Forcefield(forcefield_files=str(oplsaa_path))
-        typed_str = oplsaa.apply(untyped_str)
+    gmx.gen_npt_mdp_file(
+        filename = 'npt_eq.mdp'
+    )
 
-        top_filename = os.path.join(MD_dir, f"{file_base}.top")
-        gro_filename = os.path.join(MD_dir, f"{file_base}.gro")
-        typed_str.save(top_filename)
-        typed_str.save(gro_filename)
+    gmx.commands_pdbtogro(
+        packmol_pdb,
+        density,
+        add_length
+    ).run_local()
 
-        shutil.copyfile(pdb_filename, os.path.join(MD_dir, f'{poly_name}.pdb'))
+    gmx.commands_em(
+        input_gro = 'conf.gro'
+    ).run_local()
 
-        nonbonditp_filename = os.path.join(MD_dir, f'{poly_name}_nonbonded.itp')
-        bonditp_filename = os.path.join(MD_dir, f'{poly_name}_bonded.itp')
+    gmx.commands_nvt(
+        input_gro = 'em.gro'
+    ).run_local()
 
-        model_lib.extract_from_top(top_filename, nonbonditp_filename, nonbonded=True, bonded=False)
-        model_lib.extract_from_top(top_filename, bonditp_filename, nonbonded=False, bonded=True)
+    gmx.commands_npt_anneal(
+        input_gro = 'nvt.gro'
+    ).run_local()
 
-        os.remove(top_filename)
-        os.remove(gro_filename)
+    gmx.commands_npt(
+        input_gro = 'npt_anneal.gro'
+    ).run_local()
 
-        return nonbonditp_filename, bonditp_filename
+    gmx.commands_extract_volume(
+        edr_file = 'npt_eq.edr',
+        output_file = 'volume.xvg'
+    ).run_local()
 
+    volumes_path = os.path.join(MD_dir, 'volume.xvg')
+    volumes = model_lib.read_volume_data(volumes_path)
 
-def gen_ff_from_smiles(poly_name, poly_resname, smiles):
-    """
-    Generate PDB and parameter files from SMILES using external tools.
-    """
-    print({poly_name}, ": Generating OPLS parameter file ...")
+    (
+        average_volume,
+        frame_time
+     ) = model_lib.analyze_volume(
+        volumes,
+        start=4000,
+        dt_collection=5
+    )
 
-    current_path = os.getcwd()
-    MD_dir = os.path.join(current_path, 'MD_dir')
+    gmx.commands_extract_structure(
+        tpr_file = 'npt_eq.tpr',
+        xtc_file = 'npt_eq.xtc',
+        save_gro_file = f'pre_eq.gro',
+        frame_time = frame_time
+    ).run_locol()
 
-    try:
-        Converter.convert(smiles=smiles,
-                          resname=poly_resname,
-                          charge=0,
-                          opt=0,
-                          outdir=MD_dir,)
-        print(poly_name, ": OPLS parameter file generated.")
-        os.rename('plt.pdb', f"{poly_name}.pdb")
-    except Exception as e:  # Using Exception here to catch all possible exceptions
-        print(f"Problem running LigParGen for {poly_name}: {e}")
+def run_gmx_prod(
+        work_dir,
+        molecules,
+        temperature,
+        nstep_ns,
+):
 
-    os.chdir(current_path)
+    MD_dir = os.path.join(work_dir, 'MD_dir')
+    os.makedirs(MD_dir, exist_ok=True)
 
+    gmx = PEMDGROMACS(
+        MD_dir,
+        molecules,
+        temperature,
+    )
 
-def process_compound(compound_key, model_info, data_ff, out_dir, epsilon):
+    # generation nvt production mdp file, 200ns
+    nstep = int(nstep_ns*1000000)   # ns to fs
+    gmx.gen_nvt_mdp_file(
+        nsteps_nvt = nstep,
+        filename = 'nvt_prod.mdp',
+    )
 
-    current_path = os.getcwd()
-    MD_dir = os.path.join(current_path, out_dir)
-    if compound_key in model_info:
-        compound_info = model_info[compound_key]
-        compound_name = compound_info['compound']
-        if compound_name in data_ff:
-            files_to_copy = [
-                f"pdb/{compound_name}.pdb",
-                f"itp/{compound_name}_bonded.itp",
-                f"itp/{compound_name}_nonbonded.itp"
-            ]
-            for file_path in files_to_copy:
-                try:
-                    resource_dir = pkg_resources.files('PEMD.forcefields')
-                    resource_path = resource_dir.joinpath(file_path)
-                    os.makedirs(MD_dir, exist_ok=True)
-                    shutil.copy(str(resource_path), MD_dir)
-                    print(f"Copied {file_path} to {out_dir} successfully.")
-                except Exception as e:
-                    print(f"Failed to copy {file_path}: {e}")
+    gmx.commands_nvt(
+        input_gro = 'pre_eq.gro',
+    ).run_local()
 
-            corr_factor = compound_info['scale']
-            target_sum_chg = compound_info['charge']
-            filename = os.path.join(MD_dir, f"{compound_name}_bonded.itp")
-            qm.scale_chg_itp(compound_name, out_dir, filename, corr_factor, target_sum_chg)
-            print(f"scale charge successfully.")
-
-        else:
-            smiles = compound_info['smiles']
-            corr_factor =  compound_info['scale']
-            structures = qm.conformer_search_xtb(model_info, smiles, epsilon, core=32, polymer=False, work_dir=out_dir,
-                                                 max_conformers=1000, top_n_MMFF=100, top_n_xtb=10, )
-
-            sorted_df = qm.conformer_search_gaussian(structures, model_info, polymer=False, work_dir=out_dir,
-                                                     core = 32, memory= '64GB', function='B3LYP', basis_set='6-311+g(d,p)',
-                                                     dispersion_corr='em=GD3BJ', )
-
-            qm.calc_resp_gaussian(sorted_df, model_info, epsilon, epsinf=2.1, polymer=False, work_dir=out_dir,
-                                  numconf=5, core=32, memory='64GB', method='resp2', )
-
-            print(f"Resp charge fitting for small moelcule successfully.")
-
-            gen_ff_from_smiles(compound_info, out_dir)
-            top_filename = os.path.join(MD_dir, f"{compound_name}.itp")
-            nonbonditp_filename = os.path.join(MD_dir, f'{compound_name}_nonbonded.itp')
-            bonditp_filename = os.path.join(MD_dir, f'{compound_name}_bonded.itp')
-            model_lib.extract_from_top(top_filename, nonbonditp_filename, nonbonded=True, bonded=False)
-            model_lib.extract_from_top(top_filename, bonditp_filename, nonbonded=False, bonded=True)
-            print(f"{compound_key} generated from SMILES by ligpargen successfully.")
-
-            qm.apply_chg_tomole(compound_name, out_dir, corr_factor, method='resp2', target_sum_chg=0, )
-            print("apply charge to molecule force field successfully.")
-    else:
-        print(f"{compound_key} not found in model_info.")
-
-
-def gen_oplsaa_ff_molecule(model_info, out_dir, epsilon):
-
-    current_path = os.getcwd()
-    MD_dir = os.path.join(current_path, out_dir)
-    os.makedirs(MD_dir, exist_ok=True)  # Ensure the directory exists
-    data_ff = ['Li', 'TFSI','SN','BMIM', 'EMIM', 'FSI', 'NO3']
-
-    # Process each type of compound if present in model_info
-
-    keys_list = [key for key in model_info.keys() if key != 'polymer']
-    for compound_key in keys_list:
-        process_compound(compound_key, model_info, data_ff, out_dir, epsilon)
+    gmx.commands_wraptounwrap(
+        output_str = 'nvt_prod'
+    ).run_local()
 
 
 def pre_run_gmx(model_info, density, add_length, out_dir, packout_name, core, partition, T_target,
@@ -205,14 +189,6 @@ def pre_run_gmx(model_info, density, add_length, out_dir, packout_name, core, pa
 
     pdb_files = []
     for com in compounds:
-        # if com == model_info['polymer']['compound']:
-        #     ff_dir = os.path.join(current_path, f'{unit_name}_N{length}', 'ff_dir')
-        #     filepath = os.path.join(ff_dir, f"{com}.pdb")
-        #     nonbonditp_filepath = os.path.join(ff_dir, f'{com}_nonbonded.itp')
-        #     bonditp_filepath = os.path.join(ff_dir, f'{com}_bonded.itp')
-        #     shutil.copy(nonbonditp_filepath, MD_dir)
-        #     shutil.copy(bonditp_filepath, MD_dir)
-        # else:
         filepath = os.path.join(MD_dir, f"{com}.pdb")
         pdb_files.append(filepath)
 
@@ -456,291 +432,7 @@ def run_gmx_tg(out_dir, input_str, out_str, partition,top_filename='topol.top', 
             time.sleep(10)
 
 
-# Define a function to execute commands and capture output
-def run_command(command, input_text=None, output_file=None):
-    # 确保命令是字符串列表
-    if isinstance(command, str):
-        command = command.split()
 
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, text=True) as process:
-        stdout, stderr = process.communicate(input=input_text)
-
-    if output_file and stdout:
-        with open(output_file, 'w') as file:
-            file.write(stdout)
-
-    return stdout, stderr
-
-
-# generate top file for MD simulation
-def gen_top_file(compound, resname, numbers, top_filename):
-    file_contents = "; gromcs generation top file\n"
-    file_contents += "; Created by PEMD\n\n"
-
-    file_contents += "[ defaults ]\n"
-    file_contents += ";nbfunc  comb-rule   gen-pairs   fudgeLJ  fudgeQQ\n"
-    file_contents += "1        3           yes         0.5      0.5\n\n"
-
-    file_contents += ";LOAD atomtypes\n"
-    file_contents += "[ atomtypes ]\n"
-
-    for com in compound:
-        file_contents += f'#include "{com}_nonbonded.itp"\n'
-    file_contents += "\n"
-    for com in compound:
-        file_contents += f'#include "{com}_bonded.itp"\n'
-    file_contents += "\n"
-
-    file_contents += "[ system ]\n"
-    file_contents += ";name "
-    for i in compound:
-        file_contents += f"{i}"
-
-    file_contents += "\n\n"
-
-    file_contents += "[ molecules ]\n"
-    for com, num in zip(resname, numbers):
-        file_contents += f"{com} {num}\n"
-
-    file_contents += "\n"
-
-    # write to file
-    with open(top_filename, 'w') as file:
-        file.write(file_contents)
-    print(f"Top file generation successful：{top_filename}")
-
-
-# generation minimization mdp file
-def gen_min_mdp_file(file_name = 'em.mdp'):
-    file_contents = "; em.mdp - used as input into grompp to generate em.tpr\n"
-    file_contents += "; Created by PEMD\n\n"
-
-    file_contents += "integrator      = steep\n"
-    file_contents += "nsteps          = 50000\n"
-    file_contents += "emtol           = 1000.0\n"
-    file_contents += "emstep          = 0.01\n\n"
-
-    file_contents += ("; Parameters describing how to find the neighbors of each atom and how to calculate the "
-                      "interactions\n")
-    file_contents += "nstlist         = 1\n"
-    file_contents += "cutoff-scheme   = Verlet\n"
-    file_contents += "ns_type         = grid\n"
-    file_contents += "rlist           = 1.0\n"
-    file_contents += "coulombtype     = PME\n"
-    file_contents += "rcoulomb        = 1.0\n"
-    file_contents += "rvdw            = 1.0\n"
-    file_contents += "pbc             = xyz\n"
-
-    file_contents += "; output control is on\n"
-    file_contents += "energygrps      = System\n"
-
-    # write to file
-    with open(file_name, 'w') as file:
-        file.write(file_contents)
-    print(f"Minimization mdp file generation successful：{file_name}")
-
-
-# generation nvt mdp file
-def gen_nvt_mdp_file(nsteps_nvt, nvt_temperature, file_name = 'nvt.mdp', ):
-    file_contents = "; nvt.mdp - used as input into grompp to generate nvt.tpr\n"
-    file_contents += "; Created by PEMD\n\n"
-
-    file_contents += "; RUN CONTROL PARAMETERS\n"
-    file_contents += "integrator            = md\n"
-    file_contents += "dt                    = 0.001 \n"
-    file_contents += f"nsteps                = {nsteps_nvt}\n"
-    file_contents += "comm-mode             = Linear\n\n"
-
-    file_contents += "; OUTPUT CONTROL OPTIONS\n"
-    file_contents += "nstxout               = 5000\n"
-    file_contents += "nstvout               = 5000\n"
-    file_contents += "nstfout               = 5000\n"
-    file_contents += "nstlog                = 5000\n"
-    file_contents += "nstenergy             = 5000\n"
-    file_contents += "nstxout-compressed    = 5000\n\n"
-
-    file_contents += "; NEIGHBORSEARCHING PARAMETERS\n"
-    file_contents += "cutoff-scheme         = verlet\n"
-    file_contents += "ns_type               = grid\n"
-    file_contents += "nstlist               = 20\n"
-    file_contents += "rlist                 = 1.4\n"
-    file_contents += "rcoulomb              = 1.4\n"
-    file_contents += "rvdw                  = 1.4\n"
-    file_contents += "verlet-buffer-tolerance = 0.005\n\n"
-
-    file_contents += "; OPTIONS FOR ELECTROSTATICS AND VDW\n"
-    file_contents += "coulombtype           = PME\n"
-    file_contents += "vdw_type              = PME\n"
-    file_contents += "fourierspacing        = 0.15\n"
-    file_contents += "pme_order             = 4\n"
-    file_contents += "ewald_rtol            = 1e-05\n\n"
-
-    file_contents += "; OPTIONS FOR WEAK COUPLING ALGORITHMS\n"
-    file_contents += "tcoupl                = v-rescale\n"
-    file_contents += "tc-grps               = System\n"
-    file_contents += "tau_t                 = 1.0\n"
-    file_contents += f"ref_t                 = {nvt_temperature}\n"
-    file_contents += "Pcoupl                = no\n"
-    file_contents += "Pcoupltype            = isotropic\n"
-    file_contents += "tau_p                 = 1.0\n"
-    file_contents += "compressibility       = 4.5e-5\n"
-    file_contents += "ref_p                 = 1.0\n\n"
-
-    file_contents += "; GENERATE VELOCITIES FOR STARTUP RUN\n"
-    file_contents += "gen_vel               = no\n\n"
-
-    file_contents += "; OPTIONS FOR BONDS\n"
-    file_contents += "constraints           = hbonds\n"
-    file_contents += "constraint_algorithm  = lincs\n"
-    file_contents += "unconstrained_start   = no\n"
-    file_contents += "shake_tol             = 0.00001\n"
-    file_contents += "lincs_order           = 4\n"
-    file_contents += "lincs_warnangle       = 30\n"
-    file_contents += "morse                 = no\n"
-    file_contents += "lincs_iter            = 2\n"
-
-    # write to file
-    with open(file_name, 'w') as file:
-        file.write(file_contents)
-    print(f"NVT mdp file generation successful：{file_name}")
-
-
-# generation npt mdp file
-def gen_npt_mdp_file(nsteps_npt, npt_temperature, file_name = 'npt.mdp', ):
-    file_contents = "; npt.mdp - used as input into grompp to generate npt.tpr\n"
-    file_contents += "; Created by PEMD\n\n"
-
-    file_contents += "; RUN CONTROL PARAMETERS\n"
-    file_contents += "integrator            = md\n"
-    file_contents += "dt                    = 0.001 \n"
-    file_contents += f"nsteps                = {nsteps_npt}\n"
-    file_contents += "comm-mode             = Linear\n\n"
-
-    file_contents += "; OUTPUT CONTROL OPTIONS\n"
-    file_contents += "nstxout               = 5000\n"
-    file_contents += "nstvout               = 5000\n"
-    file_contents += "nstfout               = 5000\n"
-    file_contents += "nstlog                = 5000\n"
-    file_contents += "nstenergy             = 5000\n"
-    file_contents += "nstxout-compressed    = 5000\n\n"
-
-    file_contents += "; NEIGHBORSEARCHING PARAMETERS\n"
-    file_contents += "cutoff-scheme         = verlet\n"
-    file_contents += "ns_type               = grid\n"
-    file_contents += "nstlist               = 20\n"
-    file_contents += "rlist                 = 1.4\n"
-    file_contents += "rcoulomb              = 1.4\n"
-    file_contents += "rvdw                  = 1.4\n"
-    file_contents += "verlet-buffer-tolerance = 0.005\n\n"
-
-    file_contents += "; OPTIONS FOR ELECTROSTATICS AND VDW\n"
-    file_contents += "coulombtype           = PME\n"
-    file_contents += "vdw_type              = PME\n"
-    file_contents += "fourierspacing        = 0.15\n"
-    file_contents += "pme_order             = 4\n"
-    file_contents += "ewald_rtol            = 1e-05\n\n"
-
-    file_contents += "; OPTIONS FOR WEAK COUPLING ALGORITHMS\n"
-    file_contents += "tcoupl                = v-rescale\n"
-    file_contents += "tc-grps               = System\n"
-    file_contents += "tau_t                 = 1.0\n"
-    file_contents += f"ref_t                 = {npt_temperature}\n"
-    file_contents += "Pcoupl                = Berendsen\n"
-    file_contents += "Pcoupltype            = isotropic\n"
-    file_contents += "tau_p                 = 1.0\n"
-    file_contents += "compressibility       = 4.5e-5\n"
-    file_contents += "ref_p                 = 1.0\n\n"
-
-    file_contents += "; GENERATE VELOCITIES FOR STARTUP RUN\n"
-    file_contents += "gen_vel               = no\n\n"
-
-    file_contents += "; OPTIONS FOR BONDS\n"
-    file_contents += "constraints           = hbonds\n"
-    file_contents += "constraint_algorithm  = lincs\n"
-    file_contents += "unconstrained_start   = no\n"
-    file_contents += "shake_tol             = 0.00001\n"
-    file_contents += "lincs_order           = 4\n"
-    file_contents += "lincs_warnangle       = 30\n"
-    file_contents += "morse                 = no\n"
-    file_contents += "lincs_iter            = 2\n"
-
-    # write to file
-    with open(file_name, 'w') as file:
-        file.write(file_contents)
-    print(f"NPT mdp file generation successful：{file_name}")
-
-
-# generation npt anneal mdp file
-def gen_npt_anneal_mdp_file(nsteps_annealing, npt_temperature, annealing_npoints, annealing_time, annealing_temp,
-                            file_name):
-
-    file_contents = "; npt_anneal.mdp - used as input into grompp to generate npt_anneal.tpr\n"
-    file_contents += "; Created by PEMD\n\n"
-
-    file_contents += "; RUN CONTROL PARAMETERS\n"
-    file_contents += "integrator            = md\n"
-    file_contents += "dt                    = 0.001 \n"
-    file_contents += f"nsteps                = {nsteps_annealing}\n"
-    file_contents += "comm-mode             = Linear\n\n"
-
-    file_contents += "; OUTPUT CONTROL OPTIONS\n"
-    file_contents += "nstxout               = 5000\n"
-    file_contents += "nstvout               = 5000\n"
-    file_contents += "nstfout               = 5000\n"
-    file_contents += "nstlog                = 5000\n"
-    file_contents += "nstenergy             = 5000\n"
-    file_contents += "nstxout-compressed    = 5000\n\n"
-
-    file_contents += "; NEIGHBORSEARCHING PARAMETERS\n"
-    file_contents += "cutoff-scheme         = verlet\n"
-    file_contents += "ns_type               = grid\n"
-    file_contents += "nstlist               = 20\n"
-    file_contents += "rlist                 = 1.4\n"
-    file_contents += "rcoulomb              = 1.4\n"
-    file_contents += "rvdw                  = 1.4\n"
-    file_contents += "verlet-buffer-tolerance = 0.005\n\n"
-
-    file_contents += "; OPTIONS FOR ELECTROSTATICS AND VDW\n"
-    file_contents += "coulombtype           = PME\n"
-    file_contents += "vdw_type              = PME\n"
-    file_contents += "fourierspacing        = 0.15\n"
-    file_contents += "pme_order             = 4\n"
-    file_contents += "ewald_rtol            = 1e-05\n\n"
-
-    file_contents += "; OPTIONS FOR WEAK COUPLING ALGORITHMS\n"
-    file_contents += "tcoupl                = v-rescale\n"
-    file_contents += "tc-grps               = System\n"
-    file_contents += "tau_t                 = 1.0\n"
-    file_contents += f"ref_t                 = {npt_temperature}\n"
-    file_contents += "Pcoupl                = Berendsen\n"
-    file_contents += "Pcoupltype            = isotropic\n"
-    file_contents += "tau_p                 = 1.0\n"
-    file_contents += "compressibility       = 4.5e-5\n"
-    file_contents += "ref_p                 = 1.0\n\n"
-
-    file_contents += "; Simulated annealing\n"
-    file_contents += "annealing             = single\n"
-    file_contents += f"annealing-npoints     = {annealing_npoints}\n"
-    file_contents += f"annealing-time        = {annealing_time}\n"
-    file_contents += f"annealing-temp        = {annealing_temp}\n\n"
-
-    file_contents += "; GENERATE VELOCITIES FOR STARTUP RUN\n"
-    file_contents += "gen_vel               = no\n\n"
-
-    file_contents += "; OPTIONS FOR BONDS\n"
-    file_contents += "constraints           = hbonds\n"
-    file_contents += "constraint_algorithm  = lincs\n"
-    file_contents += "unconstrained_start   = no\n"
-    file_contents += "shake_tol             = 0.00001\n"
-    file_contents += "lincs_order           = 4\n"
-    file_contents += "lincs_warnangle       = 30\n"
-    file_contents += "morse                 = no\n"
-    file_contents += "lincs_iter            = 2\n"
-
-    # write to file
-    with open(file_name, 'w') as file:
-        file.write(file_contents)
-    print(f"NPT anneal mdp file generation successful：{file_name}")
 
 
 

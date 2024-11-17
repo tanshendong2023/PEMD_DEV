@@ -3,7 +3,7 @@
      are imported from the gromacs atomtypes file at
      https://github.com/gromacs/gromacs/blob/aa66efd3179a671aace62b827c54aadc3d89c1ee/share/top/oplsaa.ff/atomtypes.atp
 -->
-<ForceField name="OPLS-AA" version="0.0.3" combining_rule="geometric">
+<ForceField name="OPLS-AA" version="1.0.1" combining_rule="geometric">
 
  <AtomTypes>
   <Type name="opls_001" class="opls_001" element="C" mass="12.011"/>
@@ -180,10 +180,10 @@
   <Type name="opls_174" class="opls_174" element="C" mass="12.011"/>
   <Type name="opls_175" class="opls_175" element="C" mass="12.011"/>
   <Type name="opls_176" class="opls_176" element="H" mass="1.008"/>
-  <Type name="opls_178" class="opls_178" element="C" mass="12.011"/>
+  <Type name="opls_178" class="CT" element="C" mass="12.011" def="[C;X4](O)(O)(H)(H)" desc="O, dialkyl ether" doi="10.1021/ja9621760"/>
   <Type name="opls_179" class="opls_179" element="O" mass="15.9994"/>
   <Type name="opls_180" class="OS" element="O" mass="15.9994"  def="[O;X2](C)C" desc="O, dialkyl ether" doi="10.1021/ja9621760"/>
-  <Type name="opls_181" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)H" desc="C(H3OR), methyl ether" overrides="opls_182" doi="10.1021/ja9621760"/>
+  <Type name="opls_181" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)H" desc="C(H3OR), methyl ether" doi="10.1021/ja9621760"/>
   <Type name="opls_182" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)C" desc="C(H2OR), methyl ether" doi="10.1021/ja9621760"/>
   <Type name="opls_183" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)H" desc = "Central Carbon in Isopropyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
   <Type name="opls_184" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)(C)" desc = "Central Carbon in t-butyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
@@ -833,7 +833,7 @@
   <Type name="opls_960" class="opls_960" element="C" mass="12.011"/>
   <Type name="opls_961" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)(F)*" desc="perfluoroalkane CF3" overrides="opls_962" doi="10.1021/jp004071w"/>
   <Type name="opls_962" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)(*)*" desc="perfluoroalkane CF2" doi="10.1021/jp004071w"/>
-  <Type name="opls_963" class="opls_963" element="C" mass="12.011"/>
+  <Type name="opls_963" class="CT" element="C" mass="12.01100" def="[C;X4](H)(F)(*)*" desc="perfluoroalkane CHF"/>
   <Type name="opls_964" class="opls_964" element="C" mass="12.011"/>
   <Type name="opls_965" class="F" element="F" mass="18.9984" def="FC" desc="perfluoroalkane F" doi="10.1021/jp004071w"/>
   <Type name="MNH3" class="MNH3" mass="0.0"/>
@@ -1558,6 +1558,7 @@
   <Angle class1="CT" class2="CM" class3="C=" angle="2.16420827247" k="585.76"/>
   <Angle class1="CM" class2="CT" class3="CM" angle="1.96175007924" k="527.184"/>
   <Angle class1="CM" class2="CT" class3="OS" angle="2.09439510239" k="585.76"/>
+  <Angle class1="CT" class2="CT" class3="OS" angle="1.911136" k="418.400000"/>
   <Angle class1="CM" class2="CT" class3="OH" angle="1.91113553093" k="418.4"/>
   <Angle class1="CM" class2="CM" class3="HC" angle="2.09439510239" k="292.88"/>
   <Angle class1="CM" class2="CM" class3="H4" angle="2.08915911464" k="292.88"/>
@@ -1876,6 +1877,7 @@
   <Angle class1="O" class2="C" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="O" class2="C_2" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="OS" class2="C_2" class3="OS" angle="2.062630" k="584.923200"/>
+  <Angle class1="OS" class2="CT" class3="OS" angle="1.946915" k="502.080000"/>
   <Angle class1="O_2" class2="C_2" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="C" class2="OS" class3="CT" angle="2.04028989558" k="694.544"/>
   <Angle class1="C_2" class2="OS" class3="CT" angle="2.04028989558" k="694.544"/>
@@ -1965,6 +1967,7 @@
   <Angle class1="CT_4" class2="CT" class3="F" angle="1.91113553093" k="418.4"/>
   <Angle class1="CA" class2="CT" class3="F" angle="1.91113553093" k="418.4"/>
   <Angle class1="F" class2="CT" class3="F" angle="1.90415421393" k="644.336"/>
+  <Angle class1="OS" class2="CT" class3="F" angle="1.92405100000" k="427.939"/> 
   <Angle class1="HC" class2="CT" class3="F" angle="1.86750229963" k="334.72"/>
   <Angle class1="CT" class2="C" class3="C" angle="2.04552588334" k="669.44"/>
   <Angle class1="CT" class2="C" class3="C_2" angle="2.04552588334" k="669.44"/>
@@ -2516,6 +2519,7 @@
   <Proper class1="CY" class2="CY" class3="CT" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
   <Proper class1="CY" class2="CY" class3="CY" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
   <Proper class1="CZ" class2="CT" class3="CT" class4="HC" c0="0.76567" c1="2.29701" c2="0.0" c3="-3.06269" c4="0.0" c5="0.0"/>
+  <Proper class1="CZ" class2="CT" class3="CT" class4="CT" c0="-2.720" c1="0.0" c2="-2.720" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CZ" class2="CZ" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="Cl" class2="C" class3="CT" class4="HC" c0="0.75312" c1="2.25936" c2="0.0" c3="-3.01248" c4="0.0" c5="0.0"/>
   <Proper class1="Cl" class2="CM" class3="CM" class4="Cl" c0="55.2288" c1="3.3472" c2="-58.576" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2528,6 +2532,8 @@
   <Proper class1="F" class2="CT" class3="CT" class4="OH" c0="1.12968" c1="3.38904" c2="0.0" c3="-4.51872" c4="0.0" c5="0.0"/>
   <Proper class1="F" class2="CT" class3="CT_4" class4="HC" c0="0.65689" c1="1.97066" c2="0.0" c3="-2.62755" c4="0.0" c5="0.0"/>
   <Proper class1="F" class2="CT" class3="CT_4" class4="OH" c0="1.12968" c1="3.38904" c2="0.0" c3="-4.51872" c4="0.0" c5="0.0"/>
+  <Proper class1="F" class2="CT" class3="OS" class4="CT" c0="-5.35800" c1="13.61700" c2="8.44300" c3="-16.70300" c4="0.0" c5="0.0"/>
+  <Proper class1="F" class2="CT" class3="CT" class4="OS" c0="1.13000" c1="3.38900" c2="0.0" c3="-4.51900" c4="0.0" c5="0.0"/>  
   <Proper class1="H" class2="N" class3="C" class4="N" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="H" class2="N" class3="C" class4="O" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="H" class2="N" class3="C" class4="HC" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2679,8 +2685,8 @@
   <Proper class1="CA" class2="CA" class3="N" class4="" c0="8.7864" c1="0.0" c2="-8.7864" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CK" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CA" class2="CA" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
-  <Proper class1="NZ" class2="CZ" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
-  <Proper class1="NZ" class2="CZ" class3="CA" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="NZ" class2="CZ" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="NZ" class2="CZ" class3="CT" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="O" class2="C" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C*" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CQ" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>

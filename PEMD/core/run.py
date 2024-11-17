@@ -5,94 +5,185 @@
 # Module Docstring
 # ******************************************************************************
 
-from PEMD.core.model import PEMDModel
-from PEMD.model.build import (
-    gen_poly_smiles,
-    gen_poly_3D,
-)
+import os
+import json
 from PEMD.simulation.qm import (
     gen_conf_rdkit,
     opt_conf_xtb,
     opt_conf_gaussian,
-    calc_resp_gaussian
+    calc_resp_gaussian,
+    RESP_fit_Multiwfn,
 )
-from PEMD.simulation.sim_lib import (
-    order_energy_xtb,
-    order_energy_gaussian,
-    read_xyz_file
-)
-
 from PEMD.simulation.md import (
-    gen_poly_gmx_oplsaa,
+    relax_poly_chain,
+    anneal_amorph_poly,
+    run_gmx_prod
 )
+from PEMD.core.forcefields import Forcefield
 
-class ConformerSearch:
 
-    def __init__(self, work_dir, smiles,):
-        self.work_dir = work_dir
-        self.smiles = smiles
+class QMRun:
 
-    def gen_conf_rdkit(self, max_conformers, top_n_MMFF, ):
+    def __init__(self):
+        self.work_dir = None
+        self.name = None
+        self.smiles = None
 
-        return gen_conf_rdkit(
+    @classmethod
+    def from_json(cls, work_dir, json_file, mol_type='polymer', external_smiles=None):
+        instance = cls()
+        instance.work_dir = work_dir
+
+        json_path = os.path.join(work_dir, json_file)
+        try:
+            with open(json_path, 'r', encoding='utf-8') as file:
+                model_info = json.load(file)
+        except FileNotFoundError:
+            print(f"Error: JSON file {json_file} not found in {work_dir}.")
+            return None
+        except json.JSONDecodeError:
+            print(f"Error: JSON file {json_file} is not a valid JSON.")
+            return None
+
+        data = model_info.get(mol_type)
+        if data is None:
+            print(f"Error: '{mol_type}' section not found in JSON file.")
+            return None
+
+        instance.name = data.get('compound')
+
+        if mol_type == 'polymer':
+            # 当 mol_type 是 'polymer'，从外部传入 smiles
+            if external_smiles is not None:
+                instance.smiles = external_smiles
+            else:
+                print(f"No external SMILES provided for polymer type '{mol_type}'.")
+        else:
+            # 当 mol_type 不是 'polymer'，从 JSON 文件中读取 smiles
+            instance.smiles = data.get('smiles', '')
+            if not instance.smiles:
+                print(f"Warning: SMILES not found for molecule type '{mol_type}'.")
+
+        return instance
+
+    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon, memory, core,):
+
+        # Generate conformers using RDKit
+        gen_conf_rdkit(
             self.work_dir,
+            self.name,
             self.smiles,
             max_conformers,
             top_n_MMFF,
         )
 
-    def opt_conf_xtb(self, xyz_file, chg=0, mult=1, gfn=2, slurm=False, job_name='xtb', nodes=1, ntasks_per_node=64,
-                     partition='standard',):
-
-        return opt_conf_xtb(
+        # Optimize conformers using XTB
+        xyz_file = opt_conf_xtb(
             self.work_dir,
-            xyz_file,
+            self.name,
+            top_n_MMFF,
+            top_n_xtb,
             chg,
             mult,
             gfn,
-            slurm,
-            job_name,
-            nodes,
-            ntasks_per_node,
-            partition,
         )
 
-    def order_energy_xtb(self, xyz_file, numconf):
-
-            return order_energy_xtb(
-                self.work_dir,
-                xyz_file,
-                numconf,
-            )
-
-    def opt_conf_gaussian(self, xyz_file, chg, mult, function, basis_set, epsilon, memory, job_name, nodes,
-                          ntasks_per_node, partition,):
-
+        # Optimize conformers using Gaussian
         return opt_conf_gaussian(
             self.work_dir,
+            self.name,
+            xyz_file,
+            top_n_qm,
+            chg,
+            mult,
+            function,
+            basis_set,
+            epsilon,
+            core,
+            memory,
+        )
+
+
+    def resp_chg_fitting(self, xyz_file, chg, mult, function, basis_set, epsilon, core, mem, method):
+        calc_resp_gaussian(
+            self.work_dir,
+            self.name,
             xyz_file,
             chg,
             mult,
             function,
             basis_set,
             epsilon,
-            memory,
-            job_name,
-            nodes,
-            ntasks_per_node,
-            partition,
+            core,
+            mem,
         )
 
-    def order_energy_gaussian(self, numconf):
-
-            return order_energy_gaussian(
-                self.work_dir,
-                numconf,
-            )
-
-
+        return RESP_fit_Multiwfn(
+            self.work_dir,
+            self.name,
+            method,
+            delta=0.5
+        )
 
 
+class MDRun:
+    def __init__(self, work_dir, molecules):
+        self.work_dir = work_dir
+        self.molecules = molecules
+
+    @classmethod
+    def from_json(cls, work_dir, json_file):
+
+        json_path = os.path.join(work_dir, json_file)
+        with open(json_path, 'r', encoding='utf-8') as file:
+            model_info = json.load(file)
+
+        molecules = []
+        for key, value in model_info.items():
+            name = value["compound"]
+            number = value["numbers"]
+            resname = value["resname"]
+
+            molecule = {
+                "name": name,
+                "number": number,
+                "resname": resname,
+            }
+            molecules.append(molecule)
+
+        return cls(work_dir, molecules)
+
+    @staticmethod
+    def relax_poly_chain(work_dir, pdb_file, core, atom_typing = 'pysimm'):
+        return relax_poly_chain(
+            work_dir,
+            pdb_file,
+            core,
+            atom_typing
+        )
+
+    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length):
+
+        anneal_amorph_poly(
+            self.work_dir,
+            self.molecules,
+            temperature,
+            T_high_increase,
+            anneal_rate,
+            anneal_npoints,
+            packmol_pdb,
+            density,
+            add_length,
+        )
+
+    def run_gmx_prod(self, temperature, nstep_ns):
+
+        run_gmx_prod(
+            self.work_dir,
+            self.molecules,
+            temperature,
+            nstep_ns,
+        )
 
 
 
@@ -101,48 +192,8 @@ class ConformerSearch:
 
 
 
-    # def calc_resp_charge(
-    #         self,
-    #         epsilon,
-    #         core,
-    #         memory,
-    #         function,
-    #         basis_set,
-    #         method, # resp1 or resp2
-    # ):
-    #     sorted_df = self.conformer_search(
-    #         epsilon,
-    #         core,
-    #         memory,
-    #         function,
-    #         basis_set,
-    #     )
-    #
-    #     return calc_resp_gaussian(
-    #         sorted_df,
-    #         epsilon,
-    #         core,
-    #         memory,
-    #         method,
-    #     )
-    #
-    # def build_polymer(self,):
-    #
-    #     return  gen_poly_3D(
-    #         self.poly_name,
-    #         self.length,
-    #         self.gen_poly_smiles(),
-    #     )
-    #
-    # def gen_polymer_force_field(self,):
-    #
-    #     gen_poly_gmx_oplsaa(
-    #         self.poly_name,
-    #         self.poly_resname,
-    #         self.poly_scale,
-    #         self.poly_charge,
-    #         self.length,
-    #     )
+
+
 
 
 
