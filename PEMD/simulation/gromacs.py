@@ -318,19 +318,19 @@ class PEMDGROMACS:
         ]
         return self
 
-    def commands_nvt(self, input_gro):
+    def commands_nvt(self, input_gro, output_str):
 
         self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/nvt.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/nvt.tpr",
-            f"gmx_mpi mdrun -v -deffnm {self.work_dir}/nvt",
+            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+            f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
         ]
         return self
 
-    def commands_npt(self, input_gro):
+    def commands_npt(self, input_gro, output_str):
 
         self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/npt_eq.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_eq.tpr",
-            f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/npt_eq",
+            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+            f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
         ]
         return self
 
@@ -359,7 +359,7 @@ class PEMDGROMACS:
     def commands_extract_structure(self, tpr_file, xtc_file, save_gro_file, frame_time):
 
         self.commands = [
-            f"echo 0 | gmx_mpi trjconv -s {self.work_dir}/{tpr_file} -f{self.work_dir}/ {xtc_file} -o {self.work_dir}/{save_gro_file} -dump {frame_time} -quiet"
+            f"echo 0 | gmx_mpi trjconv -s {self.work_dir}/{tpr_file} -f {self.work_dir}/{xtc_file} -o {self.work_dir}/{save_gro_file} -dump {frame_time} -quiet"
         ]
         return self
 
