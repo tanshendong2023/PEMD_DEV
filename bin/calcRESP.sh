@@ -6,7 +6,6 @@
 #!/bin/bash
 
 # Load Multiwfn module
-module load Multiwfn/3.8
 input_dir=$(dirname "$1")
 cd "$input_dir"
 

@@ -6,7 +6,6 @@ Date: 2024.03.15
 """
 
 
-import os
 import re
 import subprocess
 import numpy as np
@@ -16,6 +15,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from openbabel import openbabel as ob
 from openbabel import openbabel
+from openbabel import pybel
 from rdkit.Chem import Descriptors
 from networkx.algorithms import isomorphism
 
@@ -25,7 +25,6 @@ obConversion = ob.OBConversion()
 ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
-
 
 def count_atoms(mol, atom_type, length):
     # Initialize the counter for the specified atom type
@@ -455,127 +454,59 @@ def is_isomorphic(G1, G2):
     GM = isomorphism.GraphMatcher(G1, G2, node_match=lambda x, y: x['element'] == y['element'])
     return GM.is_isomorphic()
 
+def convert_pdb_to_xyz(pdb_filename, xyz_filename):
+    obConversion = openbabel.OBConversion()
+    obConversion.SetInAndOutFormats("pdb", "xyz")
 
-def get_closest_element_by_mass(target_mass):
-    # 手动定义一个包含元素质量的映射
-    element_masses = {
-        'H': 1.008,  # 氢
-        'C': 12.01,  # 碳
-        'N': 14.007,  # 氮
-        'O': 15.999,  # 氧
-        'P': 30.974,  # 磷
-        'S': 32.06,  # 硫
-        'F': 18.998,  # 氟
-        'Cl': 35.45,  # 氯
-        'Br': 79.904,  # 溴
-        'I': 126.90,  # 碘
-        'Si': 28.085,  # 硅
-        'B': 10.81,  # 硼
-        'Al': 26.982,  # 铝
-        'Se': 78.971,  # 硒
-        'Zn': 65.38,  # 锌
-        'Cu': 63.546,  # 铜
-        'Mn': 54.938,  # 锰
-        'Fe': 55.845,  # 铁
-        'Co': 58.933,  # 钴
-        'Ni': 58.693,  # 镍
-        'Mo': 95.95,  # 钼
-        'W': 183.84,  # 钨
-        'Cr': 51.996,  # 铬
-        'Ti': 47.867,  # 钛
-        'V': 50.942,  # 钒
-        # 可以根据需要添加更多元素
-    }
+    mol = openbabel.OBMol()
+    obConversion.ReadFile(mol, pdb_filename)
 
-    min_diff = np.inf
-    closest_element = None
-
-    for element, mass in element_masses.items():
-        diff = abs(mass - target_mass)
-        if diff < min_diff:
-            min_diff = diff
-            closest_element = element
-
-    return closest_element
-
-
-def parse_masses_from_lammps(data_filename):
-    atom_map = {}
-    with open(data_filename, 'r') as f:
-        lines = f.readlines()
-
-    start = lines.index("Masses\n") + 2
-    end = start + lines[start:].index("\n")
-
-    for line in lines[start:end]:
-        parts = line.split()
-        atom_id = int(parts[0])
-        mass = float(parts[1])
-        atom_symbol = get_closest_element_by_mass(mass)
-        atom_map[atom_id] = atom_symbol
-
-    return atom_map
-
-
-def toxyz_lammps(input_filename, output_filename, data_filename):
-    atom_map = parse_masses_from_lammps(data_filename)
-
-    with open(input_filename, 'r') as fin, open(output_filename, 'w') as fout:
-        for i, line in enumerate(fin):
-            if i < 2:
-                fout.write(line)
-            else:
-                parts = line.split()
-                if parts[0].isdigit() and int(parts[0]) in atom_map:
-                    parts[0] = atom_map[int(parts[0])]
-                fout.write(' '.join(parts) + '\n')
-
+    obConversion.WriteFile(mol, xyz_filename)
 
 def convert_xyz_to_pdb(xyz_filename, pdb_filename, molecule_name, resname):
     obConversion = openbabel.OBConversion()
-    # 设置输入和输出格式
     obConversion.SetInAndOutFormats("xyz", "pdb")
 
     mol = openbabel.OBMol()
-    # 读取 XYZ 文件
     obConversion.ReadFile(mol, xyz_filename)
-
-    # 设置分子名称
     mol.SetTitle(molecule_name)
 
-    # 遍历所有原子并设置自定义残基名称
     for atom in openbabel.OBMolAtomIter(mol):
         res = atom.GetResidue()
         res.SetName(resname)
-
-    # 写入 PDB 文件，Open Babel 会尝试推断键的信息
     obConversion.WriteFile(mol, pdb_filename)
 
 
 def convert_xyz_to_mol2(xyz_filename, mol2_filename, molecule_name, resname):
     obConversion = openbabel.OBConversion()
-    # 设置输入格式为XYZ，输出格式为MOL2
     obConversion.SetInAndOutFormats("xyz", "mol2")
 
     mol = openbabel.OBMol()
-    # 从XYZ文件中读取分子数据
     obConversion.ReadFile(mol, xyz_filename)
 
-    # 设置分子名称，这会在MOL2文件中作为注释出现
     mol.SetTitle(molecule_name)
 
-    # 遍历所有原子，设置自定义残基名称
     for atom in openbabel.OBMolAtomIter(mol):
         res = atom.GetResidue()
         if res:  # 确保残基信息存在
             res.SetName(resname)
 
-    # 将分子数据写入MOL2文件
     obConversion.WriteFile(mol, mol2_filename)
 
-    # 后处理：去除残基名称后的数字1
     remove_numbers_from_residue_names(mol2_filename, resname)
 
+
+def convert_gro_to_pdb(input_gro_path, output_pdb_path):
+
+    try:
+        # Load the GRO file
+        mol = next(pybel.readfile('gro', input_gro_path))
+
+        # Save as PDB
+        mol.write('pdb', output_pdb_path, overwrite=True)
+        print(f"Gro converted to pdb successfully {output_pdb_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def remove_numbers_from_residue_names(mol2_filename, resname):
     with open(mol2_filename, 'r') as file:
@@ -587,13 +518,12 @@ def remove_numbers_from_residue_names(mol2_filename, resname):
     with open(mol2_filename, 'w') as file:
         file.write(updated_content)
 
-
 def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
     sections_to_extract = []
     if nonbonded:
         sections_to_extract = ["[ atomtypes ]"]
     elif bonded:
-        sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[ dihedrals ]"]
+        sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[angles]", "[ dihedrals ]"]
 
         # 打开 .top 文件进行读取
     with open(top_file, 'r') as file:
@@ -621,7 +551,7 @@ def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
         file.writelines(extracted_lines)
 
 def mol_to_xyz(mol, conf_id, filename):
-    # Save the conformation of RDKit molecular objects as an XYZ format file
+    """将RDKit分子对象的构象保存为XYZ格式文件"""
     xyz = Chem.MolToXYZBlock(mol, confId=conf_id)
     with open(filename, 'w') as f:
         f.write(xyz)
@@ -672,133 +602,18 @@ def log_to_xyz(log_file_path, xyz_file_path):
     except Exception as e:
         print(f"An error occurred during conversion: {e}")
 
-
 def convert_chk_to_fchk(chk_file_path):
-    # Convert chk file to fchk file.
     fchk_file_path = chk_file_path.replace('.chk', '.fchk')
 
     try:
-        subprocess.run(['formchk', chk_file_path, fchk_file_path], check=True)
+        subprocess.run(
+            ['formchk', chk_file_path, fchk_file_path],
+            check=True,
+            stdout=subprocess.DEVNULL,  # Redirect standard output
+            stderr=subprocess.DEVNULL   # Redirect standard error output
+        )
     except subprocess.CalledProcessError as e:
-        print(f"Error convert chk to fchk: {e}")
-
-
-def ave_end_chg(df, N):
-    # 处理端部原子的电荷平均值
-    top_N_df = df.head(N)
-    tail_N_df = df.tail(N).iloc[::-1].reset_index(drop=True)
-    average_charge = (top_N_df['charge'].reset_index(drop=True) + tail_N_df['charge']) / 2
-    average_df = pd.DataFrame({
-        'atom': top_N_df['atom'].reset_index(drop=True),  # 保持原子名称
-        'charge': average_charge
-    })
-    return average_df
-
-
-def ave_mid_chg(df, atom_count):
-    # 处理中间原子的电荷平均值
-    average_charges = []
-    for i in range(atom_count):
-        same_atoms = df[df.index % atom_count == i]
-        avg_charge = same_atoms['charge'].mean()
-        average_charges.append({'atom': same_atoms['atom'].iloc[0], 'charge': avg_charge})
-    return pd.DataFrame(average_charges)
-
-
-def read_sec_from_gmxitp_to_df(unit_name, out_dir, sec_name):
-
-    itp_filepath = os.path.join(out_dir, f'{unit_name}_bonded.itp')
-
-    with open(itp_filepath, 'r') as file:
-        lines = file.readlines()
-
-    data = []  # 用于存储数据行
-    in_section = False  # 标记是否处于指定部分
-    section_pattern = r'\[\s*.+\s*\]'  # 用于匹配部分标题的正则表达式
-    columns = None  # 存储列名
-
-    for line in lines:
-        # 检测到指定部分的开始
-        if line.strip() == sec_name:
-            in_section = True
-            continue
-
-        # 使用正则表达式检测是否遇到了其他部分的标题行，标志着指定部分的结束
-        if in_section and re.match(section_pattern, line.strip()):
-            break
-
-        # 处理列名行
-        if in_section and not columns and line.startswith(';'):
-            # 通常列名行以 ';' 开头，我们需要去除 ';' 并分割剩余字符串
-            columns = re.sub(';', '', line).split()
-            continue
-
-        # 在指定部分内，且行不是注释或空行，则视为数据行
-        if in_section and not line.startswith(';') and line.strip():
-            # 分割数据行并添加到数据列表中
-            data.append(line.split())
-
-    # 如果有列名和数据，则创建 DataFrame
-    if columns and data:
-        df = pd.DataFrame(data, columns=columns)
-    else:
-        df = pd.DataFrame()
-
-    return df
-
-
-def xyz_to_df(xyz_file_path):
-    # 初始化空列表来存储原子类型
-    atoms = []
-
-    # 读取XYZ文件
-    with open(xyz_file_path, 'r') as file:
-        next(file)  # 跳过第一行（原子总数）
-        next(file)  # 跳过第二行（注释行）
-        for line in file:
-            atom_type = line.split()[0]  # 原子类型是每行的第一个元素
-            atoms.append(atom_type)
-
-    # 创建DataFrame
-    df = pd.DataFrame(atoms, columns=['atom'])
-
-    # 添加空的'charge'列
-    df['charge'] = None  # 初始化为空值
-
-    return df
-
-
-def ave_chg_to_df(resp_chg_df, repeating_unit, num_repeating):
-
-    # 处理非氢原子
-    nonH_df = resp_chg_df[resp_chg_df['atom'] != 'H']
-
-    cleaned_smiles = repeating_unit.replace('[*]', '')
-    molecule = Chem.MolFromSmiles(cleaned_smiles)
-    atom_count = molecule.GetNumAtoms()
-    N = atom_count * num_repeating + 1  # 多一个端集CH3中的C
-
-    # end_ave_chg_noH_df = ave_end_chg(nonH_df, N)
-    top_N_noH_df = nonH_df.head(N)
-    tail_N_noH_df = nonH_df.tail(N)
-    mid_df_noH_df = nonH_df.drop(nonH_df.head(N).index.union(nonH_df.tail(N).index)).reset_index(drop=True)
-    mid_ave_chg_noH_df = ave_mid_chg(mid_df_noH_df, atom_count)
-
-    # 处理氢原子
-    H_df = resp_chg_df[resp_chg_df['atom'] == 'H']
-
-    molecule_with_h = Chem.AddHs(molecule)
-    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
-    N_H = num_H_repeating * num_repeating + 3   # 多三个端集CH3中的H
-
-    # end_ave_chg_H_df = ave_end_chg(H_df, N_H)
-    top_N_H_df = H_df.head(N_H)
-    tail_N_H_df = H_df.tail(N_H)
-    mid_df_H_df = H_df.drop(H_df.head(N_H).index.union(H_df.tail(N_H).index)).reset_index(drop=True)
-    mid_ave_chg_H_df = ave_mid_chg(mid_df_H_df, num_H_repeating)
-
-    return top_N_noH_df, tail_N_noH_df, mid_ave_chg_noH_df, top_N_H_df, tail_N_H_df, mid_ave_chg_H_df
-
+        print(f"Error converting chk to fchk: {e}")
 
 def calc_mol_weight(pdb_file):
     mol = Chem.MolFromPDBFile(pdb_file, removeHs=False)
@@ -807,7 +622,6 @@ def calc_mol_weight(pdb_file):
         return mol_weight
     else:
         raise ValueError(f"Unable to read molecular structure from {pdb_file}")
-
 
 def smiles_to_pdb(smiles, output_file, molecule_name, resname):
     try:
@@ -870,10 +684,7 @@ def print_compounds(info_dict, key_name):
 
 
 def extract_volume(partition, module_soft, edr_file, output_file='volume.xvg', option_id='21'):
-    """
-    使用GROMACS的gmx_mpi energy工具提取体积数据。此函数加载必要的模块，执行gmx_mpi命令，并处理输出。
-    """
-    # 构建命令字符串
+
     if partition == 'gpu':
         command = f"module load {module_soft} && echo {option_id} | gmx energy -f {edr_file} -o {output_file}"
     else:
@@ -892,17 +703,7 @@ def extract_volume(partition, module_soft, edr_file, output_file='volume.xvg', o
 
 
 def read_volume_data(volume_file):
-    """
-    从 XVG 文件读取体积数据，忽略注释行，并从给定的开始时间 `start` 后收集数据。
 
-    参数:
-    - volume_file: 包含体积数据的 XVG 文件名。
-    - start: 数据收集开始的时间（单位与 XVG 文件中的时间单位相同）。
-    - dt_collection: 数据点之间的时间间隔。
-
-    返回:
-    - volumes: 从 `start` 时间开始的体积数据数组。
-    """
     volumes = []
     with open(volume_file, 'r') as file:
         for line in file:
@@ -925,17 +726,7 @@ def analyze_volume(volumes, start, dt_collection):
 
 
 def extract_structure(partition, module_soft, tpr_file, xtc_file, save_gro_file, frame_time):
-    """
-    使用 GROMACS 的 gmx trjconv 工具从轨迹文件中提取特定时间点的结构。
 
-    参数:
-    - module_soft: 需要加载的模块名称。
-    - tpr_file: TPR 输入文件路径。
-    - xtc_file: XTC 轨迹文件路径。
-    - save_gro_file: 输出的 GRO 文件路径。
-    - frame_time: 需要提取的帧对应的时间（单位ps）。
-    """
-    # 构建完整的命令字符串
     if partition == 'gpu':
         command = (f"module load {module_soft} && echo 0 | gmx trjconv -s {tpr_file} -f {xtc_file} -o {save_gro_file} "
                    f"-dump {frame_time} -quiet")
@@ -955,3 +746,13 @@ def extract_structure(partition, module_soft, tpr_file, xtc_file, save_gro_file,
         return None
 
 
+def calculate_box_size(numbers, pdb_files, density):
+    total_mass = 0
+    for num, file in zip(numbers, pdb_files):
+
+        molecular_weight = calc_mol_weight(file)  # in g/mol
+        total_mass += molecular_weight * num / 6.022e23  # accumulate mass of each molecule in grams
+
+    total_volume = total_mass / density  # volume in cm^3
+    length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
+    return length
