@@ -17,6 +17,9 @@ from PEMD.simulation.sim_lib import (
     apply_chg_to_poly,
     apply_chg_to_molecule
 )
+from PEMD.model.build import (
+    gen_poly_smiles,
+)
 
 
 class Forcefield:
@@ -26,6 +29,8 @@ class Forcefield:
         self.name = None
         self.resname = None
         self.repeating_unit = None
+        self.leftcap = None
+        self.rightcap = None
         self.length = None
         self.scale = None
         self.charge = None
@@ -90,8 +95,16 @@ class Forcefield:
         )
 
     def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, ):
+        poly_smi = gen_poly_smiles(
+            self.name,
+            self.repeating_unit,
+            self.length,
+            self.leftcap,
+            self.rightcap,
+        )
         return apply_chg_to_poly(
             self.work_dir,
+            poly_smi,
             itp_file,
             resp_chg_df,
             self.repeating_unit,

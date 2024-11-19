@@ -339,14 +339,39 @@ def get_closest_element_by_mass(target_mass, tolerance=0.5):
 
     return closest_element
 
-def apply_chg_to_poly(work_dir, itp_file, resp_chg_df, repeating_unit, end_repeating, corr_factor, target_sum_chg, ):
+def apply_chg_to_poly(work_dir, poly_smi, itp_file, resp_chg_df, repeating_unit, end_repeating, corr_factor, target_sum_chg, ):
 
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
-    nonH_df = resp_chg_df[resp_chg_df['atom'] != 'H']
     cleaned_smiles = repeating_unit.replace('[*]', '')
-    left_non_matching, right_non_matching = count_non_matching_atoms(''.join(nonH_df['atom'].tolist()), cleaned_smiles)
+    molecule = Chem.MolFromSmiles(cleaned_smiles)
+    molecule_with_h = Chem.AddHs(molecule)
+    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
+
+    (
+        left_unmatched_mol,
+        left_unmatched_numatom,
+        right_unmatched_mol,
+        right_unmatched_numatom
+    ) = count_non_matching_atoms(
+        poly_smi,
+        cleaned_smiles
+    )
+
+    left_unmatched_mol_with_h = Chem.AddHs(left_unmatched_mol)
+    right_unmatched_mol_with_h = Chem.AddHs(right_unmatched_mol)
+    num_repeating_left = end_repeating
+    num_repeating_right = end_repeating
+    left_unmatched_num_H = 1
+    right_unmatched_num_H = 1
+
+    if left_unmatched_numatom > 1:   # CH3
+        num_repeating_left = end_repeating -1
+        left_unmatched_num_H = left_unmatched_mol_with_h.GetNumAtoms() - left_unmatched_mol.GetNumAtoms() - 1
+    elif right_unmatched_numatom > 1:  # CH3
+        num_repeating_right = end_repeating -1
+        right_unmatched_num_H = right_unmatched_mol_with_h.GetNumAtoms() - right_unmatched_mol.GetNumAtoms() - 1
 
     (
         top_N_noH_df,
@@ -358,9 +383,12 @@ def apply_chg_to_poly(work_dir, itp_file, resp_chg_df, repeating_unit, end_repea
     ) = ave_chg_to_df(
         resp_chg_df,
         repeating_unit,
-        end_repeating,
-        left_non_matching,
-        right_non_matching
+        num_repeating_left,
+        num_repeating_right,
+        left_unmatched_numatom,
+        right_unmatched_numatom,
+        left_unmatched_num_H,
+        right_unmatched_num_H,
     )
 
     # read the xyz file
@@ -377,8 +405,8 @@ def apply_chg_to_poly(work_dir, itp_file, resp_chg_df, repeating_unit, end_repea
     molecule = Chem.MolFromSmiles(cleaned_smiles)
     atom_count = molecule.GetNumAtoms()
     # N = atom_count * end_repeating + 1
-    N_left = atom_count * end_repeating + 1*left_non_matching
-    N_right = atom_count * end_repeating + 1*right_non_matching
+    N_left = atom_count * num_repeating_left + left_unmatched_numatom
+    N_right = atom_count * num_repeating_right + right_unmatched_numatom
 
     mid_atoms_chg_noH_df = atoms_chg_noH_df.drop(
         atoms_chg_noH_df.head(N_left).index.union(atoms_chg_noH_df.tail(N_right).index)).reset_index(drop=True)
@@ -391,11 +419,9 @@ def apply_chg_to_poly(work_dir, itp_file, resp_chg_df, repeating_unit, end_repea
     # deal with the mid H atoms
     atoms_chg_H_df = atoms_chg_df[atoms_chg_df['atom'] == 'H']
 
-    molecule_with_h = Chem.AddHs(molecule)
-    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
     # N_H = num_H_repeating * end_repeating + 3
-    N_H_left = num_H_repeating * end_repeating + 3*left_non_matching      # 多三个端集CH3中的H
-    N_H_right = num_H_repeating * end_repeating + 3*right_non_matching    # 多三个端集CH3中的H
+    N_H_left = num_H_repeating * num_repeating_left + left_unmatched_num_H       # 多三个端集CH3中的H
+    N_H_right = num_H_repeating * num_repeating_right + right_unmatched_num_H     # 多三个端集CH3中的H
 
     mid_atoms_chg_H_df = atoms_chg_H_df.drop(
         atoms_chg_H_df.head(N_H_left).index.union(atoms_chg_H_df.tail(N_H_right).index)).reset_index(drop=True)
@@ -414,6 +440,41 @@ def apply_chg_to_poly(work_dir, itp_file, resp_chg_df, repeating_unit, end_repea
 
     # update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)
+
+def ave_chg_to_df(resp_chg_df, repeating_unit, num_repeating_left, num_repeating_right, left_unmatched_numatom, right_unmatched_numatom, left_non_matchingH, right_non_matchingH,):
+
+    # 处理非氢原子
+    nonH_df = resp_chg_df[resp_chg_df['atom'] != 'H']
+    cleaned_smiles = repeating_unit.replace('[*]', '')
+
+    molecule = Chem.MolFromSmiles(cleaned_smiles)
+    atom_count = molecule.GetNumAtoms()
+
+    N_left = atom_count * num_repeating_left + left_unmatched_numatom
+    N_right = atom_count * num_repeating_right + right_unmatched_numatom
+
+    # end_ave_chg_noH_df = ave_end_chg(nonH_df, N)
+    top_N_noH_df = nonH_df.head(N_left)
+    tail_N_noH_df = nonH_df.tail(N_right)
+    mid_df_noH_df = nonH_df.drop(nonH_df.head(N_left).index.union(nonH_df.tail(N_right).index)).reset_index(drop=True)
+    mid_ave_chg_noH_df = ave_mid_chg(mid_df_noH_df, atom_count)
+
+    # 处理氢原子
+    H_df = resp_chg_df[resp_chg_df['atom'] == 'H']
+
+    molecule_with_h = Chem.AddHs(molecule)
+    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
+
+    N_H_left = num_H_repeating * num_repeating_left + left_non_matchingH      # 多三个端集CH3中的H
+    N_H_right = num_H_repeating * num_repeating_right + right_non_matchingH    # 多三个端集CH3中的H
+
+    # end_ave_chg_H_df = ave_end_chg(H_df, N_H)
+    top_N_H_df = H_df.head(N_H_left)
+    tail_N_H_df = H_df.tail(N_H_right)
+    mid_df_H_df = H_df.drop(H_df.head(N_H_left).index.union(H_df.tail(N_H_right).index)).reset_index(drop=True)
+    mid_ave_chg_H_df = ave_mid_chg(mid_df_H_df, num_H_repeating)
+
+    return top_N_noH_df, tail_N_noH_df, mid_ave_chg_noH_df, top_N_H_df, tail_N_H_df, mid_ave_chg_H_df
 
 def update_itp_file(MD_dir, itp_file, charge_update_df_cor):
     itp_filepath = os.path.join(MD_dir, itp_file)
@@ -482,73 +543,39 @@ def xyz_to_df(xyz_file_path):
             atom_type = line.split()[0]  # 原子类型是每行的第一个元素
             atoms.append(atom_type)
 
-    # 创建DataFrame
     df = pd.DataFrame(atoms, columns=['atom'])
-
-    # 添加空的'charge'列
     df['charge'] = None  # 初始化为空值
-
     return df
 
-def count_non_matching_atoms(sequence, repeating_unit_sequence):
-    seq_len = len(sequence)
-    unit_len = len(repeating_unit_sequence)
+def count_non_matching_atoms(s, unit):
+    count = 0
+    skip = 0
+    start = s
+    left_unmatched_smiles = ''
 
-    # 初始化计数
-    left_non_matching = 0
-    right_non_matching = 0
+    while len(start) >= len(unit):
+        if start.startswith(unit):
+            if count == 0:
+                left_unmatched_smiles = s[:skip]
+            count += 1
+            start = start[len(unit):]
+        else:
+            skip += 1
+            start = s[skip:]
+    left_unmatched_mol = Chem.MolFromSmiles(left_unmatched_smiles)
+    left_unmatched_numatom = left_unmatched_mol.GetNumAtoms()
+    print(left_unmatched_smiles)
 
-    # 从左侧开始寻找重复单元的第一次出现
-    first_occurrence = sequence.find(repeating_unit_sequence)
-    if first_occurrence != -1:
-        left_non_matching = first_occurrence
-    else:
-        # 未找到重复单元
-        left_non_matching = seq_len
-        right_non_matching = 0
-        return left_non_matching, right_non_matching
+    end = s
+    end = end[len(left_unmatched_smiles):]
+    print(end)
+    while end.startswith(unit):
+        end = end[len(unit):]
 
-    # 从右侧开始寻找重复单元的最后一次出现
-    last_occurrence = sequence.rfind(repeating_unit_sequence)
-    if last_occurrence != -1:
-        right_non_matching = seq_len - (last_occurrence + unit_len)
-    else:
-        right_non_matching = seq_len
-
-    return left_non_matching, right_non_matching
-
-def ave_chg_to_df(resp_chg_df, repeating_unit, num_repeating, left_non_matching, right_non_matching):
-
-    # 处理非氢原子
-    nonH_df = resp_chg_df[resp_chg_df['atom'] != 'H']
-    cleaned_smiles = repeating_unit.replace('[*]', '')
-
-    molecule = Chem.MolFromSmiles(cleaned_smiles)
-    atom_count = molecule.GetNumAtoms()
-    N_left = atom_count * num_repeating + 1*left_non_matching
-    N_right = atom_count * num_repeating + 1*right_non_matching
-
-    # end_ave_chg_noH_df = ave_end_chg(nonH_df, N)
-    top_N_noH_df = nonH_df.head(N_left)
-    tail_N_noH_df = nonH_df.tail(N_right)
-    mid_df_noH_df = nonH_df.drop(nonH_df.head(N_left).index.union(nonH_df.tail(N_right).index)).reset_index(drop=True)
-    mid_ave_chg_noH_df = ave_mid_chg(mid_df_noH_df, atom_count)
-
-    # 处理氢原子
-    H_df = resp_chg_df[resp_chg_df['atom'] == 'H']
-
-    molecule_with_h = Chem.AddHs(molecule)
-    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
-    N_H_left = num_H_repeating * num_repeating + 3*left_non_matching      # 多三个端集CH3中的H
-    N_H_right = num_H_repeating * num_repeating + 3*right_non_matching    # 多三个端集CH3中的H
-
-    # end_ave_chg_H_df = ave_end_chg(H_df, N_H)
-    top_N_H_df = H_df.head(N_H_left)
-    tail_N_H_df = H_df.tail(N_H_right)
-    mid_df_H_df = H_df.drop(H_df.head(N_H_left).index.union(H_df.tail(N_H_right).index)).reset_index(drop=True)
-    mid_ave_chg_H_df = ave_mid_chg(mid_df_H_df, num_H_repeating)
-
-    return top_N_noH_df, tail_N_noH_df, mid_ave_chg_noH_df, top_N_H_df, tail_N_H_df, mid_ave_chg_H_df
+    right_unmatched_smiles = end
+    right_unmatched_mol = Chem.MolFromSmiles(right_unmatched_smiles)
+    right_unmatched_numatom = right_unmatched_mol.GetNumAtoms()
+    return left_unmatched_mol, left_unmatched_numatom, right_unmatched_mol, right_unmatched_numatom
 
 def charge_neutralize_scale(df, correction_factor=1, target_total_charge=0,):
 
@@ -630,3 +657,18 @@ def scale_chg_itp(work_dir, filename, corr_factor, target_sum_chg):
     # save the updated itp file
     with open(filename, 'w') as file:
         file.writelines(lines)
+
+
+def smiles_to_atom_string(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError("Invalid SMILES string")
+
+    atom_list = []
+    for atom in mol.GetAtoms():
+        symbol = atom.GetSymbol()
+        if symbol != 'H':
+            atom_list.append(symbol)
+    atom_string = ''.join(atom_list)
+
+    return atom_string
