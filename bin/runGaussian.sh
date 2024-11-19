@@ -4,7 +4,7 @@
 shopt -s extglob
 
 # Define the directory containing input files and where outputs will be stored
-gaussian_dir="${./conformer_search/gaussian_work}"
+gaussian_dir="./conformer_search/gaussian_work"
 
 # Loop over all conf_*.gjf files in the directory where * is any digit
 for input_file in "${gaussian_dir}"/conf_*([0-9]).gjf; do
