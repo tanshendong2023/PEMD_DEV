@@ -322,6 +322,14 @@ class PEMDGROMACS:
 
         self.commands = [
             f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+            f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
+        ]
+        return self
+
+    def commands_nvt_product(self, input_gro, output_str):
+
+        self.commands = [
+            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
             f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
         ]
         return self
