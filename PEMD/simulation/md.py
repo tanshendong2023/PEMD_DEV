@@ -168,7 +168,7 @@ def run_gmx_prod(
         filename = 'nvt_prod.mdp',
     )
 
-    gmx.commands_nvt(
+    gmx.commands_nvt_product(
         input_gro = 'pre_eq.gro',
         output_str = 'nvt_prod'
     ).run_local()
