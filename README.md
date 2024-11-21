@@ -24,7 +24,9 @@ PolyElecMD is a Python package for molecular dynamics simulations of polymers wi
 To install PolyElecMD, clone the repository and install the required packages using the following commands:
 ```bash
 git clone
-cd PolyElecMD
+cd PEMD
+conda env create -f environment.yml
+conda activate PEMD
 pip install -r requirements.txt
 ```
 
