@@ -12,12 +12,13 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
-with open("requirements.txt", "r") as re:
-    install_requires = re.read().splitlines()
 
 VERSION = '1.0.0'
 DESCRIPTION = 'a python package for molecular dynamics simulations of polymers electrolytes'
-
+INSTALL_REQUIRES = [
+    "rdkit == 2024.3.6",
+    "lammps == 2024.8.29.1.0",
+]
 setup(
     name="PEMD",
     version=VERSION,
@@ -28,7 +29,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     packages=find_packages(),
-    install_requires=install_requires,
+    install_requires=INSTALL_REQUIRES,
     keywords=[
             "LAMMPS",
             "Gromacs",

@@ -9,7 +9,7 @@ PolyElecMD is a Python package for molecular dynamics simulations of polymers wi
 - Easy-to-use command line interface
 
 ## Requirements
-- Python 3.6 or higher
+- Python 3.8 or higher
 - NumPy
 - Pandas
 - Matplotlib
@@ -27,7 +27,7 @@ git clone
 cd PEMD
 conda env create -f environment.yml
 conda activate PEMD
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Usage

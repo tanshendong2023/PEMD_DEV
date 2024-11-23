@@ -61,7 +61,7 @@ class PEMDLAMMPS:
         error_file = os.path.join(self.lammps_dir, 'lmp.err')
 
         command = (
-            f"mpirun -np {self.core} lmp -in {input_file} -log {log_file} > {output_file} 2> {error_file}"
+            f"mpiexec -n {self.core} lmp -in {input_file} -log {log_file} > {output_file} 2> {error_file}"
         )
 
         try:
