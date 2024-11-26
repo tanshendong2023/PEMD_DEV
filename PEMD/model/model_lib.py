@@ -667,6 +667,24 @@ def smiles_to_pdb(smiles, output_file, molecule_name, resname):
         print(f"An error occurred: {e}")
         raise
 
+def smiles_to_xyz(smiles, filename, num_confs=1):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError("无效的 SMILES 字符串。")
+
+    mol = Chem.AddHs(mol)
+    result = AllChem.EmbedMultipleConfs(mol, numConfs=num_confs, randomSeed=42)
+    if not result:
+        raise ValueError("无法生成3D构象。")
+    AllChem.UFFOptimizeMolecule(mol, confId=0)
+    conf = mol.GetConformer(0)
+    atoms = mol.GetAtoms()
+    coords = [conf.GetAtomPosition(atom.GetIdx()) for atom in atoms]
+    with open(filename, 'w') as f:
+        f.write(f"{len(atoms)}\n")
+        f.write(f"SMILES: {smiles}\n")
+        for atom, coord in zip(atoms, coords):
+            f.write(f"{atom.GetSymbol()} {coord.x:.4f} {coord.y:.4f} {coord.z:.4f}\n")
 
 def print_compounds(info_dict, key_name):
     """
@@ -756,3 +774,5 @@ def calculate_box_size(numbers, pdb_files, density):
     total_volume = total_mass / density  # volume in cm^3
     length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
     return length
+
+

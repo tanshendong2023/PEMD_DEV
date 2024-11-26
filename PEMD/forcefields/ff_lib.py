@@ -4,12 +4,14 @@ import io
 import shutil
 import parmed as pmd
 from foyer import Forcefield
-from PEMD.model import model_lib, MD_lib
 from PEMD.simulation import sim_lib
 from openbabel import openbabel as ob
+from PEMD.model import model_lib, MD_lib
 import importlib.resources as pkg_resources
 from pysimm import system, lmps, forcefield
+from PEMD.forcefields.xml import XMLGenerator
 from PEMD.forcefields.ligpargen import PEMDLigpargen
+from PEMD.model.build import gen_poly_smiles, gen_poly_3D
 
 
 def get_gaff2(
@@ -53,11 +55,6 @@ def get_gaff2(
         else:
             print('Invalid atom typing option, please select pysimm or antechamber.')
 
-        # for b in s.bonds:
-        #     if b.a.bonds.count == 3 and b.b.bonds.count == 3:
-        #         b.order = 4
-        # s.apply_forcefield(f, charges='gasteiger')
-
         s.write_lammps(data_fname)
         sys.stdout = original_stdout
 
@@ -65,26 +62,83 @@ def get_gaff2(
     except Exception as e:
         print(f'problem reading {file_prefix + ".cml"} for Pysimm: {str(e)}')
 
+def get_xml_ligpargen(work_dir, name, resname, repeating_unit, chg, chg_model, ):
+
+    smiles = gen_poly_smiles(
+        name,
+        repeating_unit,
+        length=4,
+        leftcap='',
+        rightcap='',
+    )
+
+    ligpargen_dir = os.path.join(work_dir, f'ligpargen_{name}')
+    os.makedirs(ligpargen_dir, exist_ok=True)
+
+    xyz_filename = f'{name}.xyz'
+    model_lib.smiles_to_xyz(smiles, os.path.join(work_dir,  xyz_filename))
+
+    PEMDLigpargen(
+        ligpargen_dir,
+        name,
+        resname,
+        chg,
+        chg_model,
+        filename = xyz_filename,
+    ).run_local()
+
+    gmx_itp_file = os.path.join(ligpargen_dir, f"{name}.gmx.itp")
+    xml_filename = os.path.join(work_dir, f"{name}.xml")
+    generator = XMLGenerator(
+        gmx_itp_file,
+        smiles,
+        xml_filename
+    )
+    generator.run()
 
 def get_oplsaa_xml(
         work_dir,
         poly_name,
         poly_resname,
+        repeating_unit,
+        length_long,
+        leftcap,
+        rightcap,
         xyz_file,
+        xml = 'ligpargen',  # ligpargen or database
 ):
 
     xyz_filepath = os.path.join(work_dir, xyz_file)
-
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
+
+    smiles = gen_poly_smiles(
+        poly_name,
+        repeating_unit,
+        length_long,
+        leftcap,
+        rightcap,
+    )
+
+    pdb_file = gen_poly_3D(
+        work_dir,
+        poly_name,
+        length_long,
+        smiles,
+    )
 
     pdb_filepath = os.path.join(MD_dir, f"{poly_name}.pdb")
     model_lib.convert_xyz_to_pdb(xyz_filepath, pdb_filepath, poly_name, poly_resname)
 
-    untyped_str = pmd.load_file(pdb_filepath, structure=True)
-    with pkg_resources.path("PEMD.forcefields", "oplsaa.xml") as oplsaa_path:
-        oplsaa = Forcefield(forcefield_files=str(oplsaa_path))
-    typed_str = oplsaa.apply(untyped_str)
+    untyped_str = pmd.load_file(pdb_file, structure=True)
+    if xml == 'database':
+        with pkg_resources.path("PEMD.forcefields", "oplsaa.xml") as oplsaa_path:
+            oplsaa = Forcefield(forcefield_files = str(oplsaa_path))
+        typed_str = oplsaa.apply(untyped_str, verbose=True, use_residue_map=True)
+    else:
+        xml_filename = os.path.join(work_dir, f"{poly_name}.xml")
+        oplsaa = Forcefield(forcefield_files = xml_filename)
+        typed_str = oplsaa.apply(untyped_str, verbose=True, use_residue_map=True)
 
     top_filename = os.path.join(MD_dir, f"{poly_name}.top")
     gro_filename = os.path.join(MD_dir, f"{poly_name}.gro")
@@ -102,9 +156,10 @@ def get_oplsaa_xml(
 
     return f'{poly_name}_bonded.itp'
 
+
 def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
 
-    ligpargen_dir = os.path.join(work_dir, 'ligpargen')
+    ligpargen_dir = os.path.join(work_dir, f'ligpargen_{name}')
     os.makedirs(ligpargen_dir, exist_ok=True)
 
     MD_dir = os.path.join(work_dir, 'MD_dir')
@@ -131,7 +186,6 @@ def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
 
     return f'{name}_bonded.itp'
 
-
 def gen_ff_from_data(work_dir, compound_name, corr_factor, target_sum_chg):
 
     MD_dir = os.path.join(work_dir, 'MD_dir')
@@ -154,4 +208,9 @@ def gen_ff_from_data(work_dir, compound_name, corr_factor, target_sum_chg):
     filename = f"{compound_name}_bonded.itp"
     sim_lib.scale_chg_itp(MD_dir, filename, corr_factor, target_sum_chg)
     print(f"scale charge successfully.")
+
+
+
+
+
 

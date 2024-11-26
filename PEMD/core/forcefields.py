@@ -10,6 +10,7 @@ import json
 from PEMD.forcefields.ff_lib import (
     get_gaff2,
     get_oplsaa_xml,
+    get_xml_ligpargen,
     get_oplsaa_ligpargen,
     gen_ff_from_data
 )
@@ -31,7 +32,8 @@ class Forcefield:
         self.repeating_unit = None
         self.leftcap = None
         self.rightcap = None
-        self.length = None
+        self.length_short = None
+        self.length_long = None
         self.scale = None
         self.charge = None
         self.smiles = None
@@ -68,11 +70,13 @@ class Forcefield:
             instance.leftcap = data.get('left_cap')
             instance.rightcap = data.get('right_cap')
             length = data.get('length')
-            if length is not None:
-                if isinstance(length, list):
-                    instance.length = length[0]
-                else:
-                    instance.length = length
+            instance.length_short = length[0]
+            instance.length_long = length[1]
+            # if length is not None:
+            #     if isinstance(length, list):
+            #         instance.length = length[0]
+            #     else:
+            #         instance.length = length
         else:
             instance.smiles = data.get('smiles')
 
@@ -86,19 +90,48 @@ class Forcefield:
             atom_typing
         )
 
-    def get_oplsaa_xml(self, xyz_file):
-        return get_oplsaa_xml(
-            self.work_dir,
-            self.name,
-            self.resname,
-            xyz_file,
-        )
+    def get_oplsaa_xml(self, xml, xyz_file, chg_model = 'CM1A'):
+
+        if xml == "ligpargen":
+            get_xml_ligpargen(
+                self.work_dir,
+                self.name,
+                self.resname,
+                self.repeating_unit,
+                self.charge,
+                chg_model,
+            )
+
+            return get_oplsaa_xml(
+                self.work_dir,
+                self.name,
+                self.resname,
+                self.repeating_unit,
+                self.length_long,
+                self.leftcap,
+                self.rightcap,
+                xyz_file,
+                xml = "ligpargen",
+            )
+
+        else:
+            get_oplsaa_xml(
+                self.work_dir,
+                self.name,
+                self.resname,
+                self.repeating_unit,
+                self.length_long,
+                self.leftcap,
+                self.rightcap,
+                xyz_file,
+                xml = "database",
+            )
 
     def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, ):
         poly_smi = gen_poly_smiles(
             self.name,
             self.repeating_unit,
-            self.length,
+            self.length_short,
             self.leftcap,
             self.rightcap,
         )
