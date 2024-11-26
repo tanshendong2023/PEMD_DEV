@@ -3,7 +3,7 @@
      are imported from the gromacs atomtypes file at
      https://github.com/gromacs/gromacs/blob/aa66efd3179a671aace62b827c54aadc3d89c1ee/share/top/oplsaa.ff/atomtypes.atp
 -->
-<ForceField name="OPLS-AA" version="0.0.3" combining_rule="geometric">
+<ForceField name="OPLS-AA" version="1.0.1" combining_rule="geometric">
 
  <AtomTypes>
   <Type name="opls_001" class="opls_001" element="C" mass="12.011"/>
@@ -128,7 +128,7 @@
   <Type name="opls_120" class="opls_120" mass="0.0"/>
   <Type name="opls_122" class="opls_122" element="C" mass="12.011"/>
   <Type name="opls_123" class="opls_123" element="Cl" mass="35.453"/>
-  <Type name="opls_124" class="opls_124" element="S" mass="32.06"/>
+  <Type name="opls_124" class="SZ" element="S" mass="32.06" def="[S;X4]([N;X2])"/>
   <Type name="opls_125" class="opls_125" element="O" mass="15.9994"/>
   <Type name="opls_126" class="opls_126" element="C" mass="15.035"/>
   <Type name="opls_127" class="opls_127" element="N" mass="14.0067"/>
@@ -150,24 +150,24 @@
   <Type name="opls_145" class="CA" element="C" mass="12.01100" def="[C;X3;r6]1[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_141,opls_142" doi="10.1021/ja9621760"/>
   <Type name="opls_145B" class="C!" element="C" mass="12.01100"/>
   <Type name="opls_146" class="HA" element="H" mass="1.00800"  def="[H][C;%opls_145]" overrides="opls_144" desc="benzene H" doi="10.1021/ja9621760"/>
-  <Type name="opls_147" class="opls_147" element="C" mass="12.011"/>
+  <Type name="opls_147" class="CT" element="C" mass="12.011" def="[C;X4](Br)([C;%opls_137])" overrides="opls_150"/>
   <Type name="opls_148" class="CT" element="C" mass="12.01100"   def="[C;X4]([C;%opls_145])(H)(H)H" desc="toluene CH3" overrides="opls_149,opls_135" doi="10.1021/ja9621760"/>
   <Type name="opls_149" class="CT" element="C" mass="12.01100"   def="[C;X4]([C;%opls_145])(H)(H)*" desc="ethyl benzene CH2" overrides="opls_136" doi="10.1021/ja9621760"/>
-  <Type name="opls_150" class="opls_150" element="C" mass="12.011"/>
+  <Type name="opls_150" class="CT" element="C" mass="12.011" def="[C;X4](Br)"/>
   <Type name="opls_151" class="Cl" element="Cl" mass="35.453" def="[Cl][C;X4]" overrides="opls_401" desc="Cl in alkyl chlorides" doi="10.1021/jp0484579"/>
-  <Type name="opls_152" class="CT" element="C" mass="12.011" def="[C;X4](Cl)([Cl,C,H])([Cl,C,H])([Cl,C,H])" desc="RCH2Cl in alkyl chlorides" doi="10.1021/jp0484579"/>
-  <Type name="opls_153" class="HC" element="H" mass="1.008" def="[H][C;X4](Cl)([Cl,C,H])([Cl,C,H])" overrides="opls_140" desc="H in alkyl chlorides" doi="10.1021/jp0484579"/>
+  <Type name="opls_152" class="CT" element="C" mass="12.011" def="[C;X4](Cl)([Cl,C,H])([Cl,C,H])([Cl,C,H])" overrides="opls_189" desc="RCH2Cl in alkyl chlorides" doi="10.1021/jp0484579"/>
+  <Type name="opls_153" class="HC" element="H" mass="1.008" def="[H][C;X4](Cl)([Cl,C,H])([Cl,C,H])" overrides="opls_140, opls_282" desc="H in alkyl chlorides" doi="10.1021/jp0484579"/>
   <Type name="opls_154" class="OH" element="O" mass="15.9994"   def="[O;X2](H)([!H])" desc="all-atom O: mono alcohols" doi="10.1021/ja9621760"/>
   <Type name="opls_155" class="HO" element="H" mass="1.00800"   def="H[O;%opls_154]" desc="all-atom H(O): mono alcohols, OP(=O)2" doi="10.1021/ja9621760"/>
   <Type name="opls_156" class="HC" element="H" mass="1.008" def="HC(H)(H)OH" desc="all-atom H(C): methanol" overrides="opls_140" doi="10.1021/ja9621760"/>
   <Type name="opls_157" class="CT" element="C" mass="12.01100"   def="[C;X4]([H])([H])([*])[O;%opls_154]" desc="all-atom C: CH3 and CH2, alcohols" overrides="opls_136, opls_159, opls_158" doi="10.1021/ja9621760"/>
   <Type name="opls_158" class="CT" element="C" mass="12.011" def="[C;X4]([H])[O;%opls_154]" desc="Carbon in 2R-C(H)-OH" overrides="opls_136, opls_159" doi="10.1021/ja9621760"/>
   <Type name="opls_159" class="CT" element="C" mass="12.011" def="[C;X4][O;%opls_154]" desc="Carbon in 3R-C-OH" overrides="opls_136" doi="10.1021/ja9621760"/>
-  <Type name="opls_160" class="opls_160" element="C" mass="12.011"/>
-  <Type name="opls_161" class="opls_161" element="C" mass="12.011"/>
+  <Type name="opls_160" class="CT" element="C" mass="12.011" def="[C;X4](H)([C;X4])([C;X4])([O;X2])" />
+  <Type name="opls_161" class="CT" element="C" mass="12.011" def="[C;X4](C)([N;%opls_249])"/>
   <Type name="opls_162" class="opls_162" element="O" mass="15.9994"/>
   <Type name="opls_163" class="opls_163" element="H" mass="1.008"/>
-  <Type name="opls_164" class="opls_164" element="F" mass="18.9984"/>
+  <Type name="opls_164" class="F" element="F" mass="18.9984" def="F([S;X3,X4])"/>
   <Type name="opls_165" class="opls_165" element="H" mass="1.008"/>
   <Type name="opls_166" class="CA" element="C" mass="12.011" def="[C;X3;r6]1(OH)[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_145" doi="10.1021/ja9621760"/>
   <Type name="opls_167" class="OH" element="O" mass="15.9994" def="O(H)[C;%opls_166]" overrides="opls_154" doi="10.1021/ja9621760"/>
@@ -176,32 +176,32 @@
   <Type name="opls_170" class="opls_170" element="H" mass="1.008"/>
   <Type name="opls_171" class="opls_171" element="O" mass="15.9994"/>
   <Type name="opls_172" class="opls_172" element="H" mass="1.008"/>
-  <Type name="opls_173" class="opls_173" element="C" mass="12.011"/>
-  <Type name="opls_174" class="opls_174" element="C" mass="12.011"/>
-  <Type name="opls_175" class="opls_175" element="C" mass="12.011"/>
+  <Type name="opls_173" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([N;%opls_249])"/>
+  <Type name="opls_174" class="CT" element="C" mass="12.011" def="[C;X4]([S;%opls_124])"/>
+  <Type name="opls_175" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([O;X2])"/>
   <Type name="opls_176" class="opls_176" element="H" mass="1.008"/>
-  <Type name="opls_178" class="opls_178" element="C" mass="12.011"/>
+  <Type name="opls_178" class="CT" element="C" mass="12.011" def="[C;X4](O)(O)(H)(H)" desc="O, dialkyl ether" doi="10.1021/ja9621760"/>
   <Type name="opls_179" class="opls_179" element="O" mass="15.9994"/>
   <Type name="opls_180" class="OS" element="O" mass="15.9994"  def="[O;X2](C)C" desc="O, dialkyl ether" doi="10.1021/ja9621760"/>
-  <Type name="opls_181" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)H" desc="C(H3OR), methyl ether" overrides="opls_182" doi="10.1021/ja9621760"/>
-  <Type name="opls_182" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)C" desc="C(H2OR), methyl ether" doi="10.1021/ja9621760"/>
-  <Type name="opls_183" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)H" desc = "Central Carbon in Isopropyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
-  <Type name="opls_184" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)(C)" desc = "Central Carbon in t-butyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
-  <Type name="opls_185" class="HC" element="C" mass="1.00800"   def="HC[O;%opls_180]" desc="H(COR), alpha H ether" overrides="opls_140" doi="10.1021/ja9621760"/>
+  <Type name="opls_181" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)H" desc="C(H3OR), methyl ether" overrides="opls_175" doi="10.1021/ja9621760"/>
+  <Type name="opls_182" class="CT" element="C" mass="12.01100" def="[C;X4]([O;%opls_180])(H)(H)C" overrides="opls_198" desc="C(H2OR), methyl ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_183" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)H" overrides="opls_160" desc = "Central Carbon in Isopropyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_184" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_180])(C)(C)(C)" overrides="opls_197" desc = "Central Carbon in t-butyl group attached to Oxygen in ether" doi="10.1021/ja9621760"/>
+  <Type name="opls_185" class="HC" element="C" mass="1.00800"  def="HC[O;%opls_180]" desc="H(COR), alpha H ether" overrides="opls_140" doi="10.1021/ja9621760"/>
   <Type name="opls_186" class="OS" element="O" mass="15.9994" def="[O;X2][C;%opls_193](O)(C)H" desc="O: acetal ether" overrides="opls_180" doi="10.1021/ja9621760"/>
   <Type name="opls_187" class="opls_187" element="O" mass="15.9994"/>
-  <Type name="opls_188" class="opls_188" element="H" mass="1.008"/>
-  <Type name="opls_189" class="opls_189" element="C" mass="12.011"/>
+  <Type name="opls_188" class="HC" element="H" mass="1.008" def="HC([O;%opls_180])([C;%opls_754])" overrides="opls_185,opls_759"/>
+  <Type name="opls_189" class="CT" element="C" mass="12.011" def="[C;X4]([Cl;X1])"/>
   <Type name="opls_190" class="opls_190" element="H" mass="1.008"/>
-  <Type name="opls_191" class="opls_191" element="C" mass="12.011"/>
+  <Type name="opls_191" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([N;X2])"/>
   <Type name="opls_192" class="opls_192" element="H" mass="1.008"/>
   <Type name="opls_193" class="CO" element="C" mass="12.011" def="[C;X4](O)(O)(C)H" desc="C(HCO2), acetal OCHRO" doi="10.1021/ja9621760"/>
   <Type name="opls_194" class="HC" element="H" mass="1.008" def="H[C;%opls_193][O;%opls_186]" desc="H(CHO2), acetal OCHRO" overrides="opls_185" doi="10.1021/ja9621760"/>
-  <Type name="opls_195" class="opls_195" element="C" mass="12.011"/>
+  <Type name="opls_195" class="CO" element="C" mass="12.011" def="[C;X4](O)(O)(C)(C)"/>
   <Type name="opls_196" class="opls_196" element="H" mass="1.008"/>
-  <Type name="opls_197" class="opls_197" element="C" mass="12.011"/>
-  <Type name="opls_198" class="opls_198" element="C" mass="12.011"/>
-  <Type name="opls_199" class="opls_199" element="C" mass="12.011"/>
+  <Type name="opls_197" class="CT" element="C" mass="12.011" def="[C;X4]([C;X4])([C;X4])([C;X4])([O;X2])"/>
+  <Type name="opls_198" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])([O;X2])"/>
+  <Type name="opls_199" class="CT" element="C" mass="12.011" def="[C;X4]([C;%opls_280])([N;X3])" overrides="opls_256,opls_912"/>
   <Type name="opls_200" class="SH" element="S" mass="32.06" def="[S;X2]H" desc="S in any Thiol" overrides="opls_202" doi="10.1021/ja9621760"/>
   <Type name="opls_201" class="SH" element="S" mass="32.06" def="[S;X2](H)(H)" desc="S in H2S" overrides="opls_200, opls_202" doi="10.1021/ja9621760"/>
   <Type name="opls_202" class="S" element="S" mass="32.06" def="[S;X2]" desc="S in any sulfide" doi="10.1021/ja9621760" />
@@ -220,49 +220,49 @@
   <Type name="opls_215" class="CT" element="C" mass="12.011" def="[C;X4]([S;%opls_203])(H)" desc="C in 2R-CH-S-S-*"  overrides="opls_216, opls_211" doi="10.1021/ja9621760"/>
   <Type name="opls_216" class="CT" element="C" mass="12.011" def="[C;X4][S;%opls_203]" desc="C in 3R-C-S-S-*" overrides="opls_212" doi="10.1021/ja9621760"/>
   <Type name="opls_217" class="CT" element="C" mass="12.011" def="[C;X4]([S;%opls_200])(H)(H)(H)" desc="C in CH3-S-H (methanethiol)" overrides="opls_211, opls_207, opls_209, opls_206" doi="10.1021/ja9621760"/>
-  <Type name="opls_218" class="opls_218" element="C" mass="12.011"/>
-  <Type name="opls_219" class="opls_219" element="C" mass="12.011"/>
-  <Type name="opls_220" class="opls_220" element="C" mass="12.011"/>
+  <Type name="opls_218" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([P;X4])" overrides="opls_396"/>
+  <Type name="opls_219" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])([S;%opls_496])"/>
+  <Type name="opls_220" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;%opls_280])([S;%opls_496])"/>
   <Type name="opls_221" class="opls_221" element="C" mass="12.011"/>
-  <Type name="opls_222" class="opls_222" element="S" mass="32.06"/>
-  <Type name="opls_223" class="opls_223" element="C" mass="12.011"/>
+  <Type name="opls_222" class="S=" element="S" mass="32.06" def="[S;X1]([C;X3])"/>
+  <Type name="opls_223" class="C" element="C" mass="12.011" def="[C;X3]([C;X4])([O;X1])[Cl;X1]"/>
   <Type name="opls_223B" class="opls_223B" element="C" mass="12.011"/>
-  <Type name="opls_224" class="opls_224" element="C" mass="12.011"/>
+  <Type name="opls_224" class="CT" element="C" mass="12.011" def="[C;X4]([C;X4])([C;X4])([C;X4])([N;X2])"/>
   <Type name="opls_224B" class="opls_224B" element="C" mass="12.011"/>
   <Type name="opls_225" class="opls_225" element="C" mass="12.011"/>
   <Type name="opls_225B" class="opls_225B" element="C" mass="12.011"/>
-  <Type name="opls_226" class="opls_226" element="Cl" mass="35.453"/>
-  <Type name="opls_227" class="opls_227" element="C" mass="12.011"/>
-  <Type name="opls_228" class="opls_228" element="C" mass="12.011"/>
+  <Type name="opls_226" class="Cl" element="Cl" mass="35.453" def="[Cl;X1]([C;%opls_223])" overrides="opls_401"/>
+  <Type name="opls_227" class="CT" element="C" mass="12.011" def="[C;X4]([C;%opls_754])([O;%opls_180])" overrides="opls_182,opls_183,opls_756,opls_757"/>
+  <Type name="opls_228" class="CT" element="C" mass="12.011" def="[C;X4](H)([C;X4])([C;X4])([S;X3])"/>
   <Type name="opls_229" class="opls_229" element="C" mass="12.011"/>
   <Type name="opls_230" class="opls_230" element="C" mass="12.011"/>
   <Type name="opls_231" class="opls_231" element="C" mass="12.011"/>
   <Type name="opls_232" class="opls_232" element="C" mass="12.011"/>
   <Type name="opls_233" class="opls_233" element="C" mass="12.011"/>
-  <Type name="opls_234" class="opls_234" element="C" mass="12.011"/>
+  <Type name="opls_234" class="C" element="C" mass="12.011" def="[C;X3]([N;X2])"/>
   <Type name="opls_235" class="C" element="C" mass="12.011" def="[C;X3]([O;X1])[N;X3]" desc="C=O in amide, dmf, peptide bond" overrides="opls_277" doi="10.1021/ja9621760"/>
   <Type name="opls_236" class="O" element="O" mass="15.9994" def="O[C;%opls_235]" desc="O: C=O in amide.   Acyl R on C in amide is neutral -" overrides="opls_278" doi="10.1021/ja9621760"/>
   <Type name="opls_237" class="N" element="N" mass="14.0067" def="[N;X3](H)(H)[C;%opls_235]" desc="primary amide N, ex. carboxamide" overrides="opls_900" doi="10.1021/ja9621760"/>
   <Type name="opls_238" class="N" element="N" mass="14.0067" def="[N;X3](H)(C)[C;%opls_235]" desc="secondary amide N, ex. N-methyl acetamide" doi="10.1021/ja9621760"/>
-  <Type name="opls_239" class="N" element="N" mass="14.0067" def="[N;X3](C)(C)[C;%opls_235]" desc="tertiary amide N, ex. acetamide" doi="10.1021/ja9621760"/>
+  <Type name="opls_239" class="N" element="N" mass="14.0067" def="[N;X3](C)(C)[C;%opls_235]" desc="tertiary amide N, ex. acetamide" overrides="opls_249,opls_303" doi="10.1021/ja9621760"/>
   <Type name="opls_240" class="H" element="H" mass="1.008" def="[H;X1][N;%opls_237]" desc="H on a primary nitrogen in amide" overrides="opls_909" doi="10.1021/ja9621760"/>
-  <Type name="opls_241" class="H" element="H" mass="1.008" def="[H;X1][N;%opls_238]" desc="H on a secondary nitrogen in amide" doi="10.1021/ja9621760"/>
-  <Type name="opls_242" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)[N;%opls_238]" desc="methyl C attached to secondary N in amide" doi="10.1021/ja9621760"/>
-  <Type name="opls_243" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)[N;%opls_239]" desc="methyl C attached to tertiary N in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_241" class="H" element="H" mass="1.008" def="[H;X1][N;%opls_238]" overrides="opls_255" desc="H on a secondary nitrogen in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_242" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)[N;%opls_238]" overrides="opls_293" desc="methyl C attached to secondary N in amide" doi="10.1021/ja9621760"/>
+  <Type name="opls_243" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)[N;%opls_239]" overrides="opls_245,opls_293" desc="methyl C attached to tertiary N in amide" doi="10.1021/ja9621760"/>
   <Type name="opls_244" class="opls_244" element="C" mass="12.011"/>
-  <Type name="opls_245" class="CT" element="C" mass="12.011" def="[C;X4](C)(H)(H)[N;%opls_239]" desc="secondary C attached to tertiary N. ex. NMP." doi="10.1021/ja9621760"/>
-  <Type name="opls_246" class="opls_246" element="C" mass="12.011"/>
+  <Type name="opls_245" class="CT" element="C" mass="12.011" def="[C;X4][N;%opls_239]" overrides="opls_256,opls_908,opls_912" desc="secondary C attached to tertiary N. ex. NMP." doi="10.1021/ja9621760"/>
+  <Type name="opls_246" class="CT" element="C" mass="12.011" def="[C;X4](C)(C)([N;%opls_900])" overrides="opls_256,opls_199"/>
   <Type name="opls_247" class="opls_247" element="C" mass="12.011"/>
   <Type name="opls_248" class="opls_248" element="O" mass="15.9994"/>
-  <Type name="opls_249" class="opls_249" element="N" mass="14.0067"/>
+  <Type name="opls_249" class="N" element="N" mass="14.0067" def="[N;X3](C)(C)[C;%opls_135,%opls_136,%opls_137]"/>
   <Type name="opls_250" class="opls_250" element="H" mass="1.008"/>
-  <Type name="opls_251" class="opls_251" element="N" mass="14.0067"/>
+  <Type name="opls_251" class="NC" element="N" mass="14.0067" def="[N;X2]([O;X2])([C;X3])"/>
   <Type name="opls_252" class="opls_252" element="C" mass="12.011"/>
-  <Type name="opls_253" class="opls_253" element="O" mass="15.9994"/>
-  <Type name="opls_254" class="opls_254" element="H" mass="1.008"/>
-  <Type name="opls_255" class="opls_255" element="H" mass="1.008"/>
-  <Type name="opls_256" class="opls_256" element="C" mass="12.011"/>
-  <Type name="opls_257" class="opls_257" element="C" mass="12.011"/>
+  <Type name="opls_253" class="OS" element="O" mass="15.9994" def="[O;X2]([N;X2])"/>
+  <Type name="opls_254" class="H" element="H" mass="1.008" def="H([N;X2])"/>
+  <Type name="opls_255" class="H" element="H" mass="1.008" def="H([N;X3])"/>
+  <Type name="opls_256" class="CT" element="C" mass="12.011" def="[C;X4]([C;X4])([C;X4])([N;X3])" overrides="opls_912,opls_757"/>
+  <Type name="opls_257" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])([N;X2])"/>
   <Type name="opls_258" class="opls_258" element="C" mass="12.011"/>
   <Type name="opls_259" class="opls_259" element="C" mass="12.011"/>
   <Type name="opls_260" class="CA" element="C" mass="12.011" def="[C;X3;r6]([C;X2;%opls_261])" overrides = "opls_145" desc="Benzonitrile: Carbon on aromatic ring attached to CN" doi="10.1021/ja9621760"/>
@@ -270,7 +270,7 @@
   <Type name="opls_262" class="NZ" element="N" mass="14.0067" def="[N;X1][C;%opls_261]" overrides = "opls_753" desc="Benzonitrile Nitrogen(benzene-C)N" doi="10.1021/ja9621760"/>
   <Type name="opls_263" class="CA" element="C" mass="12.011" def="[C;X3;r6]1(Cl)[C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6][C;X3;r6]1" overrides="opls_145" desc="Chlorobenzene C(Cl)" doi="10.1021/ja9621760"/>
   <Type name="opls_264" class="Cl" element="Cl" mass="35.453" def="[Cl;X1]([C;%opls_263])" overrides="opls_401" desc="Chlorobenzene (C)Cl" doi="10.1021/ja9621760"/>
-  <Type name="opls_265" class="opls_265" element="N" mass="14.0067"/>
+  <Type name="opls_265" class="N" element="N" mass="14.0067" def="[N;X3]([C;X4])([C;%opls_235])[N;X3]" overrides="opls_787"/>
   <Type name="opls_266" class="opls_266" element="C" mass="12.011"/>
   <Type name="opls_267" class="C" element="C" mass="12.01100"   def="[C;X3]([O;X1])OH" desc="Co in CCOOH" overrides="opls_277,opls_271,opls_465" doi="10.1021/ja9621760"/>
   <Type name="opls_268" class="OH" element="O" mass="15.9994"   def="[O;X2]([C;%opls_267])H" desc="Oh in CCOOH" overrides="opls_154" doi="10.1021/ja9621760"/>
@@ -287,19 +287,19 @@
   <Type name="opls_279" class="HC"  element="H" mass="1.00800"  def="H[C;X3][O;X1]" desc="H-alpha in aldehyde and formamide" overrides="opls_185, opls_144" doi="10.1021/ja9621760"/>
   <Type name="opls_280" class="C_2" element="C" mass="12.01100" def="[C;X3]([O;X1])(C)C" desc="C in ketone" doi="10.1021/ja9621760"/>
   <Type name="opls_281" class="O_2" element="O" mass="15.9994"  def="[O;X1]([C;%opls_280])" desc="O in ketone" doi="10.1021/ja9621760"/>
-  <Type name="opls_282" class="HC"  element="H" mass="1.00800"  def="HC[C;%opls_277,%opls_280,%opls_465;!%opls_267]" desc="H on C-alpha in ketone and aldehyde" overrides="opls_140,opls_144" doi="10.1021/ja9621760"/>
-  <Type name="opls_283" class="opls_283" element="C" mass="12.011"/>
-  <Type name="opls_284" class="opls_284" element="C" mass="12.011"/>
+  <Type name="opls_282" class="HC"  element="H" mass="1.00800"  def="HC[C;%opls_277,%opls_280,%opls_465;!%opls_267][O;%opls_180]" desc="H on C-alpha in ketone and aldehyde" overrides="opls_140,opls_144,opls_185" doi="10.1021/ja9621760"/>
+  <Type name="opls_283" class="HC" element="C" mass="12.011"/>
+  <Type name="opls_284" class="C" element="C" mass="12.011" def="[C;X3]([O;X1])([S;X2])"/>
   <Type name="opls_285" class="opls_285" element="C" mass="12.011"/>
-  <Type name="opls_286" class="opls_286" element="N" mass="14.0067"/>
-  <Type name="opls_287" class="opls_287" element="N" mass="14.0067"/>
-  <Type name="opls_288" class="opls_288" element="N" mass="14.0067"/>
-  <Type name="opls_289" class="opls_289" element="H" mass="1.008"/>
+  <Type name="opls_286" class="NC" element="N" mass="14.0067" def="[N;X2]([C;X4])([C;X3])"/>
+  <Type name="opls_287" class="NT" element="N" mass="14.0067" def="[N;X3]([C;X4])([N;X2])"/>
+  <Type name="opls_288" class="NC" element="N" mass="14.0067" def="[N;X2]([N;X3])([C;X3])"/>
+  <Type name="opls_289" class="Cl" element="Cl" mass="35.453" def="[Cl;X1]([S;X3])" overrides="opls_401"/>
   <Type name="opls_290" class="opls_290" element="H" mass="1.008"/>
-  <Type name="opls_291" class="opls_291" element="C" mass="12.011"/>
-  <Type name="opls_292" class="opls_292" element="C" mass="12.011"/>
+  <Type name="opls_291" class="CT" element="C" mass="12.011" def="[C;X4]([C;X3])([N;X2])"/>
+  <Type name="opls_292" class="C" element="C" mass="12.011" def="[C;X3]([N;X3])([S;X1])" desc="C from ligpargen" />
   <Type name="opls_292B" class="opls_292B" element="C" mass="12.011"/>
-  <Type name="opls_293" class="opls_293" element="C" mass="12.011"/>
+  <Type name="opls_293" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([N;X3])"/>
   <Type name="opls_293B" class="opls_293B" element="C" mass="12.011"/>
   <Type name="opls_294" class="opls_294" element="C" mass="12.011"/>
   <Type name="opls_295" class="opls_295" element="C" mass="12.011"/>
@@ -307,41 +307,41 @@
   <Type name="opls_297" class="opls_297" element="C" mass="12.011"/>
   <Type name="opls_298" class="opls_298" element="C" mass="12.011"/>
   <Type name="opls_299" class="opls_299" element="C" mass="12.011"/>
-  <Type name="opls_300" class="opls_300" element="N" mass="14.0067"/>
+  <Type name="opls_300" class="NC" element="N" mass="14.0067" def="[N;X2]([C;%opls_234])([C;X3])"/>
   <Type name="opls_301" class="opls_301" element="H" mass="1.008"/>
-  <Type name="opls_302" class="opls_302" element="C" mass="12.011"/>
-  <Type name="opls_303" class="opls_303" element="N" mass="14.0067"/>
+  <Type name="opls_302" class="C:" element="C" mass="12.011" def="[C;X2]([O;X1])([N;X2])"/>
+  <Type name="opls_303" class="N" element="N" mass="14.0067" def="[N;X3]([C;X4])([C;X4])[C;X3]"/>
   <Type name="opls_304" class="opls_304" element="H" mass="1.008"/>
-  <Type name="opls_305" class="opls_305" element="C" mass="12.011"/>
+  <Type name="opls_305" class="CT" element="C" mass="12.011" def="[C;X4]([C;%opls_754])([N;X3])" overrides="opls_256,opls_758"/>
   <Type name="opls_306" class="opls_306" element="C" mass="12.011"/>
   <Type name="opls_307" class="opls_307" element="C" mass="12.011"/>
   <Type name="opls_308" class="opls_308" element="C" mass="12.011"/>
-  <Type name="opls_309" class="opls_309" element="N" mass="14.0067"/>
+  <Type name="opls_309" class="NT" element="N" mass="14.0067" def="[N;X3]([C;X4])([N;X2])([N;X3])" overrides="opls_287,opls_787"/>
   <Type name="opls_310" class="opls_310" element="H" mass="1.008"/>
-  <Type name="opls_311" class="opls_311" element="N" mass="14.0067"/>
-  <Type name="opls_312" class="opls_312" element="C" mass="12.011"/>
-  <Type name="opls_313" class="opls_313" element="N" mass="14.0067"/>
+  <Type name="opls_311" class="N" element="N" mass="14.0067" def="[N;X3](H)([C;X4])[S;X4]"/>
+  <Type name="opls_312" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])([N;%opls_309])" overrides="opls_908"/>
+  <Type name="opls_313" class="NT" element="N" mass="14.0067" def="[N;X3](H)([C;X4])([S;X2])"/>
   <Type name="opls_314" class="opls_314" element="H" mass="1.008"/>
-  <Type name="opls_315" class="opls_315" element="C" mass="12.011"/>
+  <Type name="opls_315" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([C;X4])[N;X2]"/>
   <Type name="opls_316" class="opls_316" element="H" mass="1.008"/>
-  <Type name="opls_317" class="opls_317" element="C" mass="12.011"/>
+  <Type name="opls_317" class="CT" element="C" mass="12.011" def="[C;X4](H)([C;X4])([C;X4])([N;X2])"/>
   <Type name="opls_318" class="opls_318" element="H" mass="1.008"/>
-  <Type name="opls_319" class="opls_319" element="N" mass="14.0067"/>
-  <Type name="opls_319B" class="opls_319B" element="N" mass="14.0067"/>
+  <Type name="opls_319" class="NC" element="N" mass="14.0067" def="[N;X2]([N;X3])([O;X1])"/>
+  <Type name="opls_319B" class="NC" element="N" mass="14.0067" def="[N;X2](H)([S;X4])"/>
   <Type name="opls_320" class="opls_320" element="C" mass="12.011"/>
-  <Type name="opls_321" class="opls_321" element="N" mass="14.0067"/>
+  <Type name="opls_321" class="NT" element="N" mass="14.0067" def="[N;X3](H)(H)([N;X2])"/>
   <Type name="opls_322" class="opls_322" element="C" mass="12.011"/>
   <Type name="opls_323" class="opls_323" element="C" mass="12.011"/>
   <Type name="opls_324" class="opls_324" element="C" mass="12.011"/>
   <Type name="opls_325" class="opls_325" element="H" mass="1.008"/>
-  <Type name="opls_326" class="opls_326" element="O" mass="15.9994"/>
+  <Type name="opls_326" class="O" element="O" mass="15.9994" def="[O;X1][P;X4]"/>
   <Type name="opls_327" class="opls_327" element="H" mass="1.008"/>
-  <Type name="opls_328" class="opls_328" element="O" mass="15.9994"/>
+  <Type name="opls_328" class="O" element="O" mass="15.9994" def="[O;X1][C;%opls_234]"/>
   <Type name="opls_329" class="opls_329" element="H" mass="1.008"/>
   <Type name="opls_330" class="opls_330" element="H" mass="1.008"/>
   <Type name="opls_331" class="opls_331" element="C" mass="12.011"/>
   <Type name="opls_332" class="opls_332" element="H" mass="1.008"/>
-  <Type name="opls_333" class="opls_333" element="N" mass="14.0067"/>
+  <Type name="opls_333" class="N" element="N" mass="14.0067" def="[N;X3](H)(H)([S;X3,X4])"/>
   <Type name="opls_333B" class="opls_333B" element="N" mass="14.0067"/>
   <Type name="opls_334" class="opls_334" element="C" mass="12.011"/>
   <Type name="opls_335" class="opls_335" element="N" mass="14.0067"/>
@@ -349,7 +349,7 @@
   <Type name="opls_337" class="opls_337" element="C" mass="12.011"/>
   <Type name="opls_338" class="opls_338" element="C" mass="12.011"/>
   <Type name="opls_339" class="opls_339" element="H" mass="1.008"/>
-  <Type name="opls_340" class="opls_340" element="O" mass="15.9994"/>
+  <Type name="opls_340" class="O" element="O" mass="15.9994" def="[O;X1][C;%opls_223]"/>
   <Type name="opls_341" class="opls_341" element="N" mass="14.0067"/>
   <Type name="opls_342" class="opls_342" element="H" mass="1.008"/>
   <Type name="opls_343" class="opls_343" element="H" mass="1.008"/>
@@ -380,7 +380,7 @@
   <Type name="opls_367" class="opls_367" element="H" mass="1.008"/>
   <Type name="opls_368" class="opls_368" element="N" mass="14.0067"/>
   <Type name="opls_369" class="opls_369" element="H" mass="1.008"/>
-  <Type name="opls_370" class="opls_370" element="O" mass="15.9994"/>
+  <Type name="opls_370" class="O" element="O" mass="15.9994" def="[O;X1][C;%opls_302]"/>
   <Type name="opls_371" class="opls_371" element="C" mass="12.011"/>
   <Type name="opls_372" class="opls_372" element="H" mass="1.008"/>
   <Type name="opls_373" class="opls_373" element="C" mass="12.011"/>
@@ -404,13 +404,13 @@
   <Type name="opls_390" class="opls_390" element="H" mass="1.008"/>
   <Type name="opls_391" class="opls_391" element="C" mass="12.011"/>
   <Type name="opls_392" class="opls_392" element="H" mass="1.008"/>
-  <Type name="opls_393" class="opls_393" element="P" mass="30.97376"/>
+  <Type name="opls_393" class="P" element="P" mass="30.97376" def="[P;X4]"/>
   <Type name="opls_394" class="opls_394" element="O" mass="15.9994"/>
   <Type name="opls_395" class="opls_395" element="O" mass="15.9994"/>
-  <Type name="opls_396" class="opls_396" element="C" mass="12.011"/>
+  <Type name="opls_396" class="CT" element="C" mass="12.011" def="[C;X4]([P;X4])"/>
   <Type name="opls_400" class="opls_400" element="F" mass="18.9984"/>
-  <Type name="opls_401" class="opls_401" element="Cl" mass="35.453" def="[Cl]" desc="Chloride Ion(Cl-)" doi="https://doi.org/10.1021/ja00316a012"/>
-  <Type name="opls_402" class="opls_402" element="Br" mass="79.904"/>
+  <Type name="opls_401" class="opls_401" element="Cl" mass="35.453"/>
+  <Type name="opls_402" class="Br" element="Br" mass="79.904" def="[Br;X1][C;X4]" desc="Chlorobenzene (C)Br"/>
   <Type name="opls_403" class="opls_403" element="I" mass="126.9045"/>
   <Type name="opls_404" class="opls_404" element="Li" mass="6.941"/>
   <Type name="opls_405" class="opls_405" element="Na" mass="22.98977"/>
@@ -425,7 +425,7 @@
   <Type name="opls_414" class="opls_414" element="Ba" mass="137.33"/>
   <Type name="opls_415" class="opls_415" element="C" mass="12.011"/>
   <Type name="opls_416" class="opls_416" element="H" mass="1.008"/>
-  <Type name="opls_417" class="opls_417" element="S" mass="32.06"/>
+  <Type name="opls_417" class="S=" element="S" mass="32.06" def="[S;X1]([C;X2])"/>
   <Type name="opls_418" class="opls_418" element="C" mass="12.011"/>
   <Type name="opls_419" class="opls_419" element="H" mass="1.008"/>
   <Type name="opls_420" class="opls_420" element="O" mass="15.9994"/>
@@ -458,7 +458,7 @@
   <Type name="opls_449" class="opls_449" element="H" mass="1.008"/>
   <Type name="opls_450" class="opls_450" element="P" mass="30.97376"/>
   <Type name="opls_451" class="opls_451" element="O" mass="15.9994"/>
-  <Type name="opls_452" class="opls_452" element="O" mass="15.9994"/>
+  <Type name="opls_452" class="OS" element="O" mass="15.9994" def="[O;X2]([C;X4])([N;X3])"/>
   <Type name="opls_453" class="opls_453" element="C" mass="12.011"/>
   <Type name="opls_454" class="opls_454" element="H" mass="1.008"/>
   <Type name="opls_455" class="opls_455" element="C" mass="12.011"/>
@@ -478,9 +478,11 @@
   <Type name="opls_470" class="opls_470" element="C" mass="12.011"/>
   <Type name="opls_471" class="opls_471" element="C" mass="12.011"/>
   <Type name="opls_472" class="opls_472" element="C" mass="12.011"/>
-  <Type name="opls_473" class="opls_473" element="O" mass="15.9994"/>
+  <Type name="opls_473" class="OS" element="O" mass="15.9994" def="[O;X2]([C;X4])([P;X4])"/>
   <Type name="opls_474" class="opls_474" element="S" mass="32.06"/>
-  <Type name="opls_475" class="opls_475" element="O" mass="15.9994"/>
+
+  <Type name="opls_475" class="OS" element="O" mass="15.9994" def="[O;X2]([C;X4])([S;X4])"/>
+
   <Type name="opls_476" class="opls_476" element="C" mass="12.011"/>
   <Type name="opls_477" class="opls_477" element="H" mass="1.008"/>
   <Type name="opls_478" class="opls_478" element="N" mass="14.0067"/>
@@ -497,8 +499,11 @@
   <Type name="opls_490" class="CT" element="C" mass="12.011" def="[C;X4]([O;%opls_467])(H)(H)C" overrides="opls_182" desc="ethoxy carbon; C(H2OS) ethyl ester" doi="10.1002/jcc.1092"/>
   <Type name="opls_491" class="opls_491" element="C" mass="12.011"/>
   <Type name="opls_492" class="opls_492" element="C" mass="12.011"/>
-  <Type name="opls_493" class="opls_493" element="S" mass="32.06"/>
+  <Type name="opls_493" class="SZ" element="S" mass="32.06" def="[S;X3]([O;%opls_497])([C;X4])([N;X3])"/>
   <Type name="opls_494" class="opls_494" element="O" mass="15.9994"/>
+
+  <Type name="opls_495" class="SZ" element="O" mass="15.9994" def="[S;X3]([O;%opls_497])([C;X4])([Cl;X1])"/>
+
   <!--
     A published source does not appear to exist for atom-types
     opls_496, opls_497, and opls_498. DOIs refer to the following
@@ -512,14 +517,18 @@
        derived).
   -->
   <Type name="opls_496" class="SZ" element="S" mass="32.06" def="[S;X3]([O;%opls_497])(C)(C)" desc="sulfoxide - all atom" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
-  <Type name="opls_497" class="OY" element="O" mass="15.9994" def="[O;X1][S;X3]" desc="sulfoxide - all atom" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
+  <Type name="opls_497" class="OY" element="O" mass="15.9994" def="[O;X1][S;X3,X4]" desc="sulfoxide - all atom" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
   <Type name="opls_498" class="CT" element="C" mass="12.011" def="[C;X4]([S;X3])(H)(H)(H)" desc="CH3 all-atom C: sulfoxide" doi="10.1021/ja9539195, 10.1021/acs.jpcb.7b04233"/>
   <Type name="opls_499" class="opls_499" element="C" mass="12.011"/>
-  <Type name="opls_500" class="opls_500" element="C" mass="12.011"/>
-  <Type name="opls_501" class="opls_501" element="C" mass="12.011"/>
-  <Type name="opls_502" class="opls_502" element="C" mass="12.011"/>
+  <Type name="opls_500" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([Si;%opls_504])"/>
+  <Type name="opls_501" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([C;%opls_502])" overrides="opls_135"/>
+
+  <Type name="opls_502" class="CT" element="C" mass="12.011" def="[C;X4]([O;X2])([C;X4])([Si;X4])"/>
+
   <Type name="opls_503" class="opls_503" element="N" mass="14.0067"/>
-  <Type name="opls_504" class="opls_504" element="H" mass="1.008"/>
+
+  <Type name="opls_504" class="Si" element="Si" mass="28.0860" def="[Si;X4]([C;X4])([C;X4])([C;X4])([C;X4])"/>
+
   <Type name="opls_505" class="opls_505" element="C" mass="12.011"/>
   <Type name="opls_506" class="opls_506" element="C" mass="12.011"/>
   <Type name="opls_507" class="opls_507" element="C" mass="12.011"/>
@@ -541,7 +550,9 @@
   <Type name="opls_524" class="HA" element="H" mass="1.008" def="H[C;%opls_521]" desc="H1 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
   <Type name="opls_525" class="HA" element="H" mass="1.008" def="H[C;%opls_522]" desc="H2 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
   <Type name="opls_526" class="HA" element="H" mass="1.008" def="H[C;%opls_523]" desc="H3 in pyridine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
-  <Type name="opls_527" class="opls_527" element="N" mass="14.0067"/>
+
+  <Type name="opls_527" class="NC" element="N" mass="14.0067" def="[N;X2](H)([C;X3])"/>
+
   <Type name="opls_528" class="opls_528" element="C" mass="12.011"/>
   <Type name="opls_529" class="opls_529" element="H" mass="1.008"/>
   <Type name="opls_530" class="NC" element="N" mass="14.0067" def="[N;X2;r6]1[C;X3;r6][C;X3;r6][C;X3;r6][N;X2;r6][C;X3;r6]1" desc="N in pyrimidine" doi="10.1016/S0166-1280(97)00237-6"/>
@@ -551,7 +562,9 @@
   <Type name="opls_534" class="HA" element="H" mass="1.008" def="H[C;%opls_531]" desc="H2 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
   <Type name="opls_535" class="HA" element="H" mass="1.008" def="H[C;%opls_532]" desc="H4 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
   <Type name="opls_536" class="HA" element="H" mass="1.008" def="H[C;%opls_533]" desc="H5 in pyrimidine" overrides="opls_144" doi="10.1016/S0166-1280(97)00237-6"/>
-  <Type name="opls_537" class="opls_537" element="N" mass="14.0067"/>
+
+  <Type name="opls_537" class="NC" element="N" mass="14.0067" def="[N;X2]([N;%opls_309])([O;X1])" overrides="opls_319"/>
+
   <Type name="opls_538" class="opls_538" element="C" mass="12.011"/>
   <Type name="opls_539" class="opls_539" element="C" mass="12.011"/>
   <Type name="opls_540" class="opls_540" element="H" mass="1.008"/>
@@ -562,9 +575,13 @@
   <Type name="opls_545" class="H"  element="H" mass="1.00800"  def="H[N;%opls_542]" desc="H1 in pyrrole" doi="10.1021/jp981200o"/>
   <Type name="opls_546" class="HA" element="H" mass="1.00800"  def="H[C;%opls_543]" desc="H2 in pyrrole" overrides="opls_144" doi="10.1021/jp981200o"/>
   <Type name="opls_547" class="HA" element="H" mass="1.00800"  def="H[C;%opls_544]" desc="H3 in pyrrole" overrides="opls_144" doi="10.1021/jp981200o"/>
-  <Type name="opls_548" class="opls_548" element="N" mass="14.0067"/>
+
+  <Type name="opls_548" class="NC" element="N" mass="14.0067" def="[N;X2]([C;X2])([C;X4])"/>
+
   <Type name="opls_549" class="opls_549" element="N" mass="14.0067"/>
-  <Type name="opls_550" class="opls_550" element="C" mass="12.011"/>
+
+  <Type name="opls_550" class="C" element="C" mass="12.011" def="[C;X2]([S;X1])([N;%opls_548])"/>
+
   <Type name="opls_551" class="opls_551" element="C" mass="12.011"/>
   <Type name="opls_552" class="opls_552" element="C" mass="12.011"/>
   <Type name="opls_553" class="opls_553" element="H" mass="1.008"/>
@@ -593,7 +610,7 @@
   <Type name="opls_576" class="opls_576" element="H" mass="1.008"/>
   <Type name="opls_577" class="opls_577" element="H" mass="1.008"/>
   <Type name="opls_578" class="opls_578" element="H" mass="1.008"/>
-  <Type name="opls_579" class="opls_579" element="O" mass="15.9994"/>
+  <Type name="opls_579" class="O" element="O" mass="15.9994" def="[O;X1][C;X3]([C;X4])([S;X2])"/>
   <Type name="opls_580" class="opls_580" element="N" mass="14.0067"/>
   <Type name="opls_581" class="opls_581" element="C" mass="12.011"/>
   <Type name="opls_582" class="opls_582" element="C" mass="12.011"/>
@@ -702,7 +719,7 @@
   <Type name="opls_706" class="opls_706" element="Gd" mass="157.25"/>
   <Type name="opls_707" class="opls_707" element="Yb" mass="173.04"/>
   <Type name="opls_708" class="opls_708" element="C" mass="12.011"/>
-  <Type name="opls_709" class="opls_709" element="Cl" mass="35.453"/>
+  <Type name="opls_709" class="Cl" element="Cl" mass="35.453" def="[Cl;X1]([S;%opls_124])" overrides="opls_401"/>
   <Type name="opls_710" class="opls_710" element="H" mass="1.008"/>
   <!--
     Parameters for cyclopropanes (opls_711, opls_712, opls_713) do not appear
@@ -745,17 +762,17 @@
   <Type name="opls_745" class="opls_745" element="H" mass="1.008"/>
   <Type name="opls_746" class="opls_746" element="H" mass="1.008"/>
   <Type name="opls_747" class="opls_747" element="C" mass="12.011"/>
-  <Type name="opls_748" class="opls_748" element="C" mass="12.011"/>
+  <Type name="opls_748" class="CT" element="C" mass="12.011" def="[C;X4]([N;%opls_900])[C;%opls_754]" overrides="opls_246,opls_758"/>
   <Type name="opls_749" class="opls_749" element="N" mass="14.0067"/>
   <Type name="opls_750" class="opls_750" element="N" mass="14.0067"/>
-  <Type name="opls_751" class="opls_751" element="N" mass="14.0067"/>
-  <Type name="opls_752" class="opls_752" element="C" mass="12.011"/>
+  <Type name="opls_751" class="NT" element="N" mass="14.0067" def="[N;X3]([C;X4])([C;X4])([C;X4])"/>
+  <Type name="opls_752" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])[N;%opls_751]" overrides="opls_908"/>
   <Type name="opls_753" class="NZ" element="N" mass="14.0067" def="[N;X1]C" desc="N in RCN nitriles" doi="10.1002/jcc.1092"/>
   <Type name="opls_754" class="CZ" element="C" mass="12.01100" def="[C;X2][N;%opls_753]" desc="C in RCN nitriles" doi="10.1002/jcc.1092"/>
   <Type name="opls_755" class="CT" element="C" mass="12.01100" def="[C;X4](H)(H)(H)[C;%opls_754]" desc="C of CH3 in CH3CN" overrides="opls_135,opls_756" doi="10.1002/jcc.1092"/>
-  <Type name="opls_756" class="CT" element="C" mass="12.01100" def="[C;X4](H)(H)[C;%opls_754]" desc="C of CH2 in RCH2CN" overrides="opls_136,opls_757" doi="10.1002/jcc.1092"/>
+  <Type name="opls_756" class="CT" element="C" mass="12.01100" def="[C;X4](H)(H)[C;%opls_754]" desc="C of CH2 in RCH2CN" overrides="opls_136,opls_757,opls_913" doi="10.1002/jcc.1092"/>
   <Type name="opls_757" class="CT" element="C" mass="12.01100" def="[C;X4](H)[C;%opls_754]" desc="C of CH in R2CHCN" overrides="opls_137,opls_758" doi="10.1002/jcc.1092"/>
-  <Type name="opls_758" class="CT" element="C" mass="12.01100" def="[C;X4][C;%opls_754]" desc="C of C in R3CCN" doi="10.1002/jcc.1092"/>
+  <Type name="opls_758" class="CT" element="C" mass="12.01100" def="[C;X4][C;%opls_754]" overrides="opls_184,opls_139" desc="C of C in R3CCN" doi="10.1002/jcc.1092"/>
   <Type name="opls_759" class="HC" element="H" mass="1.00800"  def="HC[C;%opls_754]" desc="HC-CT-CN alpha-H in nitriles" overrides="opls_140" doi="10.1002/jcc.1092"/>
   <Type name="opls_760" class="NO" element="N" mass="14.0067"  def="[N;X3]([O;X1])([O;X1])" desc="N in nitro R-NO2" overrides="opls_239" doi="10.1002/jcc.1092"/>
   <Type name="opls_761" class="ON" element="O" mass="15.9994"  def="[O;X1][N][O;X1]" desc="O in nitro R-NO2" doi="10.1002/jcc.1092"/>
@@ -781,27 +798,27 @@
   <Type name="opls_784" class="opls_784" element="H" mass="1.008"/>
   <Type name="opls_785" class="opls_785" element="P" mass="30.97376"/>
   <Type name="opls_786" class="opls_786" element="F" mass="18.9984"/>
-  <Type name="opls_787" class="opls_787" element="N" mass="14.0067"/>
-  <Type name="opls_788" class="opls_788" element="O" mass="15.9994"/>
-  <Type name="opls_795" class="opls_795" element="O" mass="15.9994"/>
+  <Type name="opls_787" class="NT" element="N" mass="14.0067" def="[N;X3]([!H])([N;X3])"/>
+  <Type name="opls_788" class="ON" element="O" mass="15.9994" def="[O;X1][N;%opls_537]"/>
+  <Type name="opls_795" class="ON" element="O" mass="15.9994" def="[O;X1][N;X2]" overrides="opls_795"/>
   <Type name="opls_796" class="opls_796" element="H" mass="1.008"/>
   <Type name="opls_797" class="opls_797" mass="0.0"/>
   <Type name="opls_900" class="NT" element="N" mass="14.0067" def="[N;X3](H)(H)C" desc="N primary amines" doi="10.1021/ja984106u"/>
-  <Type name="opls_901" class="NT" element="N" mass="14.0067" def="[N;X3](H)([C;!%opls_235;!%opls_543])([C;!%opls_235;!%opls_543])" desc="N for secondary amines" doi="10.1021/ja984106u"/>
-  <Type name="opls_902" class="NT" element="N" mass="14.0067"/>
+  <Type name="opls_901" class="NT" element="N" mass="14.0067" def="[N;X3](H)([C;!%opls_235;!%opls_543])([C;!%opls_235;!%opls_543])" desc="N for secondary amines" overrides="opls_902" doi="10.1021/ja984106u"/>
+  <Type name="opls_902" class="NT" element="N" mass="14.0067" def="[N;X3](H)([C;X4])([C;X4])"/>
   <Type name="opls_903" class="CT" element="C" mass="12.01100" def="[C;X4](H)(H)(H)([N;%opls_900])" desc="CH3(N) primary aliphatic amines" overrides="opls_906" doi="10.1021/ja984106u"/>
-  <Type name="opls_904" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([N;%opls_901])" desc="CH3(N) secondary aliphatic amines" overrides="opls_906" doi="10.1021/ja984106u"/>
-  <Type name="opls_905" class="CT" element="C" mass="12.011"/>
-  <Type name="opls_906" class="CT" element="C" mass="12.01100" def="[C;X4]([N;%opls_900])(H)(H)" desc="CH2(N) primary aliphatic amines" overrides="opls_136" doi="10.1021/ja984106u"/>
+  <Type name="opls_904" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)(H)([N;%opls_901])" desc="CH3(N) secondary aliphatic amines" overrides="opls_906,opls_912,opls_257,opls_293" doi="10.1021/ja984106u"/>
+  <Type name="opls_905" class="CT" element="C" mass="12.011" def="[C;X4]([N;%opls_900])([C;%opls_136])" overrides="opls_256,opls_246,opls_908,opls_912"/>
+  <Type name="opls_906" class="CT" element="C" mass="12.011" def="[C;X4]([N;%opls_900])([C;%opls_280])([C;%opls_136])" overrides="opls_905,opls_246,opls_256"/>
   <Type name="opls_906B" class="opls_906B" element="C" mass="12.011"/>
-  <Type name="opls_907" class="opls_907" element="C" mass="12.011"/>
-  <Type name="opls_908" class="opls_908" element="C" mass="12.011"/>
-  <Type name="opls_909" class="H" element="H" mass="1.00800" def="H[N;%opls_900]" desc="H(N) primary amines" doi="10.1021/ja984106u"/>
-  <Type name="opls_910" class="H" element="H" mass="1.008" def="H[N;%opls_901]" desc="H(N) secondary amines" doi="10.1021/ja984106u"/>
-  <Type name="opls_911" class="HC" element="H" mass="1.00800" def="H([C;%opls_903,%opls_904,%opls_905,%opls_906,%opls_908])" desc="H(C) for C bonded to N in amines, diamines (aziridine H2,H3)" overrides="opls_140" doi="10.1021/ja984106u"/>
-  <Type name="opls_912" class="opls_912" element="C" mass="12.011"/>
+  <Type name="opls_907" class="CT" element="C" mass="12.01100" def="[C;X4]([N;%opls_900])(H)(H)" desc="CH2(N) primary aliphatic amines" overrides="opls_136,opls_907" doi="10.1021/ja984106u"/>
+  <Type name="opls_908" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([C;X4])([N;X3])"/>
+  <Type name="opls_909" class="H" element="H" mass="1.00800" def="H[N;%opls_900]" overrides="opls_255" desc="H(N) primary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_910" class="H" element="H" mass="1.008" def="H[N;%opls_901]" overrides="opls_255" desc="H(N) secondary amines" doi="10.1021/ja984106u"/>
+  <Type name="opls_911" class="HC" element="H" mass="1.00800" def="H([C;%opls_903,%opls_904,%opls_905,%opls_906,%opls_908])" desc="H(C) for C bonded to N in amines, diamines (aziridine H2,H3)" overrides="opls_140,opls_282" doi="10.1021/ja984106u"/>
+  <Type name="opls_912" class="CT" element="C" mass="12.011" def="[C;X4]([N;%opls_902])" overrides="opls_908"/>
   <Type name="opls_912B" class="opls_912B" element="C" mass="12.011"/>
-  <Type name="opls_913" class="opls_913" element="C" mass="12.011"/>
+  <Type name="opls_913" class="CT" element="C" mass="12.011" def="[C;X4](H)([C;%opls_754])([N;%opls_902])" overrides="opls_757,opls_912"/>
   <Type name="opls_914" class="opls_914" element="C" mass="12.011"/>
   <Type name="opls_915" class="opls_915" element="C" mass="12.011"/>
   <Type name="opls_916" class="opls_916" element="C" mass="12.011"/>
@@ -814,16 +831,16 @@
   <Type name="opls_929" class="opls_929" element="C" mass="12.011"/>
   <Type name="opls_930" class="HC" element="H" mass="1.008" def="H([*][C][C;%opls_925])" desc="alkyne RC%CH H on C3 (for C3 use #135-#139)" overrides="opls_140, opls_144"/>
   <Type name="opls_931" class="opls_931" element="C" mass="12.011"/>
-  <Type name="opls_940" class="opls_940" element="N" mass="14.0067"/>
-  <Type name="opls_941" class="opls_941" element="H" mass="1.008"/>
-  <Type name="opls_942" class="opls_942" element="C" mass="12.011"/>
-  <Type name="opls_943" class="opls_943" element="C" mass="12.011"/>
+  <Type name="opls_940" class="NT" element="N" mass="14.0067" def="[N;X3](H)(H)([N;X3])"/>
+  <Type name="opls_941" class="H" element="H" mass="1.008" def="H[N;%opls_940]" overrides="opls_255"/>
+  <Type name="opls_942" class="CT" element="C" mass="12.011" def="[C;X4]([N;%opls_902])([S;X2])" overrides="opls_210,opls_211,opls_912"/>
+  <Type name="opls_943" class="CT" element="C" mass="12.011" def="[C;X4](H)(H)([N;%opls_900])([C;X3])"/>
   <Type name="opls_944" class="opls_944" element="C" mass="12.011"/>
   <Type name="opls_945" class="opls_945" element="C" mass="12.011"/>
   <Type name="opls_950" class="opls_950" element="H" mass="1.008"/>
   <Type name="opls_951" class="opls_951" element="C" mass="12.011"/>
   <Type name="opls_952" class="opls_952" element="C" mass="12.011"/>
-  <Type name="opls_953" class="opls_953" element="N" mass="14.0067"/>
+  <Type name="opls_953" class="NT" element="N" mass="14.0067" def="[N;X3]([O;X2])"/>
   <Type name="opls_954" class="opls_954" element="O" mass="15.9994"/>
   <Type name="opls_955" class="opls_955" element="H" mass="1.008"/>
   <Type name="opls_956" class="opls_956" element="F" mass="18.9984"/>
@@ -831,10 +848,10 @@
   <Type name="opls_958" class="opls_958" element="H" mass="1.008"/>
   <Type name="opls_959" class="opls_959" element="C" mass="12.011"/>
   <Type name="opls_960" class="opls_960" element="C" mass="12.011"/>
-  <Type name="opls_961" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)(F)*" desc="perfluoroalkane CF3" overrides="opls_962" doi="10.1021/jp004071w"/>
-  <Type name="opls_962" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)(*)*" desc="perfluoroalkane CF2" doi="10.1021/jp004071w"/>
-  <Type name="opls_963" class="opls_963" element="C" mass="12.011"/>
-  <Type name="opls_964" class="opls_964" element="C" mass="12.011"/>
+  <Type name="opls_961" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)(F)([!F])" desc="perfluoroalkane CF3" overrides="opls_962" doi="10.1021/jp004071w"/>
+  <Type name="opls_962" class="CT" element="C" mass="12.01100" def="[C;X4](F)(F)([!F])([!F])" desc="perfluoroalkane CF2" overrides="opls_150" doi="10.1021/jp004071w"/>
+  <Type name="opls_963" class="CT" element="C" mass="12.01100" def="[C;X4](H)(F)([!F])([!F])" desc="perfluoroalkane CHF" overrides="opls_912"/>
+  <Type name="opls_964" class="CT" element="C" mass="12.01100" def="[C;X4](F)([C;X4])([C;X4])([C;X4])"/>
   <Type name="opls_965" class="F" element="F" mass="18.9984" def="FC" desc="perfluoroalkane F" doi="10.1021/jp004071w"/>
   <Type name="MNH3" class="MNH3" mass="0.0"/>
   <Type name="MNH2" class="MNH2" mass="0.0"/>
@@ -1058,6 +1075,7 @@
   <Bond class1="NT" class2="OS" length="0.145" k="267776.0"/>
   <Bond class1="N" class2="OH" length="0.138" k="334720.0"/>
   <Bond class1="CT" class2="OS" length="0.141" k="267776.0"/>
+  <Bond class1="C" class2="S" length="0.1715" k="187443.200"/>
   <Bond class1="CT" class2="S" length="0.181" k="185769.6"/>
   <Bond class1="CY" class2="S" length="0.181" k="185769.6"/>
   <Bond class1="CR" class2="S" length="0.176" k="209200.0"/>
@@ -1122,6 +1140,7 @@
   <Bond class1="C" class2="F" length="0.1357" k="351456.0"/>
   <Bond class1="C_2" class2="F" length="0.1357" k="351456.0"/>
   <Bond class1="C_3" class2="F" length="0.1357" k="351456.0"/>
+  <Bond class1="SY" class2="F" length="0.1600" k="376560.000"/>
   <Bond class1="CT" class2="CO" length="0.1529" k="224262.4"/>
   <Bond class1="OH" class2="CO" length="0.138" k="267776.0"/>
   <Bond class1="HC" class2="CO" length="0.109" k="284512.0"/>
@@ -1145,6 +1164,25 @@
   <Bond class1="C_2" class2="CW" length="0.149" k="334720.0"/>
   <Bond class1="C_3" class2="CW" length="0.149" k="334720.0"/>
   <Bond class1="O2" class2="S" length="0.153" k="400000.0"/>
+  <Bond class1="OS" class2="NC" length="0.1399" k="386601.600"/>
+  <Bond class1="NC" class2="C" length="0.1358" k="382417.600"/>
+  <Bond class1="C_2" class2="C_2" length="0.1510" k="292880.000"/>
+  <Bond class1="N" class2="NT" length="0.1449" k="282001.600"/>
+  <Bond class1="OS" class2="SY" length="0.1670" k="376560.000"/>
+  <Bond class1="C" class2="S=" length="0.1640" k="334720.000"/>
+  <Bond class1="NC" class2="H" length="0.1010" k="363171.200"/>
+  <Bond class1="C" class2="SH" length="0.1715" k="187443.200"/>
+  <Bond class1="NT" class2="NC" length="0.1449" k="282001.600"/>
+  <Bond class1="NC" class2="ON" length="0.1210" k="460240.000"/>
+  <Bond class1="NT" class2="S" length="0.1810" k="185769.600"/>
+  <Bond class1="C" class2="Cl" length="0.1790" k="251040.000"/>
+  <Bond class1="CT" class2="Si" length="0.1870" k="200832.000"/>
+  <Bond class1="NC" class2="C:" length="0.1270 " k="331548.528"/>
+  <Bond class1="C:" class2="O" length="0.1171" k="585760.000"/>
+  <Bond class1="SY" class2="NC" length="0.1660" k="221869.152"/>
+  <Bond class1="SY" class2="Cl" length="0.2040" k="166849.552"/>
+  <Bond class1="SZ" class2="N" length="0.1670" k="363171.200"/>
+  <Bond class1="SZ" class2="Cl" length="0.2040" k="166849.552"/>        
  </HarmonicBondForce>
  <HarmonicAngleForce>
   <Angle class1="HW" class2="OW" class3="HW" angle="1.91113553093" k="627.6"/>
@@ -1274,6 +1312,7 @@
   <Angle class1="CT_2" class2="C_3" class3="O2" angle="2.04203522483" k="585.76"/>
   <Angle class1="CT" class2="CT" class3="Cl" angle="1.91637151869" k="577.392"/>
   <Angle class1="C" class2="CT" class3="Cl" angle="1.91637151869" k="577.392"/>
+  <Angle class1="C_2" class2="CT" class3="Cl" angle="1.91637151869" k="577.392"/>
   <Angle class1="C" class2="CT_2" class3="Cl" angle="1.91637151869" k="577.392"/>
   <Angle class1="CA" class2="CA" class3="Cl" angle="2.09439510239" k="627.6"/>
   <Angle class1="CM" class2="CM" class3="Cl" angle="2.12057504117" k="627.6"/>
@@ -1301,6 +1340,7 @@
   <Angle class1="Br" class2="CM" class3="HC" angle="1.98967534727" k="502.08"/>
   <Angle class1="Br" class2="CT" class3="Br" angle="1.94953277448" k="652.704"/>
   <Angle class1="HC" class2="CT" class3="Br" angle="1.87797427515" k="426.768"/>
+  <Angle class1="OS" class2="CT" class3="Br" angle="1.924051" k="427.939520"/>
   <Angle class1="CA" class2="CA" class3="I" angle="2.09439510239" k="627.6"/>
   <Angle class1="CA" class2="CA" class3="F" angle="2.09439510239" k="669.44"/>
   <Angle class1="CM" class2="CM" class3="F" angle="2.12057504117" k="669.44"/>
@@ -1558,6 +1598,7 @@
   <Angle class1="CT" class2="CM" class3="C=" angle="2.16420827247" k="585.76"/>
   <Angle class1="CM" class2="CT" class3="CM" angle="1.96175007924" k="527.184"/>
   <Angle class1="CM" class2="CT" class3="OS" angle="2.09439510239" k="585.76"/>
+  <Angle class1="CT" class2="CT" class3="OS" angle="1.911136" k="418.400000"/>
   <Angle class1="CM" class2="CT" class3="OH" angle="1.91113553093" k="418.4"/>
   <Angle class1="CM" class2="CM" class3="HC" angle="2.09439510239" k="292.88"/>
   <Angle class1="CM" class2="CM" class3="H4" angle="2.08915911464" k="292.88"/>
@@ -1604,6 +1645,7 @@
   <Angle class1="NB" class2="CR" class3="SY" angle="2.09439510239" k="585.76"/>
   <Angle class1="C" class2="CT" class3="CT" angle="1.93906079897" k="527.184"/>
   <Angle class1="C_2" class2="CT" class3="CT" angle="1.93906079897" k="527.184"/>
+  <Angle class1="C_2" class2="CT" class3="C_2" angle="1.939061" k="527.184"/>
   <Angle class1="C_3" class2="CT" class3="CT" angle="1.93906079897" k="527.184"/>
   <Angle class1="C" class2="CT" class3="CT_2" angle="1.93906079897" k="527.184"/>
   <Angle class1="C_2" class2="CT" class3="CT_2" angle="1.93906079897" k="527.184"/>
@@ -1876,6 +1918,7 @@
   <Angle class1="O" class2="C" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="O" class2="C_2" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="OS" class2="C_2" class3="OS" angle="2.062630" k="584.923200"/>
+  <Angle class1="OS" class2="CT" class3="OS" angle="1.946915" k="502.080000"/>
   <Angle class1="O_2" class2="C_2" class3="OS" angle="2.15373629696" k="694.544"/>
   <Angle class1="C" class2="OS" class3="CT" angle="2.04028989558" k="694.544"/>
   <Angle class1="C_2" class2="OS" class3="CT" angle="2.04028989558" k="694.544"/>
@@ -1965,6 +2008,7 @@
   <Angle class1="CT_4" class2="CT" class3="F" angle="1.91113553093" k="418.4"/>
   <Angle class1="CA" class2="CT" class3="F" angle="1.91113553093" k="418.4"/>
   <Angle class1="F" class2="CT" class3="F" angle="1.90415421393" k="644.336"/>
+  <Angle class1="OS" class2="CT" class3="F" angle="1.92405100000" k="427.939"/> 
   <Angle class1="HC" class2="CT" class3="F" angle="1.86750229963" k="334.72"/>
   <Angle class1="CT" class2="C" class3="C" angle="2.04552588334" k="669.44"/>
   <Angle class1="CT" class2="C" class3="C_2" angle="2.04552588334" k="669.44"/>
@@ -1995,11 +2039,13 @@
   <Angle class1="OY" class2="SZ" class3="CT" angle="1.86750229963" k="619.232"/>
   <Angle class1="OY" class2="SY" class3="CT" angle="1.90066355542" k="619.232"/>
   <Angle class1="OY" class2="SY" class3="CA" angle="1.87099295814" k="619.232"/>
+  <Angle class1="OY" class2="SY" class3="F" angle="1.853540" k="518.816000"/>
   <Angle class1="N" class2="SY" class3="CA" angle="1.79768912955" k="836.8"/>
   <Angle class1="SY" class2="CA" class3="CA" angle="2.08392312688" k="711.28"/>
   <Angle class1="SY" class2="CT" class3="HC" angle="1.91113553093" k="292.88"/>
   <Angle class1="SZ" class2="CT" class3="HC" angle="1.91113553093" k="292.88"/>
   <Angle class1="CT" class2="SY" class3="CT" angle="1.78023583703" k="518.816"/>
+  <Angle class1="CT" class2="SY" class3="F" angle="1.677261" k="518.816000"/>
   <Angle class1="CA" class2="SY" class3="CT" angle="1.78023583703" k="518.816"/>
   <Angle class1="CR" class2="SY" class3="CT" angle="1.78023583703" k="518.816"/>
   <Angle class1="CU" class2="CT" class3="SY" angle="2.08392312688" k="711.28"/>
@@ -2072,6 +2118,9 @@
   <Angle class1="N*" class2="CM" class3="OS" angle="2.09439510239" k="585.76"/>
   <Angle class1="NA" class2="CM" class3="OS" angle="2.09439510239" k="585.76"/>
   <Angle class1="CA" class2="S" class3="CM" angle="1.81863308058" k="518.816"/>
+  <Angle class1="CT" class2="S" class3="C" angle="1.835039" k="561.827520"/>
+  <Angle class1="S" class2="C" class3="CT" angle="2.049889" k="586.847840"/>
+  <Angle class1="S" class2="C" class3="O" angle="2.049889" k="586.847840"/>
   <Angle class1="CM" class2="OS" class3="CA" angle="1.93731546971" k="627.6"/>
   <Angle class1="CM" class2="CT" class3="CA" angle="1.91113553093" k="334.72"/>
   <Angle class1="S" class2="CA" class3="CA" angle="2.08392312688" k="711.28"/>
@@ -2079,6 +2128,89 @@
   <Angle class1="CA" class2="S" class3="CT" angle="1.81863308058" k="518.816"/>
   <Angle class1="OH" class2="C" class3="N" angle="2.01463355558" k="292.88"/>
   <Angle class1="O2" class2="S" class3="CT" angle="1.86750229963" k="400.0"/>
+<Angle class1="OS" class2="CT" class3="Cl" angle="1.924051" k="427.939520"/>
+<Angle class1="CT" class2="OS" class3="NC" angle="2.013237" k="567.434080"/>
+<Angle class1="OS" class2="NC" class3="C" angle="2.047446" k="671.866720"/>
+<Angle class1="NC" class2="C" class3="CT" angle="2.049889" k="586.847840"/>
+<Angle class1="OS" class2="C" class3="NT" angle="1.944297" k="677.808000"/>
+<Angle class1="OS" class2="C" class3="NC" angle="2.049889" k="586.847840"/>
+<Angle class1="C" class2="NT" class3="H" angle="2.090904" k="292.880000"/>
+<Angle class1="C" class2="NC" class3="CT" angle="2.103122" k="585.760000"/>
+<Angle class1="NT" class2="C" class3="NC" angle="2.049889" k="586.847840"/>
+<Angle class1="SH" class2="CT" class3="C_2" angle="1.924051" k="427.939520"/>
+<Angle class1="CT" class2="N" class3="NT" angle="2.059489" k="418.400000"/>
+<Angle class1="N" class2="NT" class3="H" angle="1.909390" k="378.652000"/>
+<Angle class1="NT" class2="N" class3="C" angle="2.127556" k="418.400000"/>
+<Angle class1="CZ" class2="CT" class3="C_2" angle="1.924051" k="427.939520"/>
+<Angle class1="CT" class2="P" class3="CT" angle="1.726131" k="518.816000"/>
+<Angle class1="CT" class2="CO" class3="CT" angle="1.966986" k="488.272800"/>
+<Angle class1="CT" class2="OS" class3="SY" angle="2.013237" k="567.434080"/>
+<Angle class1="OS" class2="SY" class3="OY" angle="1.867502" k="518.816000"/>
+<Angle class1="OS" class2="SY" class3="CT" angle="1.814793" k="639.733600"/>
+<Angle class1="NT" class2="C" class3="S=" angle="2.216568" k="585.760000"/>
+<Angle class1="C" class2="CT" class3="S" angle="1.924051" k="427.939520"/>
+<Angle class1="S=" class2="C" class3="CT" angle="2.146755" k="585.760000"/>
+<Angle class1="C" class2="NC" class3="H" angle="2.047446" k="671.866720"/>
+<Angle class1="NT" class2="C" class3="S" angle="2.04988920646734" k="586.848"/>
+<Angle class1="NC" class2="C" class3="S" angle="2.04988920646734" k="586.848"/>
+<Angle class1="S" class2="CT" class3="C_2" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="NT" class2="CT" class3="NT" angle="1.9106119321581925" k="470.282"/>
+<Angle class1="S=" class2="C" class3="S" angle="2.04988920646734" k="586.848"/>
+<Angle class1="NT" class2="C" class3="SH" angle="2.04988920646734" k="586.848"/>
+<Angle class1="C" class2="SH" class3="HS" angle="1.8025760514597435" k="584.84"/>
+<Angle class1="SH" class2="C" class3="NC" angle="2.04988920646734" k="586.848"/>
+<Angle class1="NT" class2="C" class3="NT" angle="1.9931660057775245" k="585.76"/>
+<Angle class1="CT" class2="NT" class3="NT" angle="1.8709929581379212" k="433.462"/>
+<Angle class1="NT" class2="NT" class3="CT" angle="1.8709929581379212" k="433.462"/>
+<Angle class1="NT" class2="NT" class3="H" angle="1.8500490071139892" k="292.88"/>
+<Angle class1="S=" class2="C" class3="OS" angle="2.04988920646734" k="586.848"/>
+<Angle class1="CT" class2="NT" class3="OS" angle="1.911135530933791" k="418.4"/>
+<Angle class1="NT" class2="OS" class3="CT" angle="1.911135530933791" k="502.08"/>
+<Angle class1="OS" class2="NT" class3="H" angle="1.9093902016817965" k="378.652"/>
+<Angle class1="CT" class2="NT" class3="NC" angle="1.9024088846738192" k="543.92"/>
+<Angle class1="NT" class2="NC" class3="C" angle="2.1031217486531673" k="585.76"/>
+<Angle class1="NC" class2="NT" class3="H" angle="1.9093902016817965" k="378.652"/>
+<Angle class1="NT" class2="C" class3="HC" angle="1.9896753472735358" k="334.72"/>
+<Angle class1="C" class2="NC" class3="C" angle="2.047445745514548" k="671.867"/>
+<Angle class1="NT" class2="C" class3="N" angle="1.9931660057775245" k="585.76"/>
+<Angle class1="NC" class2="C" class3="N" angle="2.04988920646734" k="586.848"/>
+<Angle class1="C" class2="NT" class3="NT" angle="1.9390607989657" k="527.184"/>
+<Angle class1="NT" class2="CT" class3="OS" angle="1.911135530933791" k="418.4"/>
+<Angle class1="SZ" class2="CT" class3="C_2" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="NT" class2="NT" class3="NC" angle="1.9093902016817965" k="378.652"/>
+<Angle class1="NT" class2="NC" class3="ON" angle="1.9896753472735358" k="585.76"/>
+<Angle class1="NT" class2="CT" class3="CZ" angle="1.9669860669976094" k="488.273"/>
+<Angle class1="C" class2="S" class3="C" angle="1.835039175546838" k="561.828"/>
+<Angle class1="C" class2="NT" class3="C" angle="2.2060961745208325" k="585.76"/>
+<Angle class1="CT" class2="NT" class3="S" angle="2.0018926520374962" k="418.4"/>
+<Angle class1="NT" class2="S" class3="CT" angle="1.726130630222392" k="518.816"/>
+<Angle class1="S" class2="NT" class3="H" angle="1.9093902016817965" k="378.652"/>
+<Angle class1="S=" class2="C" class3="N" angle="2.2165681500327987" k="585.76"/>
+<Angle class1="NT" class2="CT" class3="F" angle="1.911135530933791" k="418.4"/>
+<Angle class1="NT" class2="CT" class3="N" angle="1.9146261894377796" k="669.44"/>
+<Angle class1="C_2" class2="CT" class3="SY" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="CO" class2="CT" class3="S" angle="2.0018926520374962" k="418.4"/>
+<Angle class1="OS" class2="CT" class3="CZ" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="OS" class2="CT" class3="CO" angle="1.911135530933791" k="418.4"/>
+<Angle class1="F" class2="CT" class3="Br" angle="1.9230037698473523" k="499.57"/>
+<Angle class1="OS" class2="CT" class3="Si" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="CT" class2="Si" class3="CT" angle="1.9634954084936207" k="309.616"/>
+<Angle class1="CT" class2="CT" class3="Si" angle="1.9896753472735358" k="334.72"/>
+<Angle class1="Si" class2="CT" class3="HC" angle="1.9355701404617116" k="292.88"/>
+<Angle class1="NC" class2="C" class3="S=" angle="3.141592653589793" k="1338.88"/>
+<Angle class1="CT" class2="NC" class3="C:" angle="2.047445745514548" k="671.867"/>
+<Angle class1="NC" class2="C:" class3="O" angle="3.141592653589793" k="1338.88"/>
+<Angle class1="CT" class2="SY" class3="NC" angle="1.7428857910415374" k="499.653"/>
+<Angle class1="SY" class2="NC" class3="H" angle="2.047445745514548" k="671.867"/>
+<Angle class1="NC" class2="SY" class3="OY" angle="1.7428857910415374" k="499.653"/>
+<Angle class1="CT" class2="SY" class3="Cl" angle="1.814793356223704" k="639.734"/>
+<Angle class1="OY" class2="SY" class3="Cl" angle="1.814793356223704" k="639.734"/>
+<Angle class1="OS" class2="CT" class3="P" angle="1.9240509673985489" k="427.94"/>
+<Angle class1="CT" class2="SZ" class3="N" angle="1.7976891295541595" k="836.8"/>
+<Angle class1="SZ" class2="N" class3="H" angle="1.9373154697137058" k="836.8"/>
+<Angle class1="N" class2="SZ" class3="OY" angle="1.8675022996339325" k="1004.16"/>
+<Angle class1="CT" class2="SZ" class3="Cl" angle="1.7428857910415374" k="499.653"/>
+<Angle class1="OY" class2="SZ" class3="Cl" angle="1.7428857910415374" k="499.653"/>
  </HarmonicAngleForce>
  <RBTorsionForce>
   <Proper class1="Br" class2="C" class3="CB" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2086,11 +2218,15 @@
   <Proper class1="Br" class2="CT" class3="CT" class4="Br" c0="-0.523" c1="0.523" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="Br" class2="CT" class3="CT" class4="CT" c0="0.8368" c1="2.5104" c2="0.0" c3="-3.3472" c4="0.0" c5="0.0"/>
   <Proper class1="Br" class2="CT" class3="CT" class4="HC" c0="0.8368" c1="2.5104" c2="0.0" c3="-3.3472" c4="0.0" c5="0.0"/>
+  <Proper class1="Br" class2="CT" class3="CT" class4="OS" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="0.0" c5="0.0"/>
+  <Proper class1="Br" class2="CT" class3="OS" class4="CT" c0="-5.358" c1="13.617" c2="8.443" c3="-16.703" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="C" class3="N" class4="H" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="C" class3="N" class4="CT" c0="21.3384" c1="-0.8368" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="C" class3="CT" class4="HC" c0="0.17782" c1="0.53346" c2="0.0" c3="-0.71128" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="C" class3="OH" class4="HO" c0="29.288" c1="-6.276" c2="-23.012" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="N" class3="C" class4="N" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="C" class2="N" class3="C" class4="CT" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="C" class2="N" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="N" class3="CT" class4="CA" c0="-4.707" c1="2.92044" c2="1.78656" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="N" class3="CT" class4="CT" c0="-4.707" c1="2.92044" c2="1.78656" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="N" class3="CT" class4="HC" c0="-0.29079" c1="-0.87237" c2="0.0" c3="1.16315" c4="0.0" c5="0.0"/>
@@ -2278,6 +2414,7 @@
   <Proper class1="C_3" class2="CT_2" class3="CT" class4="CT" c0="-9.08346" c1="9.75709" c2="3.4518" c3="-4.12542" c4="0.0" c5="0.0"/>
   <Proper class1="C_3" class2="CT_2" class3="CT" class4="HC" c0="-0.4707" c1="-1.4121" c2="0.0" c3="1.8828" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="CT" class3="CT" class4="CT" c0="-4.23421" c1="7.22159" c2="1.9079" c3="-4.89528" c4="0.0" c5="0.0"/>
+  <Proper class1="C_2" class2="CT" class3="CT" class4="C_2" c0="0.941" c1="7.427" c2="0.0" c3="-8.368" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="CT" class3="CT" class4="HC" c0="-0.15899" c1="-0.47698" c2="0.0" c3="0.63596" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="OS" class3="CT" class4="CT" c0="-2.1966" c1="5.20071" c2="0.52719" c3="-3.5313" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="OS" class3="CT" class4="HC" c0="0.41421" c1="1.24265" c2="0.0" c3="-1.65686" c4="0.0" c5="0.0"/>
@@ -2372,12 +2509,17 @@
   <Proper class1="CT" class2="CT" class3="CT" class4="NA" c0="5.77183" c1="-2.67148" c2="0.95814" c3="-4.05848" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="NC" c0="5.77183" c1="-2.67148" c2="0.95814" c3="-4.05848" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="NT" c0="3.33465" c1="-1.55226" c2="2.82001" c3="-4.6024" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="C_2" class3="CT" class4="NT" c0="3.33465" c1="-1.55226" c2="2.82001" c3="-4.6024" c4="0.0" c5="0.0"/>
+  <Proper class1="O_2" class2="C_2" class3="CT" class4="NT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="O_2" class2="C_2" class3="CT" class4="C_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="O_2" class2="C_2" class3="CT" class4="N" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT_2" class4="NT" c0="3.33465" c1="-1.55226" c2="2.82001" c3="-4.6024" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="NY" c0="5.77183" c1="-2.67148" c2="0.95814" c3="-4.05848" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="OH" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="OS" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="SH" c0="2.78446" c1="0.27823" c2="0.82844" c3="-3.89112" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="SY" c0="2.78446" c1="0.27823" c2="0.82844" c3="-3.89112" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="CT" class4="SY" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="CT_2" c0="2.9288" c1="-1.4644" c2="0.2092" c3="-1.6736" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT" class4="SY2" c0="3.92459" c1="-3.92459" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CV" class4="CW" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2403,11 +2545,13 @@
   <Proper class1="CT" class2="CT" class3="P+" class4="CT" c0="1.046" c1="1.046" c2="2.092" c3="-4.184" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="SH" class4="HS" c0="-1.34516" c1="5.85551" c2="1.17989" c3="-5.69024" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="SY" class4="N" c0="0.00628" c1="-4.19864" c2="3.21331" c3="0.97905" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="CT" class3="SY" class4="F" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C_3" class4="O2" c0="3.43088" c1="0.0" c2="-3.43088" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT_2" class3="C_3" class4="O2" c0="3.43088" c1="0.0" c2="-3.43088" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C_2" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C_2" class4="OS" c0="-1.15688" c1="-3.47063" c2="0.0" c3="4.6275" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C_2" class4="O_2" c0="3.10662" c1="-3.77606" c2="-5.13795" c3="5.80739" c4="0.0" c5="0.0"/>
+  <Proper class1="N" class2="CT" class3="C_2" class4="CT" c0="3.335" c1="-1.552" c2="2.820" c3="-4.602" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT_3" class4="N" c0="-0.76567" c1="2.70705" c2="4.02501" c3="-5.96639" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT_3" class4="NT" c0="-0.76567" c1="2.70705" c2="4.02501" c3="-5.96639" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CT_3" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
@@ -2451,8 +2595,12 @@
   <Proper class1="CT" class2="SY" class3="N" class4="H" c0="-15.6105" c1="0.70291" c2="20.50579" c3="-5.59819" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="C_2" class3="C=" class4="HC" c0="0.5753" c1="1.7259" c2="0.0" c3="-2.3012" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="C_2" class3="CT" class4="CT" c0="0.81797" c1="-7.90567" c2="0.6025" c3="6.4852" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="N" class3="CT" class4="C_2" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="C_2" class3="CT" class4="HC" c0="0.5753" c1="1.7259" c2="0.0" c3="-2.3012" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="C_2" class3="CT" class4="C_2" c0="0.818" c1="-7.906" c2="0.602" c3="-6.485" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="C_2" class3="CT" class4="Cl" c0="0.818" c1="-7.906" c2="0.602" c3="6.485" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="C_2" class3="OS" class4="CT" c0="31.20637" c1="-9.76754" c2="-21.43881" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="C_2" class2="CT" class3="N" class4="CT" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT_3" class3="N" class4="CT_2" c0="-8.97677" c1="-76.68644" c2="-8.61067" c3="94.27389" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT_3" class3="NT" class4="CT_2" c0="-8.97677" c1="-76.68644" c2="-8.61067" c3="94.27389" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT_3" class3="N3" class4="H3" c0="-1.26775" c1="3.02085" c2="1.74473" c3="-3.49782" c4="0.0" c5="0.0"/>
@@ -2462,9 +2610,11 @@
   <Proper class1="CT" class2="CT_2" class3="N" class4="H" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT_2" class3="N3" class4="H3" c0="0.72592" c1="2.17777" c2="0.0" c3="-2.9037" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="SY2" class3="CT" class4="HC" c0="0.7322" c1="2.1966" c2="0.0" c3="-2.9288" c4="0.0" c5="0.0"/>
+  <Proper class1="F" class2="SY" class3="CT" class4="HC" c0="0.7322" c1="2.1966" c2="0.0" c3="-2.9288" c4="0.0" c5="0.0"/>
   <Proper class1="CT_2" class2="C" class3="N" class4="H" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT_2" class2="C" class3="N" class4="CT_2" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="C" class3="N" class4="CT_2" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="CT" class2="C" class3="N" class4="C" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="N" class3="C" class4="CT_2" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT_2" class2="N" class3="C" class4="O" c0="25.47638" c1="0.0" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT_2" class2="N" class3="C" class4="HC" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2516,6 +2666,7 @@
   <Proper class1="CY" class2="CY" class3="CT" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
   <Proper class1="CY" class2="CY" class3="CY" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
   <Proper class1="CZ" class2="CT" class3="CT" class4="HC" c0="0.76567" c1="2.29701" c2="0.0" c3="-3.06269" c4="0.0" c5="0.0"/>
+  <Proper class1="CZ" class2="CT" class3="CT" class4="CT" c0="-2.720" c1="0.0" c2="-2.720" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CZ" class2="CZ" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="Cl" class2="C" class3="CT" class4="HC" c0="0.75312" c1="2.25936" c2="0.0" c3="-3.01248" c4="0.0" c5="0.0"/>
   <Proper class1="Cl" class2="CM" class3="CM" class4="Cl" c0="55.2288" c1="3.3472" c2="-58.576" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2528,6 +2679,8 @@
   <Proper class1="F" class2="CT" class3="CT" class4="OH" c0="1.12968" c1="3.38904" c2="0.0" c3="-4.51872" c4="0.0" c5="0.0"/>
   <Proper class1="F" class2="CT" class3="CT_4" class4="HC" c0="0.65689" c1="1.97066" c2="0.0" c3="-2.62755" c4="0.0" c5="0.0"/>
   <Proper class1="F" class2="CT" class3="CT_4" class4="OH" c0="1.12968" c1="3.38904" c2="0.0" c3="-4.51872" c4="0.0" c5="0.0"/>
+  <Proper class1="F" class2="CT" class3="OS" class4="CT" c0="-5.35800" c1="13.61700" c2="8.44300" c3="-16.70300" c4="0.0" c5="0.0"/>
+  <Proper class1="F" class2="CT" class3="CT" class4="OS" c0="1.13000" c1="3.38900" c2="0.0" c3="-4.51900" c4="0.0" c5="0.0"/>  
   <Proper class1="H" class2="N" class3="C" class4="N" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="H" class2="N" class3="C" class4="O" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="H" class2="N" class3="C" class4="HC" c0="20.5016" c1="0.0" c2="-20.5016" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2617,6 +2770,9 @@
   <Proper class1="HC" class2="CT_2" class3="C_3" class4="O2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="HC" class2="CT" class3="C_2" class4="OS" c0="0.27615" c1="0.82844" c2="0.0" c3="-1.10458" c4="0.0" c5="0.0"/>
   <Proper class1="HC" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="Cl" class2="CT" class3="C_2" class4="O_2" c0="-1.360" c1="1.360" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="C_2" class4="O_2" c0="-2.874" c1="0.582" c2="2.092" c3="-5.548" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="C_2" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="HC" class2="CT" class3="CT_3" class4="N" c0="0.97069" c1="2.91206" c2="0.0" c3="-3.88275" c4="0.0" c5="0.0"/>
   <Proper class1="HC" class2="CT" class3="CT_3" class4="NT" c0="0.97069" c1="2.91206" c2="0.0" c3="-3.88275" c4="0.0" c5="0.0"/>
   <Proper class1="HC" class2="CT" class3="CT_3" class4="N3" c0="0.97069" c1="2.91206" c2="0.0" c3="-3.88275" c4="0.0" c5="0.0"/>
@@ -2676,11 +2832,13 @@
   <Proper class1="OH" class2="CT" class3="CT" class4="OH" c0="18.96607" c1="-18.96607" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="OH" class2="CT" class3="CT" class4="OS" c0="9.03534" c1="-9.03534" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="OS" class2="CT" class3="CT" class4="OS" c0="-1.1506" c1="1.1506" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="CT" class4="N" c0="11.613" c1="-4.512" c2="4.339" c3="-11.439" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="C" class4="N" c0="11.820" c1="-6.736" c2="-9.017" c3="3.933" c4="0.0" c5="0.0"/>
   <Proper class1="CA" class2="CA" class3="N" class4="" c0="8.7864" c1="0.0" c2="-8.7864" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CK" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CA" class2="CA" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
-  <Proper class1="NZ" class2="CZ" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
-  <Proper class1="NZ" class2="CZ" class3="CA" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="NZ" class2="CZ" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+  <Proper class1="NZ" class2="CZ" class3="CT" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="O" class2="C" class3="CT" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="C*" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CT" class2="CT" class3="CQ" class4="" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
@@ -2905,6 +3063,7 @@
   <Proper class1="CS" class2="CT" class3="CT" class4="NT" c0="3.33465" c1="-1.55226" c2="2.82001" c3="-4.6024" c4="0.0" c5="0.0"/>
   <Proper class1="C+" class2="CT" class3="CT" class4="NT" c0="3.33465" c1="-1.55226" c2="2.82001" c3="-4.6024" c4="0.0" c5="0.0"/>
   <Proper class1="Cl" class2="CT" class3="CT" class4="OH" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
+  <Proper class1="OS" class2="CT" class3="CT" class4="NT" c0="16.736" c1="-16.736" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
   <Proper class1="CM" class2="CT" class3="CT" class4="OH" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
   <Proper class1="CO" class2="CT" class3="CT" class4="OH" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
   <Proper class1="CT_2" class2="CT" class3="CT" class4="OH" c0="2.87441" c1="0.58158" c2="2.092" c3="-5.54799" c4="0.0" c5="0.0"/>
@@ -3113,6 +3272,7 @@
   <Proper class1="C" class2="CT" class3="NT" class4="C_2" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="CT" class3="NT" class4="C_3" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="C" class2="CT" class3="NT" class4="C3" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
+  <Proper class1="C_2" class2="CT" class3="NT" class4="H" c0="-1.268" c1="3.021" c2="1.745" c3="-3.498" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="CT" class3="NT" class4="CA" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="CT" class3="NT" class4="C" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="C_2" class2="CT" class3="NT" class4="C_2" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
@@ -3129,6 +3289,299 @@
   <Proper class1="C3" class2="CT" class3="NT" class4="C_3" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="C3" class2="CT" class3="NT" class4="C3" c0="1.78866" c1="3.49154" c2="0.53555" c3="-5.81576" c4="0.0" c5="0.0"/>
   <Proper class1="O2" class2="S" class3="CT" class4="HC" c0="1.35352" c1="4.06057" c2="0.0" c3="-5.4141" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CT" class4="S" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="S" class4="C" c0="0.941" c1="2.314" c2="2.410" c3="-5.665" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="S" class3="C" class4="CT" c0="0.941" c1="2.314" c2="2.410" c3="-5.665" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="S" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="S" class2="C" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="S" class3="CT" class4="HC" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="CT" class4="Cl" c0="1.715" c1="2.845" c2="1.046" c3="-5.607" c4="0.0" c5="0.0"/>
+<Proper class1="Br" class2="CT" class3="C_2" class4="CT" c0="0.837" c1="2.510" c2="0.0" c3="-3.347" c4="0.0" c5="0.0"/>
+<Proper class1="Br" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0 " c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="NC" class3="C" class4="CT" c0="58.576" c1="0.0 " c2="-58.576" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="OS" class3="CT" class4="HC" c0="1.590" c1="4.770 " c2="0.0" c3="-6.360" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="CT" class4="C_2" c0="5.245" c1="-4.412" c2="-1.753" c3="0.920" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="CT" class3="C_2" class4="CT" c0="0.818" c1="-7.906 " c2="0.602" c3="6.485" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="CT" class4="C_2" c0="0.818" c1="-7.906 " c2="0.602" c3="6.485" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="CT" class4="CT" c0="5.245" c1="-4.412" c2="-1.753" c3="0.920" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="C_2" class4="C_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="C_2" class3="C_2" class4="CT" c0="-4.812" c1="-1.464" c2="6.276" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="C_2" class3="C_2" class4="O_2" c0="2.092" c1="0.0" c2="-2.092" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C_2" class2="C_2" class3="CT" class4="HC" c0="0.178" c1="0.533" c2="0.0" c3="-0.711" c4="0.0" c5="0.0"/>
+<Proper class1="O_2" class2="C_2" class3="C_2" class4="CT" c0="2.092" c1="0.0" c2="-2.092" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="O_2" class2="C_2" class3="C_2" class4="O_2" c0="16.736" c1="-3.347" c2="-13.389" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C_2" class2="C_2" class3="CT" class4="HC" c0="0.178" c1="0.533" c2="0.0" c3="-0.711" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="C" class4="NT" c0="16.736" c1="4.184" c2="-20.92" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="C" class4="NC" c0="16.736" c1="4.184" c2="-20.92" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="C" class3="NT" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="C" class3="NC" class4="CT" c0="30.288" c1="-4.812" c2="-25.476" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="CT" class4="C_2" c0="-4.793" c1="3.998" c2="-0.879" c3="1.674" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="NC" class4="CT" c0="58.576" c1="0.0" c2="-58.576" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="NT" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="CT" class3="C_2" class4="CT" c0="0.5753" c1="1.7259" c2="0.0" c3="-2.3012" c4="0.0" c5="0.0"/>
+<Proper class1="NC" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="SH" class2="CT" class3="C_2" class4="CT" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="0.0" c5="0.0"/>
+<Proper class1="SH" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C_2" class2="CT" class3="SH" class4="HS" c0="-1.34516" c1="5.85551" c2="1.17989" c3="-5.69024" c4="0.0" c5="0.0"/>
+<Proper class1="Br" class2="CT" class3="CT" class4="C_2" c0="0.837" c1="2.510" c2="0.0" c3="-3.347" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="N" class4="NT" c0="6.87222" c1="-9.94328" c2="3.07105" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="N" class3="NT" class4="H" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
+<Proper class1="NT" class2="N" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NT" class2="N" class3="C" class4="CT" c0="30.28798" c1="-4.8116" c2="-25.47638" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NT" class2="N" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C" class2="N" class3="NT" class4="H" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="C_2" class4="CT" c0="0.818" c1="-7.906" c2="0.602" c3="-6.485" c4="0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="NZ" class2="CZ" class3="CT" class4="C_2" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="P" class4="CT" c0="-3.3472" c1="2.092" c2="13.8072" c3="-12.552" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="P" class3="CT" class4="CT" c0="4.707" c1="-4.707" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="P" class2="CT" class3="CT" class4="C_2" c0="-8.786" c1="23.849" c2="-8.368" c3="-6.694" c4="0.0" c5="0.0"/>
+<Proper class1="P" class2="CT" class3="CT" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="P" class3="CT" class4="CT" c0="1.046" c1="1.046" c2="2.092" c3="-4.184" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="P" class3="CT" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="P" class4="O" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="O" class2="P" class3="CT" class4="HC" c0="0.523" c1="1.569" c2="0.0" c3="-2.092" c4="0.0" c5="0.0"/>
+<Proper class1="O" class2="P" class3="CT" class4="CT" c0="4.707" c1="-4.707" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="NC" class3="C" class4="HC" c0="58.576" c1="0.0" c2="-58.576" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="C_2" class2="CT" class3="C" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CO" class2="OS" class3="CT" class4="C_2" c0="1.71544" c1="2.84512" c2="1.046" c3="-5.60656" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="CO" class3="CT" class4="HC" c0="0.6276" c1="1.8828" c2="0.0" c3="-2.5104" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="SY" class4="OY" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="SY" class4="CT" c0="2.092" c1="-2.092" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="SY" class3="CT" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="OS" class2="SY" class3="CT" class4="HC" c0="0.7322" c1="2.1966" c2="0.0" c3="-2.9288" c4="0.0" c5="0.0"/>
+<Proper class1="SY" class2="OS" class3="CT" class4="HC" c0="0.377" c1="1.130" c2="0.0" c3="-1.506 " c4="0.0" c5="0.0"/>
+<Proper class1="SY" class2="CT" class3="CT" class4="C_2" c0="-4.738" c1="6.952" c2="-2.213" c3="0.0" c4="0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="S=" c0="27.196" c1="0.000" c2="-27.196" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="CT" class2="NT" class3="C" class4="CT" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="NT" class2="C" class3="CT" class4="S" c0="11.820" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.000" c5="0.000"/>
+<Proper class1="NT" class2="C" class3="CT" class4="HC" c0="0.000" c1="0.000" c2="0.000" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="C" class2="NT" class3="CT" class4="HC" c0="0.000" c1="0.000" c2="0.000" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="C" class2="CT" class3="S" class4="C" c0="11.820" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.000" c5="0.000"/>
+<Proper class1="S=" class2="C" class3="NT" class4="H" c0="19.456" c1="1.464" c2="-20.920" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="S=" class2="C" class3="CT" class4="S" c0="0.000" c1="0.000" c2="0.000" c3="0.000" c4="0.000" c5="0.000"/>
+<Proper class1="S=" class2="C" class3="CT" class4="HC" c0="0.000" c1="0.000" c2="0.000" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="CT" class2="C" class3="NT" class4="H" c0="20.502" c1="0.000" c2="-20.502" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="CT" class2="NT" class3="C" class4="NC" c0="25.476" c1="0.000" c2="-25.476" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="NT" class2="C" class3="NC" class4="H" c0="58.576" c1="0.000" c2="-58.576" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="NC" class2="C" class3="CT" class4="S" c0="11.820" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.000" c5="0.000"/>
+<Proper class1="CT" class2="C" class3="NC" class4="H" c0="20.502" c1="0.000" c2="-20.502" c3="-0.000" c4="-0.000" c5="0.000"/>
+<Proper class1="NT" class2="C" class3="CT" class4="CT" c0="5.245" c1="-4.412" c2="-1.753" c3="0.92" c4="-0.0" c5="0.0"/>
+<Proper class1="S=" class2="C" class3="CT" class4="CT" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="S" c0="7.65" c1="-0.885" c2="-2.213" c3="-4.552" c4="-0.0" c5="0.0"/>
+<Proper class1="Br" class2="CT" class3="CT" class4="S" c0="0.946" c1="2.837" c2="0.0" c3="-3.782" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="S" c0="27.196" c1="0.0" c2="-27.196" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="S" class4="CT" c0="9.623" c1="-9.623" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="S" class3="CT" class4="C_2" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="S" class4="CT" c0="21.359" c1="1.234" c2="-16.736" c3="-5.858" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="C" class3="NT" class4="H" c0="19.456" c1="1.464" c2="-20.92" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="C" class3="NC" class4="H" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="C_2" class4="CT" c0="-4.253" c1="0.45" c2="0.038" c3="3.766" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="NT" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="S" c0="-4.253" c1="0.45" c2="0.038" c3="3.766" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="NT" class4="H" c0="-1.268" c1="3.021" c2="1.745" c3="-3.498" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="S" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="S" class3="CT" class4="C_2" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="NT" class4="H" c0="-1.268" c1="3.021" c2="1.745" c3="-3.498" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="S" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="NT" class4="H" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NC" class3="C" class4="S" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="S=" class2="C" class3="S" class4="CT" c0="27.196" c1="0.0" c2="-27.196" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="CT" class3="CT" class4="C_2" c0="-4.96" c1="6.286" c2="1.31" c3="-2.636" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="SH" c0="27.196" c1="0.0" c2="-27.196" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="SH" class4="HS" c0="12.908" c1="-1.778" c2="-11.129" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="CT" class4="CT" c0="-0.176" c1="3.548" c2="-0.544" c3="-2.828" c4="-0.0" c5="0.0"/>
+<Proper class1="SH" class2="C" class3="NT" class4="H" c0="19.456" c1="1.464" c2="-20.92" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="SH" class2="C" class3="NC" class4="CT" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="SH" class4="HS" c0="12.908" c1="-1.778" c2="-11.129" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="CT" class3="CT" class4="HC" c0="-4.096" c1="5.088" c2="2.966" c3="-3.958" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="NT" c0="9.623" c1="-9.623" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="NT" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="NT" class4="NT" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NT" class3="CT" class4="HC" c0="1.172" c1="3.515" c2="0.0" c3="-4.686" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="OS" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="OS" class3="CT" class4="C_2" c0="-2.197" c1="5.201" c2="0.527" c3="-3.531" c4="-0.0" c5="0.0"/>
+<Proper class1="S=" class2="C" class3="OS" class4="CT" c0="20.92" c1="0.0" c2="-20.92" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="OS" class3="CT" class4="CT" c0="1.715" c1="2.845" c2="1.046" c3="-5.607" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="NT" class3="CT" class4="HC" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="F" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="CT" class4="C_2" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="NC" class4="C" c0="30.334" c1="0.0" c2="-30.334" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NC" class3="C" class4="CT" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="NT" class3="CT" class4="HC" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="CT" class4="NT" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="NT" class4="H" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="CT" class4="NT" c0="3.335" c1="-1.552" c2="2.82" c3="-4.602" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="OS" class3="CT" class4="HC" c0="1.59" c1="4.77" c2="0.0" c3="-6.36" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="C_2" class4="CT" c0="-0.209" c1="1.883" c2="1.674" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="SH" c0="7.65" c1="-0.885" c2="-2.213" c3="-4.552" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="Br" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="HC" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="NC" class4="C" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="C" class4="O" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="C" class4="CT" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NC" class3="C" class4="HC" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="H" class2="NT" class3="C" class4="HC" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="C" class4="N" c0="9.623" c1="-9.623" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="N" class4="CT" c0="9.623" c1="-9.623" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="N" class3="CT" class4="C_2" c0="-4.793" c1="3.998" c2="-0.879" c3="1.674" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="N" class4="CT" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="N" class2="C" class3="NT" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="N" class2="C" class3="NC" class4="H" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="N" c0="19.6" c1="-21.391" c2="4.05" c3="-2.259" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SY" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="SY" c0="7.65" c1="-0.885" c2="-2.213" c3="-4.552" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SY" class3="CT" class4="HC" c0="0.732" c1="2.197" c2="0.0" c3="-2.929" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NC" class3="C" class4="HC" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="C" class3="NC" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="NT" class4="NT" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NT" class3="NT" class4="H" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="NT" class4="NT" c0="19.414" c1="1.925" c2="-21.338" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C" class4="HC" c0="-4.096" c1="5.088" c2="2.966" c3="-3.958" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NT" class3="CT" class4="C_2" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="CT" class3="CT" class4="C_2" c0="-8.786" c1="23.849" c2="-8.368" c3="-6.694" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="OS" c0="-3.138" c1="-3.138" c2="6.276" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="OS" class4="CT" c0="-5.23" c1="7.322" c2="6.276" c3="-8.368" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="NT" class4="H" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C" class4="N" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NC" class3="C" class4="NT" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="CT" class4="C_2" c0="5.245" c1="-4.412" c2="-1.753" c3="0.92" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CT" class4="SZ" c0="7.65" c1="-0.885" c2="-2.213" c3="-4.552" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SZ" class4="OY" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SZ" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SZ" class3="CT" class4="C_2" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SZ" class3="CT" class4="HC" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="-0.0" c5="0.0"/>
+<Proper class1="SZ" class2="CT" class3="CT" class4="HC" c0="0.946" c1="2.837" c2="0.0" c3="-3.782" c4="-0.0" c5="0.0"/>
+<Proper class1="SZ" class2="CT" class3="C_2" class4="CT" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="-0.0" c5="0.0"/>
+<Proper class1="SZ" class2="CT" class3="C_2" class4="O_2" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OY" class2="SZ" class3="CT" class4="HC" c0="0.732" c1="2.197" c2="0.0" c3="-2.929" c4="-0.0" c5="0.0"/>
+<Proper class1="OY" class2="SZ" class3="CT" class4="C_2" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OY" class2="SZ" class3="CT" class4="HC" c0="0.732" c1="2.197" c2="0.0" c3="-2.929" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SZ" class3="CT" class4="HC" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="NT" class4="NC" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NT" class3="NC" class4="ON" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="NC" class4="ON" c0="30.334" c1="0.0" c2="-30.334" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="NT" class4="NC" c0="-1.268" c1="3.021" c2="1.745" c3="-3.498" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="NT" class3="NT" class4="H" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="CZ" c0="1.789" c1="3.492" c2="0.536" c3="-5.816" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="CZ" class4="NZ" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="NT" class4="H" c0="-1.268" c1="3.021" c2="1.745" c3="-3.498" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="CT" class4="C_2" c0="-4.96" c1="6.286" c2="1.31" c3="-2.636" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C" class4="NT" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C" class4="S" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="S" class4="C" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="S" class3="C" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="S" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="O" class2="C" class3="S" class4="C" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="NT" class4="NT" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="NT" class4="C" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NT" class3="C" class4="CT" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="NT" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="O" class2="C" class3="NT" class4="NT" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="O" class2="C" class3="NT" class4="C" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NT" class3="C" class4="CT" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NT" class3="C" class4="O" c0="25.476" c1="0.0" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="S" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="S" class3="CT" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="S" class3="CT" class4="HC" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="NT" class3="CT" class4="HC" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="S" class3="NT" class4="H" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NC" class3="C" class4="HC" c0="30.288" c1="-4.812" c2="-25.476" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="CT" class4="C" c0="5.245" c1="-4.412" c2="-1.753" c3="0.92" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="CT" class3="C" class4="NC" c0="5.245" c1="-4.412" c2="-1.753" c3="0.92" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="CT" class3="C" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="S=" class2="C" class3="CT" class4="C" c0="-4.738" c1="6.952" c2="-2.213" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="NT" class4="C" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="S=" class2="C" class3="N" class4="CT" c0="27.196" c1="0.0" c2="-27.196" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="NC" class3="C" class4="N" c0="58.576" c1="0.0" c2="-58.576" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="F" c0="-0.209" c1="1.883" c2="1.674" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="NT" class4="H" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="C" class3="CT" class4="Br" c0="11.82" c1="-6.736" c2="-9.017" c3="3.933" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C" class3="CT" class4="Br" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NT" class3="CT" class4="N" c0="4.372" c1="-2.033" c2="-0.665" c3="-1.674" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="N" class4="CT" c0="6.872" c1="-9.943" c2="3.071" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="N" class4="C" c0="-0.176" c1="3.548" c2="-0.544" c3="-2.828" c4="-0.0" c5="0.0"/>
+<Proper class1="N" class2="CT" class3="NT" class4="H" c0="15.899" c1="0.0" c2="-15.899" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C_2" class4="C_2" c0="3.335" c1="-1.552" c2="2.82" c3="-4.602" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="CT" class4="SZ" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="CT" class4="SH" c0="8.786" c1="-10.878" c2="2.092" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="C_2" class3="CT" class4="SY" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="-0.0" c5="0.0"/>
+<Proper class1="C_2" class2="CT" class3="SY" class4="CT" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="O_2" class2="C_2" class3="CT" class4="SY" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CO" class3="CT" class4="S" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="CO" class2="CT" class3="S" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CO" class3="CT" class4="S" c0="-4.253" c1="0.45" c2="0.038" c3="3.766" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="CO" class4="OS" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="CT" class4="CZ" c0="1.715" c1="2.845" c2="1.046" c3="-5.607" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CZ" class4="NZ" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="CT" class4="CO" c0="1.715" c1="2.845" c2="1.046" c3="-5.607" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CO" class4="OS" c0="-1.151" c1="1.151" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CO" class4="HC" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="HC" class2="CT" class3="CO" class4="HC" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="CT" class4="Si" c0="-5.358" c1="13.617" c2="8.443" c3="-16.703" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="Si" class4="CT" c0="0.377" c1="1.13" c2="0.0" c3="-1.506" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="Si" class3="CT" class4="HC" c0="0.377" c1="1.13" c2="0.0" c3="-1.506" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="Si" class4="CT" c0="2.092" c1="-0.418" c2="0.0" c3="-1.674" c4="-0.0" c5="0.0"/>
+<Proper class1="Si" class2="CT" class3="CT" class4="HC" c0="0.544" c1="1.632" c2="0.0" c3="-2.176" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="Si" class3="CT" class4="HC" c0="0.377" c1="1.13" c2="0.0" c3="-1.506" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="C" class3="NT" class4="H" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="NT" class3="CT" class4="CT" c0="2.874" c1="0.582" c2="2.092" c3="-5.548" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="CT" class4="Br" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="CT" class4="Cl" c0="0.837" c1="2.51" c2="0.0" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NC" class3="C" class4="S=" c0="27.196" c1="0.0" c2="-27.196" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="NC" class4="C:" c0="0.628" c1="-2.092" c2="1.464" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="NC" class3="C:" class4="O" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C:" class2="NC" class3="CT" class4="HC" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="CT" class4="F" c0="-0.209" c1="1.883" c2="1.674" c3="-3.347" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="C_2" class3="CT" class4="OS" c0="-1.151" c1="1.151" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SY" class4="NC" c0="2.519" c1="1.807" c2="3.498" c3="-7.824" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SY" class3="NC" class4="H" c0="-15.611" c1="0.703" c2="20.506" c3="-5.598" c4="-0.0" c5="0.0"/>
+<Proper class1="NC" class2="SY" class3="CT" class4="HC" c0="1.167" c1="3.502" c2="0.0" c3="-4.669" c4="-0.0" c5="0.0"/>
+<Proper class1="OY" class2="SY" class3="NC" class4="H" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CT" class4="NC" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="C" class4="CT" c0="2.874" c1="0.582" c2="2.092" c3="-5.548" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="C" class4="NC" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="O" class2="C" class3="NT" class4="H" c0="20.502" c1="0.0" c2="-20.502" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SY" class4="Cl" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="SY" class3="CT" class4="HC" c0="0.732" c1="2.197" c2="0.0" c3="-2.929" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="OS" class3="CT" class4="P" c0="-5.358" c1="13.617" c2="8.443" c3="-16.703" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="P" class4="CT" c0="0.628" c1="1.883" c2="0.0" c3="-2.51" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="P" class4="O" c0="-1.151" c1="1.151" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CO" class4="CT" c0="2.874" c1="0.582" c2="2.092" c3="-5.548" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="CT" class4="Br" c0="1.13" c1="3.389" c2="0.0" c3="-4.519" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CT" class4="SH" c0="2.874" c1="0.582" c2="2.092" c3="-5.548" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="N" class3="C" class4="N" c0="9.623" c1="-9.623" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="CT" class3="OS" class4="C_2" c0="-2.197" c1="5.201" c2="0.527" c3="-3.531" c4="-0.0" c5="0.0"/>
+<Proper class1="F" class2="CT" class3="OS" class4="C_2" c0="0.414" c1="1.243" c2="0.0" c3="-1.657" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="CT" class3="CT" class4="SY" c0="2.784" c1="0.278" c2="0.828" c3="-3.891" c4="-0.0" c5="0.0"/>
+<Proper class1="Br" class2="CT" class3="CT" class4="SY" c0="0.946" c1="2.837" c2="0.0" c3="-3.782" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="CT" class4="SY" c0="-4.738" c1="6.952" c2="-2.213" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="SH" class2="CT" class3="CT" class4="SY" c0="8.786" c1="-10.878" c2="2.092" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="CT" class4="S" c0="8.786" c1="-10.878" c2="2.092" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="C" class2="CT" class3="S" class4="CT" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="S" class2="CT" class3="C_2" class4="OS" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CZ" class2="CT" class3="OS" class4="C_2" c0="-2.197" c1="5.201" c2="0.527" c3="-3.531" c4="-0.0" c5="0.0"/>
+<Proper class1="OS" class2="CT" class3="CT" class4="SZ" c0="0.979" c1="2.937" c2="0.0" c3="-3.916" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SZ" class4="N" c0="2.519" c1="1.807" c2="3.498" c3="-7.824" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="SZ" class3="N" class4="H" c0="-15.611" c1="0.703" c2="20.506" c3="-5.598" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SZ" class4="N" c0="2.519" c1="1.807" c2="3.498" c3="-7.824" c4="-0.0" c5="0.0"/>
+<Proper class1="N" class2="SZ" class3="CT" class4="HC" c0="1.167" c1="3.502" c2="0.0" c3="-4.669" c4="-0.0" c5="0.0"/>
+<Proper class1="OY" class2="SZ" class3="N" class4="H" c0="0.0" c1="0.0" c2="0.0" c3="-0.0" c4="-0.0" c5="0.0"/>
+<Proper class1="CT" class2="CT" class3="SZ" class4="Cl" c0="0.941" c1="2.314" c2="2.41" c3="-5.665" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="SZ" class3="CT" class4="HC" c0="1.354" c1="4.061" c2="0.0" c3="-5.414" c4="-0.0" c5="0.0"/>
+<Proper class1="Cl" class2="CT" class3="C_2" class4="OS" c0="-1.157" c1="-3.471" c2="0.0" c3="4.628" c4="-0.0" c5="0.0"/>
+<Proper class1="C_2" class2="OS" class3="CT" class4="OS" c0="-6.458" c1="0.81" c2="5.682" c3="-0.033" c4="-0.0" c5="0.0"/>
+<Proper class1="NT" class2="CT" class3="C_2" class4="OS" c0="14.435" c1="-11.004" c2="-3.431" c3="-0.0" c4="-0.0" c5="0.0"/>
+
+<Proper class1="C_2" class2="OS" class3="CT" class4="C_2" c0="-2.197" c1="5.201" c2="0.527" c3="-3.531" c4="-0.0" c5="0.0"/>
+<Proper class1="C_2" class2="CT" class3="C_2" class4="OS" c0="-1.157" c1="-3.471" c2="0.0" c3="4.628" c4="-0.0" c5="0.0"/>
+
+
  </RBTorsionForce>
  <NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
   <Atom type="opls_001" charge="0.5" sigma="0.375" epsilon="0.43932"/>
@@ -3275,10 +3728,10 @@
   <Atom type="opls_145" charge="-0.115" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_145B" charge="-0.115" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_146" charge="0.115" sigma="0.242" epsilon="0.12552"/>
-  <Atom type="opls_147" charge="0.0" sigma="0.355" epsilon="0.29288"/>
+  <Atom type="opls_147" charge="0.000" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_148" charge="-0.065" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_149" charge="-0.005" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_150" charge="-0.115" sigma="0.355" epsilon="0.317984"/>
+  <Atom type="opls_150" charge="-0.115" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_151" charge="-0.2" sigma="0.34" epsilon="1.2552"/>
   <Atom type="opls_152" charge="-0.006" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_153" charge="0.103" sigma="0.25" epsilon="0.12552"/>
@@ -3289,7 +3742,7 @@
   <Atom type="opls_158" charge="0.205" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_159" charge="0.265" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_160" charge="0.126" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_161" charge="0.532" sigma="0.325" epsilon="0.259408"/>
+  <Atom type="opls_161" charge="0.532" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_162" charge="-0.635" sigma="0.307" epsilon="0.71128"/>
   <Atom type="opls_163" charge="0.429" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_164" charge="-0.206" sigma="0.294" epsilon="0.255224"/>
@@ -3305,7 +3758,7 @@
   <Atom type="opls_174" charge="0.205" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_175" charge="0.265" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_176" charge="0.06" sigma="0.25" epsilon="0.12552"/>
-  <Atom type="opls_178" charge="0.0" sigma="0.355" epsilon="0.317984"/>
+  <Atom type="opls_178" charge="0.0" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_179" charge="-0.285" sigma="0.29" epsilon="0.58576"/>
   <Atom type="opls_180" charge="-0.4" sigma="0.29" epsilon="0.58576"/>
   <Atom type="opls_181" charge="0.11" sigma="0.35" epsilon="0.276144"/>
@@ -3315,7 +3768,7 @@
   <Atom type="opls_185" charge="0.03" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_186" charge="-0.4" sigma="0.29" epsilon="0.58576"/>
   <Atom type="opls_187" charge="-0.7" sigma="0.307" epsilon="0.71128"/>
-  <Atom type="opls_188" charge="0.435" sigma="1.0" epsilon="0.0"/>
+  <Atom type="opls_188" charge="0.435" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_189" charge="0.2" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_190" charge="0.1" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_191" charge="0.265" sigma="0.35" epsilon="0.276144"/>
@@ -3349,15 +3802,15 @@
   <Atom type="opls_219" charge="0.26" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_220" charge="0.32" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_221" charge="-0.055" sigma="0.355" epsilon="0.29288"/>
-  <Atom type="opls_222" charge="-0.32" sigma="0.355" epsilon="1.046"/>
-  <Atom type="opls_223" charge="0.08" sigma="0.35" epsilon="0.276144"/>
+  <Atom type="opls_222" charge="-0.32" sigma="0.355" epsilon="0.148532"/>
+  <Atom type="opls_223" charge="0.08" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_223B" charge="0.08" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_224" charge="0.14" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_224B" charge="0.14" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_225" charge="0.2" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_225B" charge="0.2" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_226" charge="-0.12" sigma="0.34" epsilon="1.2552"/>
-  <Atom type="opls_227" charge="0.005" sigma="0.355" epsilon="0.317984"/>
+  <Atom type="opls_227" charge="0.005" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_228" charge="0.102" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_229" charge="0.14" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_230" charge="0.2" sigma="0.35" epsilon="0.276144"/>
@@ -3383,9 +3836,9 @@
   <Atom type="opls_250" charge="0.333" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_251" charge="-0.49" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_252" charge="0.42" sigma="0.375" epsilon="0.43932"/>
-  <Atom type="opls_253" charge="-0.42" sigma="0.296" epsilon="0.87864"/>
-  <Atom type="opls_254" charge="0.37" sigma="1.0" epsilon="0.0"/>
-  <Atom type="opls_255" charge="0.06" sigma="0.25" epsilon="0.08368"/>
+  <Atom type="opls_253" charge="-0.4" sigma="0.29" epsilon="0.58576"/>
+  <Atom type="opls_254" charge="0.37" sigma="0.0" epsilon="0.0"/>
+  <Atom type="opls_255" charge="0.06" sigma="0.0" epsilon="0.0"/>
   <Atom type="opls_256" charge="-0.12" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_257" charge="-0.06" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_258" charge="0.0" sigma="0.35" epsilon="0.276144"/>
@@ -3417,12 +3870,12 @@
   <Atom type="opls_284" charge="-0.02" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_285" charge="-0.09" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_286" charge="-0.4" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_287" charge="-0.3" sigma="0.325" epsilon="0.71128"/>
+  <Atom type="opls_287" charge="-0.3" sigma="0.33" epsilon="0.71128"/>
   <Atom type="opls_288" charge="0.0" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_289" charge="0.35" sigma="1.0" epsilon="0.0"/>
+  <Atom type="opls_289" charge="-0.2204" sigma="0.340" epsilon="0.125520"/>
   <Atom type="opls_290" charge="0.33" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_291" charge="0.13" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_292" charge="0.19" sigma="0.35" epsilon="0.276144"/>
+  <Atom type="opls_292" charge="0.19" sigma="0.355" epsilon="0.292880"/>
   <Atom type="opls_292B" charge="0.19" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_293" charge="0.25" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_293B" charge="0.25" sigma="0.35" epsilon="0.276144"/>
@@ -3434,22 +3887,22 @@
   <Atom type="opls_299" charge="0.15" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_300" charge="-0.8" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_301" charge="0.46" sigma="1.0" epsilon="0.0"/>
-  <Atom type="opls_302" charge="0.64" sigma="0.225" epsilon="0.2092"/>
+  <Atom type="opls_302" charge="0.64" sigma="0.300" epsilon="0.276144"/>
   <Atom type="opls_303" charge="-0.7" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_304" charge="0.44" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_305" charge="0.2" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_306" charge="-0.11" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_307" charge="0.19" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_308" charge="-0.05" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_309" charge="-0.2" sigma="0.325" epsilon="0.71128"/>
+  <Atom type="opls_309" charge="-0.2" sigma="0.33" epsilon="0.71128"/>
   <Atom type="opls_310" charge="0.31" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_311" charge="-0.46" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_312" charge="0.36" sigma="0.35" epsilon="0.33472"/>
+  <Atom type="opls_312" charge="0.36" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_313" charge="-0.85" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_314" charge="0.37" sigma="1.0" epsilon="0.0"/>
-  <Atom type="opls_315" charge="-0.15" sigma="0.35" epsilon="0.33472"/>
+  <Atom type="opls_315" charge="-0.15" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_316" charge="0.1" sigma="0.25" epsilon="0.2092"/>
-  <Atom type="opls_317" charge="-0.04" sigma="0.35" epsilon="0.33472"/>
+  <Atom type="opls_317" charge="-0.04" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_318" charge="0.1" sigma="0.25" epsilon="0.2092"/>
   <Atom type="opls_319" charge="-0.6" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_319B" charge="-0.6" sigma="0.325" epsilon="0.71128"/>
@@ -3532,7 +3985,7 @@
   <Atom type="opls_393" charge="0.78" sigma="0.374" epsilon="0.8368"/>
   <Atom type="opls_394" charge="-0.66" sigma="0.296" epsilon="0.87864"/>
   <Atom type="opls_395" charge="-0.43" sigma="0.3" epsilon="0.71128"/>
-  <Atom type="opls_396" charge="0.02" sigma="0.355" epsilon="0.276144"/>
+  <Atom type="opls_396" charge="0.02" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_400" charge="-1.0" sigma="0.273295" epsilon="3.01248"/>
   <Atom type="opls_401" charge="-1.0" sigma="0.441724" epsilon="0.492833"/>
   <Atom type="opls_402" charge="-1.0" sigma="0.462376" epsilon="0.37656"/>
@@ -3550,7 +4003,7 @@
   <Atom type="opls_414" charge="2.0" sigma="0.381661" epsilon="0.19705"/>
   <Atom type="opls_415" charge="-0.4" sigma="0.42" epsilon="1.2552"/>
   <Atom type="opls_416" charge="0.1" sigma="0.25" epsilon="0.2092"/>
-  <Atom type="opls_417" charge="-0.9" sigma="0.425" epsilon="2.092"/>
+  <Atom type="opls_417" charge="-0.9" sigma="0.355" epsilon="0.148532"/>
   <Atom type="opls_418" charge="-0.2" sigma="0.42" epsilon="1.2552"/>
   <Atom type="opls_419" charge="0.06" sigma="0.25" epsilon="0.2092"/>
   <Atom type="opls_420" charge="-0.98" sigma="0.315" epsilon="1.046"/>
@@ -3603,9 +4056,9 @@
   <Atom type="opls_470" charge="0.635" sigma="0.375" epsilon="0.43932"/>
   <Atom type="opls_471" charge="0.625" sigma="0.375" epsilon="0.43932"/>
   <Atom type="opls_472" charge="0.135" sigma="0.355" epsilon="0.29288"/>
-  <Atom type="opls_473" charge="-0.215" sigma="0.3" epsilon="0.71128"/>
+  <Atom type="opls_473" charge="-0.215" sigma="0.29" epsilon="0.585760"/>
   <Atom type="opls_474" charge="1.48" sigma="0.355" epsilon="1.046"/>
-  <Atom type="opls_475" charge="-0.68" sigma="0.296" epsilon="0.71128"/>
+  <Atom type="opls_475" charge="-0.68" sigma="0.29" epsilon="0.585760"/>
   <Atom type="opls_476" charge="-0.54" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_477" charge="0.18" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_478" charge="-1.0" sigma="0.325" epsilon="0.71128"/>
@@ -3622,8 +4075,9 @@
   <Atom type="opls_490" charge="0.19" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_491" charge="0.22" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_492" charge="0.25" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_493" charge="1.374" sigma="0.355" epsilon="1.046"/>
+  <Atom type="opls_493" charge="1.374" sigma="0.356" epsilon="0.165268"/>
   <Atom type="opls_494" charge="-0.687" sigma="0.296" epsilon="0.71128"/>
+  <Atom type="opls_495" charge="0.6967" sigma="0.356" epsilon="0.165268"/>
   <Atom type="opls_496" charge="0.13" sigma="0.356" epsilon="1.65268"/>
   <Atom type="opls_497" charge="-0.42" sigma="0.293" epsilon="1.17152"/>
   <Atom type="opls_498" charge="-0.035" sigma="0.35" epsilon="0.276144"/>
@@ -3632,7 +4086,7 @@
   <Atom type="opls_501" charge="-0.055" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_502" charge="0.13" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_503" charge="-0.57" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_504" charge="0.42" sigma="1.0" epsilon="0.0"/>
+  <Atom type="opls_504" charge="1.3262" sigma="0.40" epsilon="0.418400"/>
   <Atom type="opls_505" charge="-0.005" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_506" charge="0.182" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_507" charge="0.504" sigma="0.355" epsilon="0.29288"/>
@@ -3677,7 +4131,7 @@
   <Atom type="opls_547" charge="0.118" sigma="0.242" epsilon="0.12552"/>
   <Atom type="opls_548" charge="-0.059" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_549" charge="-0.491" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_550" charge="0.246" sigma="0.355" epsilon="0.29288"/>
+  <Atom type="opls_550" charge="0.246" sigma="0.300" epsilon="0.276144"/>
   <Atom type="opls_551" charge="-0.32" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_552" charge="-0.034" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_553" charge="0.301" sigma="1.0" epsilon="0.0"/>
@@ -3706,7 +4160,7 @@
   <Atom type="opls_576" charge="0.043" sigma="0.242" epsilon="0.12552"/>
   <Atom type="opls_577" charge="0.091" sigma="0.242" epsilon="0.12552"/>
   <Atom type="opls_578" charge="0.181" sigma="0.242" epsilon="0.12552"/>
-  <Atom type="opls_579" charge="-0.122" sigma="0.29" epsilon="0.58576"/>
+  <Atom type="opls_579" charge="-0.122" sigma="0.296" epsilon="0.87864"/>
   <Atom type="opls_580" charge="-0.413" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_581" charge="0.405" sigma="0.355" epsilon="0.29288"/>
   <Atom type="opls_582" charge="-0.455" sigma="0.355" epsilon="0.29288"/>
@@ -3849,7 +4303,7 @@
   <Atom type="opls_748" charge="0.04" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_749" charge="-0.62" sigma="0.325" epsilon="0.71128"/>
   <Atom type="opls_750" charge="-0.785" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_751" charge="-0.785" sigma="0.325" epsilon="0.71128"/>
+  <Atom type="opls_751" charge="-0.785" sigma="0.33" epsilon="0.276144"/>
   <Atom type="opls_752" charge="0.55" sigma="0.225" epsilon="0.2092"/>
   <Atom type="opls_753" charge="-0.56" sigma="0.32" epsilon="0.71128"/>
   <Atom type="opls_754" charge="0.46" sigma="0.33" epsilon="0.276144"/>
@@ -3882,7 +4336,7 @@
   <Atom type="opls_784" charge="0.172" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_785" charge="1.34" sigma="0.374" epsilon="0.8368"/>
   <Atom type="opls_786" charge="-0.39" sigma="0.31181" epsilon="0.255224"/>
-  <Atom type="opls_787" charge="0.794" sigma="0.315" epsilon="0.71128"/>
+  <Atom type="opls_787" charge="0.794" sigma="0.33" epsilon="0.71128"/>
   <Atom type="opls_788" charge="-0.598" sigma="0.286" epsilon="0.87864"/>
   <Atom type="opls_795" charge="0.0" sigma="0.3215" epsilon="0.58576"/>
   <Atom type="opls_796" charge="0.511" sigma="1.0" epsilon="0.0"/>
@@ -3897,8 +4351,8 @@
   <Atom type="opls_906B" charge="0.06" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_907" charge="0.08" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_908" charge="0.09" sigma="0.35" epsilon="0.276144"/>
-  <Atom type="opls_909" charge="0.36" sigma="1.0" epsilon="0.0"/>
-  <Atom type="opls_910" charge="0.38" sigma="1.0" epsilon="0.0"/>
+  <Atom type="opls_909" charge="0.36" sigma="0.0" epsilon="0.0"/>
+  <Atom type="opls_910" charge="0.38" sigma="0.0" epsilon="0.0"/>
   <Atom type="opls_911" charge="0.06" sigma="0.25" epsilon="0.06276"/>
   <Atom type="opls_912" charge="0.12" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_912B" charge="0.12" sigma="0.35" epsilon="0.276144"/>
@@ -3915,8 +4369,8 @@
   <Atom type="opls_929" charge="0.01" sigma="0.33" epsilon="0.4184"/>
   <Atom type="opls_930" charge="0.06" sigma="0.25" epsilon="0.06276"/>
   <Atom type="opls_931" charge="0.0" sigma="0.33" epsilon="0.87864"/>
-  <Atom type="opls_940" charge="-0.1" sigma="0.325" epsilon="0.71128"/>
-  <Atom type="opls_941" charge="0.29" sigma="1.0" epsilon="0.0"/>
+  <Atom type="opls_940" charge="-0.1" sigma="0.33" epsilon="0.71128"/>
+  <Atom type="opls_941" charge="0.29" sigma="0.0" epsilon="0.0"/>
   <Atom type="opls_942" charge="0.09" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_943" charge="0.15" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_944" charge="0.21" sigma="0.35" epsilon="0.276144"/>
@@ -3924,7 +4378,7 @@
   <Atom type="opls_950" charge="0.074" sigma="0.25" epsilon="0.12552"/>
   <Atom type="opls_951" charge="-0.029" sigma="0.35" epsilon="0.276144"/>
   <Atom type="opls_952" charge="0.7" sigma="0.375" epsilon="0.43932"/>
-  <Atom type="opls_953" charge="-0.352" sigma="0.325" epsilon="0.71128"/>
+  <Atom type="opls_953" charge="-0.352" sigma="0.33" epsilon="0.71128"/>
   <Atom type="opls_954" charge="-0.709" sigma="0.296" epsilon="0.87864"/>
   <Atom type="opls_955" charge="0.317" sigma="1.0" epsilon="0.0"/>
   <Atom type="opls_956" charge="-0.22" sigma="0.294" epsilon="0.255224"/>

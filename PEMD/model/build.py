@@ -7,18 +7,314 @@ Date: 2024.01.18
 
 
 import os
+import math
 import random
-import itertools
-import subprocess
-import pandas as pd
 from rdkit import Chem
-from pathlib import Path
-from shutil import which
 from openbabel import pybel
 from PEMD.model import model_lib
 from rdkit.Chem import Descriptors
-from LigParGenPEMD import Converter
+from rdkit.Chem import rdMolTransforms
+from rdkit.Geometry import Point3D
 
+
+def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
+    # Generate the SMILES representation of the polymer.
+    (
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+    ) = model_lib.Init_info(
+        poly_name,
+        repeating_unit,
+    )
+
+    smiles_poly = model_lib.gen_oligomer_smiles(
+        poly_name,
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        repeating_unit,
+        length,
+        leftcap,
+        rightcap,
+    )
+
+    if os.path.exists(poly_name + '.xyz'):
+        os.remove(poly_name + '.xyz')             # Delete intermediate XYZ file if exists
+
+    return smiles_poly
+
+def gen_poly_3D(work_dir, poly_name, length, smiles, max_attempts=3):
+    # Read SMILES using Pybel and generate a molecule object
+    mol = pybel.readstring("smi", smiles)
+    mol.addh()
+    mol.make3D()
+    obmol = mol.OBMol
+    DEG_TO_RAD = math.pi / 180
+    num_iterations = 10
+    angle_range = (0, 360)
+
+    # Randomly set torsion angles
+    for _ in range(num_iterations):
+        for obatom in pybel.ob.OBMolAtomIter(obmol):
+            for bond in pybel.ob.OBAtomBondIter(obatom):
+                neighbor = bond.GetNbrAtom(obatom)
+                if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
+                    continue
+                angle = random.uniform(*angle_range)
+                try:
+                    n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
+                    n2 = next(pybel.ob.OBAtomAtomIter(n1))
+                    obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
+                except StopIteration:
+                    continue
+
+    # Perform local optimization
+    mol.localopt()
+
+    # Convert Pybel molecule to RDKit molecule
+    rdkit_mol = convert_pybel_to_rdkit(mol)
+
+    # Initialize attempt counter
+    attempt = 0
+
+    while attempt < max_attempts:
+        # Check bond lengths
+        long_bonds = check_bond_lengths_rdkit(rdkit_mol)
+        # Check bond angles
+        unreasonable_angles = check_bond_angles_rdkit(rdkit_mol)
+
+        if not long_bonds and not unreasonable_angles:
+            print("All bond lengths and angles are within the reasonable range.")
+            break  # Exit the loop if structure is acceptable
+
+        print(f"Attempt {attempt + 1} of {max_attempts}: Detected issues in the molecular geometry.")
+
+        # Optionally, print detailed warnings
+        if long_bonds:
+            print(f"  - Detected {len(long_bonds)} bonds exceeding the reasonable length:")
+            for bond in long_bonds:
+                atom1_idx, atom2_idx, distance, standard_length = bond
+                atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
+                atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
+                print(
+                    f"    * Bond between atom {atom1_idx} ({atom1}) and atom {atom2_idx} ({atom2}) has a distance of {distance:.2f} Å (standard: {standard_length} Å)")
+
+        if unreasonable_angles:
+            print(f"  - Detected {len(unreasonable_angles)} bond angles outside the reasonable range:")
+            for angle in unreasonable_angles:
+                atom1_idx, center_atom_idx, atom2_idx, actual_angle, expected_angle = angle
+                atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
+                center_atom = rdkit_mol.GetAtomWithIdx(center_atom_idx - 1).GetSymbol()
+                atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
+                print(
+                    f"    * Bond angle between atom {atom1_idx} ({atom1}) - atom {center_atom_idx} ({center_atom}) - atom {atom2_idx} ({atom2}) is {actual_angle:.2f}°, expected {expected_angle}°")
+
+        # Re-optimize the molecule
+        print("Re-optimizing the molecule...")
+        mol.localopt()
+
+        # Convert again to RDKit molecule after optimization
+        rdkit_mol = convert_pybel_to_rdkit(mol)
+
+        attempt += 1
+
+    if attempt == max_attempts and (long_bonds or unreasonable_angles):
+        print("Maximum optimization attempts reached. Some bonds or angles are still outside the reasonable range.")
+        # Optionally, raise an exception or proceed with warnings
+        # raise ValueError("Unacceptable molecular geometry detected after multiple optimization attempts.")
+
+    # Export to PDB file
+    pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
+    mol.write("pdb", pdb_file, overwrite=True)
+
+    return f"{poly_name}_N{length}.pdb"
+
+def convert_pybel_to_rdkit(pybel_mol):
+    """
+    Convert a Pybel molecule to an RDKit molecule.
+    """
+    mol_block = pybel_mol.write("mol")
+    rdkit_mol = Chem.MolFromMolBlock(mol_block, removeHs=False)
+    if rdkit_mol is None:
+        raise ValueError("Unable to convert Pybel molecule to RDKit molecule.")
+    return rdkit_mol
+
+def check_bond_lengths_rdkit(rdkit_mol, max_deviation=0.2):
+    STANDARD_BOND_LENGTHS = {
+        Chem.rdchem.BondType.SINGLE: 1.54,
+        Chem.rdchem.BondType.DOUBLE: 1.34,
+        Chem.rdchem.BondType.TRIPLE: 1.20,
+        Chem.rdchem.BondType.AROMATIC: 1.39,
+        # Add more bond types as needed
+    }
+
+    def get_standard_bond_length(bond):
+        bond_type = bond.GetBondType()
+        return STANDARD_BOND_LENGTHS.get(bond_type, None)
+
+    long_bonds = []
+    conf = rdkit_mol.GetConformer()
+    for bond in rdkit_mol.GetBonds():
+        atom1 = bond.GetBeginAtom()
+        atom2 = bond.GetEndAtom()
+        idx1 = atom1.GetIdx()
+        idx2 = atom2.GetIdx()
+        pos1 = conf.GetAtomPosition(idx1)
+        pos2 = conf.GetAtomPosition(idx2)
+        distance = pos1.Distance(pos2)
+        standard_length = get_standard_bond_length(bond)
+        if standard_length is None:
+            continue  # Skip bonds without defined standard lengths
+        max_allowed = standard_length * (1 + max_deviation)
+        if distance > max_allowed:
+            long_bonds.append((idx1 + 1, idx2 + 1, distance, standard_length))  # RDKit indices start at 0
+    return long_bonds
+
+def check_bond_angles_rdkit(rdkit_mol, max_deviation=15):
+    unreasonable_angles = []
+    conf = rdkit_mol.GetConformer()
+
+    # Define expected bond angles (can be extended as needed)
+    EXPECTED_ANGLES = {
+        'C': 109.5,  # Tetrahedral
+        'O': 104.5,  # Similar to water molecule
+        'N': 107.0,  # Triazine rings, etc.
+        # Add more atom types as needed
+    }
+
+    for atom in rdkit_mol.GetAtoms():
+        neighbors = atom.GetNeighbors()
+        if len(neighbors) < 2:
+            continue
+        for i in range(len(neighbors)):
+            for j in range(i + 1, len(neighbors)):
+                atom1 = neighbors[i]
+                atom2 = neighbors[j]
+                idx1 = atom1.GetIdx()
+                idx2 = atom2.GetIdx()
+                center_idx = atom.GetIdx()
+
+                pos1 = conf.GetAtomPosition(idx1)
+                pos2 = conf.GetAtomPosition(idx2)
+                pos_center = conf.GetAtomPosition(center_idx)
+
+                # Calculate angle
+                angle_rad = rdMolTransforms.GetAngleRad(rdkit_mol.GetConformer(), center_idx, idx1, idx2)
+                angle_deg = math.degrees(angle_rad)
+
+                # Get expected angle
+                center_atom_type = atom.GetSymbol()
+                expected_angle = EXPECTED_ANGLES.get(center_atom_type, 109.5)  # Default to tetrahedral
+
+                if abs(angle_deg - expected_angle) > max_deviation:
+                    unreasonable_angles.append((idx1 + 1, center_idx + 1, idx2 + 1, angle_deg, expected_angle))
+
+    return unreasonable_angles
+
+# def gen_poly_3D(work_dir, poly_name, length, smiles):
+#     mol = pybel.readstring("smi", smiles)
+#     mol.addh()
+#     mol.make3D()
+#     obmol = mol.OBMol
+#     DEG_TO_RAD = math.pi / 180
+#     num_iterations = 10
+#     angle_range = (0, 360)
+#
+#     for _ in range(num_iterations):
+#         for obatom in pybel.ob.OBMolAtomIter(obmol):
+#             for bond in pybel.ob.OBAtomBondIter(obatom):
+#                 neighbor = bond.GetNbrAtom(obatom)
+#                 if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
+#                     continue
+#                 angle = random.uniform(*angle_range)
+#                 try:
+#                     n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
+#                     n2 = next(pybel.ob.OBAtomAtomIter(n1))
+#                     obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
+#
+#                 except StopIteration:
+#                     continue
+#
+#     mol.localopt()
+#
+#     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
+#     mol.write("pdb", pdb_file, overwrite=True)
+#
+#     return f"{poly_name}_N{length}.pdb"
+
+# def gen_poly_3D(work_dir, poly_name, length, smiles):
+#     # 读取SMILES字符串并生成分子
+#     mol = pybel.readstring("smi", smiles)
+#     mol.addh()
+#     mol.make3D()
+#
+#     obmol = mol.OBMol
+#     DEG_TO_RAD = math.pi / 180
+#     num_iterations = 10
+#     angle_range = (0, 360)
+#
+#     # 使用力场初始化优化以避免初始重叠
+#     mol.localopt(forcefield="MMFF94", steps=500)
+#
+#     for _ in range(num_iterations):
+#         torsion_set = False
+#         for obatom in openbabel.OBMolAtomIter(obmol):
+#             for bond in openbabel.OBAtomBondIter(obatom):
+#                 neighbor = bond.GetNbrAtom(obatom)
+#                 # 仅对具有至少两个连接的原子进行扭转
+#                 if len(list(openbabel.OBAtomAtomIter(neighbor))) < 2:
+#                     continue
+#                 angle = random.uniform(*angle_range)
+#                 try:
+#                     # 获取四个原子用于设置扭转角
+#                     n1 = next(openbabel.OBAtomAtomIter(neighbor))
+#                     n2 = next(openbabel.OBAtomAtomIter(n1))
+#                     obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
+#                     torsion_set = True
+#                 except StopIteration:
+#                     continue
+#         if torsion_set:
+#             # 每次迭代后进行力场优化，避免原子重叠
+#             mol.localopt(forcefield="MMFF94", steps=500)
+#             # 检查最小原子间距
+#             min_distance = get_min_distance(obmol)
+#             if min_distance < 1.0:  # 根据需要调整阈值
+#                 print(f"警告：检测到最小原子距离 {min_distance:.2f} Å，小于阈值，重新调整结构。")
+#                 # 可以选择重新设置扭转角或采取其他措施
+#                 continue
+#
+#     mol.localopt(forcefield="MMFF94", steps=500)
+#
+#     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
+#     mol.write("pdb", pdb_file, overwrite=True)
+
+    # return f"{poly_name}_N{length}.pdb"
+
+
+# def get_min_distance(obmol):
+#     min_dist = float('inf')
+#     atoms = list(openbabel.OBMolAtomIter(obmol))
+#     num_atoms = len(atoms)
+#     for i in range(num_atoms):
+#         atom1 = atoms[i]
+#         x1, y1, z1 = atom1.GetX(), atom1.GetY(), atom1.GetZ()
+#         for j in range(i + 1, num_atoms):
+#             atom2 = atoms[j]
+#             x2, y2, z2 = atom2.GetX(), atom2.GetY(), atom2.GetZ()
+#             distance = calculate_distance(x1, y1, z1, x2, y2, z2)
+#             if distance < min_dist:
+#                 min_dist = distance
+#     return min_dist
+
+# def calculate_distance(x1, y1, z1, x2, y2, z2):
+#     return math.sqrt(
+#         (x1 - x2) ** 2 +
+#         (y1 - y2) ** 2 +
+#         (z1 - z2) ** 2
+#     )
 
 def calc_poly_chains(num_Li_salt , conc_Li_salt, mass_per_chain):
 
@@ -54,186 +350,5 @@ def calc_poly_length(total_mass_polymer, smiles_repeating_unit, smiles_leftcap, 
     length = round(mass_polymer_chain / mol_weight_repeating_unit)
 
     return length
-
-def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
-    # Generate the SMILES representation of the polymer.
-    (
-        dum1,
-        dum2,
-        atom1,
-        atom2,
-    ) = model_lib.Init_info(
-        poly_name,
-        repeating_unit,
-    )
-
-    smiles_poly = model_lib.gen_oligomer_smiles(
-        poly_name,
-        dum1,
-        dum2,
-        atom1,
-        atom2,
-        repeating_unit,
-        length,
-        leftcap,
-        rightcap,
-    )
-
-    if os.path.exists(poly_name + '.xyz'):
-        os.remove(poly_name + '.xyz')             # Delete intermediate XYZ file if exists
-
-    return smiles_poly
-
-
-def gen_poly_3D(poly_name, length, smiles, core = 32, atom_typing_ = 'pysimm', ):
-
-    # build directory
-    current_path = os.getcwd()
-    out_dir = os.path.join(current_path, f'{poly_name}_N{length}')
-    os.makedirs(out_dir, exist_ok=True)
-
-    relax_polymer_lmp_dir = os.path.join(out_dir, 'relax_polymer_lmp')
-    os.makedirs(relax_polymer_lmp_dir, exist_ok=True)
-
-    # print(smiles)
-    mol = pybel.readstring("smi", smiles)
-    mol.addh()
-    mol.make3D()
-    obmol = mol.OBMol
-
-    angle_range = (0, 0.5)
-    for obatom in pybel.ob.OBMolAtomIter(obmol):
-        for bond in pybel.ob.OBAtomBondIter(obatom):
-            neighbor = bond.GetNbrAtom(obatom)
-            if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
-                continue
-            angle = random.uniform(*angle_range)
-            n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
-            n2 = next(pybel.ob.OBAtomAtomIter(n1))
-            obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle)
-    mol.localopt()
-
-    # 构建文件名基础，这样可以避免重复拼接字符串
-    file_base = f"{poly_name}_N{length}"
-
-    # 使用os.path.join构建完整的文件路径，确保路径在不同操作系统上的兼容性
-    pdb_file = os.path.join(relax_polymer_lmp_dir, f"{file_base}.pdb")
-    xyz_file = os.path.join(relax_polymer_lmp_dir, f"{file_base}.xyz")
-    mol_file = os.path.join(relax_polymer_lmp_dir, f"{file_base}.mol2")
-
-    mol.write("pdb", pdb_file, overwrite=True)
-    mol.write("xyz", xyz_file, overwrite=True)
-    mol.write("mol2", mol_file, overwrite=True)
-
-    print("\n", poly_name, ": Performing a short MD simulation using LAMMPS...\n", )
-
-    model_lib.get_gaff2(poly_name, length, relax_polymer_lmp_dir, mol, atom_typing=atom_typing_)
-    model_lib.relax_polymer_lmp(poly_name, length, relax_polymer_lmp_dir, core)
-
-
-def calculate_box_size(numbers, pdb_files, density):
-    total_mass = 0
-    for num, file in zip(numbers, pdb_files):
-
-        molecular_weight = model_lib.calc_mol_weight(file)  # in g/mol
-        total_mass += molecular_weight * num / 6.022e23  # accumulate mass of each molecule in grams
-
-    total_volume = total_mass / density  # volume in cm^3
-    length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
-    return length
-
-
-# define the function to generate the packmol input file
-def gen_packmol_input(model_info, density, add_length, out_dir, packinp_name='pack.inp',
-                      packout_name='pack_cell.pdb'):
-
-    current_path = os.getcwd()
-
-    # unit_name = model_info['polymer']['compound']
-    # length = model_info['polymer']['length'][1]
-
-    MD_dir = os.path.join(current_path, out_dir)
-    os.mkdir(MD_dir)
-    # build_lib.build_dir(MD_dir)  # 确保这个函数可以正确创建目录
-
-    packinp_path = os.path.join(MD_dir, packinp_name)
-
-    numbers = model_lib.print_compounds(model_info,'numbers')
-    compounds = model_lib.print_compounds(model_info,'compound')
-
-    pdb_files = []
-    for com in compounds:
-        # if com == model_info['polymer']['compound']:
-        #     ff_dir = os.path.join(current_path, f'{unit_name}_N{length}', 'ff_dir')
-        #     filepath = os.path.join(ff_dir, f"{com}.pdb")
-        # else:
-        filepath = os.path.join(MD_dir, f"{com}.pdb")
-        pdb_files.append(filepath)
-
-    box_length = calculate_box_size(numbers, pdb_files, density) + add_length  # add 10 Angstroms to each side
-
-    file_contents = "tolerance 2.0\n"
-    file_contents += f"add_box_sides 1.2\n"
-    file_contents += f"output {packout_name}\n"
-    file_contents += "filetype pdb\n\n"
-    file_contents += f"seed {random.randint(1, 100000)}\n\n"  # Add random seed for reproducibility
-
-    # 循环遍历每种分子的数量和对应的 PDB 文件
-    for num, file in zip(numbers, pdb_files):
-        file_contents = file_contents + f"\nstructure {file}\n"
-        file_contents = file_contents + f"  number {num}\n"
-        file_contents = file_contents + f"  inside box 0.0 0.0 0.0 {box_length:.2f} {box_length:.2f} {box_length:.2f}\n"
-        file_contents = file_contents + "end structure\n\n"
-
-    # write to file
-    with open(packinp_path, 'w') as file:
-        file.write(file_contents)
-    print(f"packmol input file generation successful：{packinp_path}")
-
-    return packinp_path
-
-
-def run_packmol(out_dir, input_file='pack.inp', output_file='pack.out'):
-    current_path = os.getcwd()
-    if not which("packmol"):
-        raise RuntimeError(
-            "Running Packmol requires the executable 'packmol' to be in the path. Please "
-            "download packmol from https://github.com/leandromartinez98/packmol and follow the "
-            "instructions in the README to compile. Don't forget to add the packmol binary to your path"
-        )
-
-    try:
-        MD_dir = os.path.join(current_path, out_dir)
-        os.chdir(MD_dir)
-        p = subprocess.run(
-            f"packmol < {input_file}",
-            check=True,
-            shell=True,
-            capture_output=True,
-        )
-
-        # Check for errors in packmol output
-        if "ERROR" in p.stdout.decode():
-            if "Could not open file." in p.stdout.decode():
-                raise ValueError(
-                    "Your packmol might be too old to handle paths with spaces. "
-                    "Please try again with a newer version or use paths without spaces."
-                )
-            msg = p.stdout.decode().split("ERROR")[-1]
-            raise ValueError(f"Packmol failed with return code 0 and stdout: {msg}")
-
-        # Write packmol output to the specified output file
-        with open(Path(MD_dir, output_file), mode="w") as out:
-            out.write(p.stdout.decode())
-
-    except subprocess.CalledProcessError as exc:
-        if exc.returncode != 173:  # Only raise the error if it's not the specific 'STOP 173' case
-            raise ValueError(f"Packmol failed with error code {exc.returncode} and stderr: {exc.stderr.decode()}") from exc
-        else:
-            print("Packmol ended with 'STOP 173', but this error is being ignored.")
-
-    finally:
-        # Change back to the original working directory
-        os.chdir(current_path)
 
 

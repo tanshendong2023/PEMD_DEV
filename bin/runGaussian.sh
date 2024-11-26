@@ -36,4 +36,4 @@ done
 ## Merge all *xtbopt.xyz files into the merged xyz file, ensuring files include digits only
 #cat "${gaussian_dir}"/conf_*([0-9]).xyz > "$merged_filename"
 
-echo "The generated conformers have been merged and saved to ${merged_filename}"
+# echo "The generated conformers have been merged and saved to ${merged_filename}"
