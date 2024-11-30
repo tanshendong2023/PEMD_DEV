@@ -21,20 +21,6 @@ ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
-def get_slurm_job_status(job_id):
-    command = f'sacct -j {job_id} --format=State --noheader'
-    process = subprocess.run(command, shell=True, capture_output=True, text=True)
-    # Split the output by newlines and strip whitespace
-    statuses = [line.strip() for line in process.stdout.strip().split('\n')]
-    # Check if all statuses indicate the job is completed
-    if all(status == 'COMPLETED' for status in statuses):
-        return 'COMPLETED'
-    elif any(status == 'FAILED' for status in statuses):
-        return 'FAILED'
-    elif any(status == 'CANCELLED' for status in statuses):
-        return 'CANCELLED'
-    else:
-        return 'RUNNING'
 
 # Modified order_energy_xtb function
 def order_energy_xtb(work_dir, xyz_file, numconf, output_file):
@@ -236,11 +222,11 @@ def lmptoxyz(work_dir, pdb_file):
     file_prefix, file_extension = os.path.splitext(pdb_file)
     data_filepath = os.path.join(work_dir, f'{file_prefix}_gaff2.lmp')
     input_filepath = os.path.join(work_dir, f'{file_prefix}_lmp.xyz')
-    output_filepath = f'{file_prefix}_gmx.xyz'
+    output_filename = f'{file_prefix}_gmx.xyz'
 
     atom_map = parse_masses_from_lammps(data_filepath)
 
-    with open(input_filepath, 'r') as fin, open(output_filepath, 'w') as fout:
+    with open(input_filepath, 'r') as fin, open(output_filename, 'w') as fout:
         for i, line in enumerate(fin):
             line = line.strip()
             if i < 2:
@@ -255,10 +241,9 @@ def lmptoxyz(work_dir, pdb_file):
                         print(f"Warning: Atom ID {atom_id} not found in atom_map.")
                 fout.write(' '.join(parts) + '\n')
 
-    print(f"the relaxed polymer chian has been written to {output_filepath}\n")
+    print(f"the relaxed polymer chian has been written to {output_filename}\n")
 
-    return output_filepath
-
+    return output_filename
 
 def parse_masses_from_lammps(data_filename):
     atom_map = {}
@@ -289,11 +274,8 @@ def parse_masses_from_lammps(data_filename):
             atom_map[atom_id] = atom_symbol
     return atom_map
 
-
 def get_closest_element_by_mass(target_mass, tolerance=0.5):
-    import numpy as np
 
-    # 手动定义一个包含元素质量的映射
     element_masses = {
         'H': 1.008,  # 氢
         'B': 10.81,  # 硼
@@ -321,7 +303,6 @@ def get_closest_element_by_mass(target_mass, tolerance=0.5):
         'Ag': 107.87,  # 银
         'I': 126.90,  # 碘
         'Au': 196.97,  # 金
-        # 可以根据需要添加更多元素
     }
 
     min_diff = np.inf
@@ -344,34 +325,36 @@ def apply_chg_to_poly(work_dir, poly_smi, itp_file, resp_chg_df, repeating_unit,
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
-    cleaned_smiles = repeating_unit.replace('[*]', '')
-    molecule = Chem.MolFromSmiles(cleaned_smiles)
-    molecule_with_h = Chem.AddHs(molecule)
-    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
+    unit_smi_with_h1 = repeating_unit.replace('*', '[H]')
+    unit_mol_with_h1 = Chem.MolFromSmiles(unit_smi_with_h1)
 
-    (
-        left_unmatched_mol,
-        left_unmatched_numatom,
-        right_unmatched_mol,
-        right_unmatched_numatom
-    ) = count_non_matching_atoms(
+    unit_mol = Chem.RemoveHs(unit_mol_with_h1)
+    unit_smi = Chem.MolToSmiles(unit_mol, canonical=False)
+
+    unit_mol_with_h2 = Chem.AddHs(unit_mol)
+    N_mid = unit_mol.GetNumAtoms()
+    N_mid_h = unit_mol_with_h2.GetNumAtoms() - N_mid - 2
+
+    poly_mol, left_index, right_index = count_end_index(
         poly_smi,
-        cleaned_smiles
+        unit_smi,
+        end_repeating
     )
 
-    left_unmatched_mol_with_h = Chem.AddHs(left_unmatched_mol)
-    right_unmatched_mol_with_h = Chem.AddHs(right_unmatched_mol)
-    num_repeating_left = end_repeating
-    num_repeating_right = end_repeating
-    left_unmatched_num_H = 1
-    right_unmatched_num_H = 1
+    left_smiles = Chem.MolFragmentToSmiles(poly_mol, atomsToUse=left_index, canonical=False)
+    right_smiles = Chem.MolFragmentToSmiles(poly_mol, atomsToUse=right_index, canonical=False)
 
-    if left_unmatched_numatom > 1:   # CH3
-        num_repeating_left = end_repeating -1
-        left_unmatched_num_H = left_unmatched_mol_with_h.GetNumAtoms() - left_unmatched_mol.GetNumAtoms() - 1
-    elif right_unmatched_numatom > 1:  # CH3
-        num_repeating_right = end_repeating -1
-        right_unmatched_num_H = right_unmatched_mol_with_h.GetNumAtoms() - right_unmatched_mol.GetNumAtoms() - 1
+    left_mol = Chem.MolFromSmiles(left_smiles)
+    right_mol = Chem.MolFromSmiles(right_smiles)
+
+    left_mol_with_h = Chem.AddHs(left_mol)
+    right_mol_with_h = Chem.AddHs(right_mol)
+
+    N_left = left_mol.GetNumAtoms()
+    N_right = right_mol.GetNumAtoms()
+
+    N_left_h = left_mol_with_h.GetNumAtoms() - N_left - 1
+    N_right_h = right_mol_with_h.GetNumAtoms() - N_right - 1
 
     (
         top_N_noH_df,
@@ -382,13 +365,12 @@ def apply_chg_to_poly(work_dir, poly_smi, itp_file, resp_chg_df, repeating_unit,
         mid_ave_chg_H_df
     ) = ave_chg_to_df(
         resp_chg_df,
-        repeating_unit,
-        num_repeating_left,
-        num_repeating_right,
-        left_unmatched_numatom,
-        right_unmatched_numatom,
-        left_unmatched_num_H,
-        right_unmatched_num_H,
+        N_mid,
+        N_mid_h,
+        N_left,
+        N_right,
+        N_left_h,
+        N_right_h,
     )
 
     # read the xyz file
@@ -400,79 +382,48 @@ def apply_chg_to_poly(work_dir, poly_smi, itp_file, resp_chg_df, repeating_unit,
 
     # deal with the mid non-H atoms
     atoms_chg_noH_df = atoms_chg_df[atoms_chg_df['atom'] != 'H']
-
-    cleaned_smiles = repeating_unit.replace('[*]', '')
-    molecule = Chem.MolFromSmiles(cleaned_smiles)
-    atom_count = molecule.GetNumAtoms()
-    # N = atom_count * end_repeating + 1
-    N_left = atom_count * num_repeating_left + left_unmatched_numatom
-    N_right = atom_count * num_repeating_right + right_unmatched_numatom
-
     mid_atoms_chg_noH_df = atoms_chg_noH_df.drop(
         atoms_chg_noH_df.head(N_left).index.union(atoms_chg_noH_df.tail(N_right).index)).reset_index(drop=True)
 
-    # 计算每个原子在重复单元中的位置
-    positions_in_cycle = mid_atoms_chg_noH_df.index % atom_count
-    # 更新电荷值
+    # calculate the position of each atom in the repeating unit and update the charge value
+    positions_in_cycle = mid_atoms_chg_noH_df.index % N_mid
     mid_atoms_chg_noH_df['charge'] = mid_ave_chg_noH_df.iloc[positions_in_cycle]['charge'].values
 
     # deal with the mid H atoms
     atoms_chg_H_df = atoms_chg_df[atoms_chg_df['atom'] == 'H']
-
-    # N_H = num_H_repeating * end_repeating + 3
-    N_H_left = num_H_repeating * num_repeating_left + left_unmatched_num_H       # 多三个端集CH3中的H
-    N_H_right = num_H_repeating * num_repeating_right + right_unmatched_num_H     # 多三个端集CH3中的H
-
     mid_atoms_chg_H_df = atoms_chg_H_df.drop(
-        atoms_chg_H_df.head(N_H_left).index.union(atoms_chg_H_df.tail(N_H_right).index)).reset_index(drop=True)
+        atoms_chg_H_df.head(N_left_h).index.union(atoms_chg_H_df.tail(N_right_h).index)).reset_index(drop=True)
 
-    # 计算每个原子在重复单元中的位置
-    positions_in_cycle_H = mid_atoms_chg_H_df.index % num_H_repeating
-    # 更新电荷值
+    # calculate the position of each atom in the repeating unit and update the charge value
+    positions_in_cycle_H = mid_atoms_chg_H_df.index % N_mid_h
     mid_atoms_chg_H_df['charge'] = mid_ave_chg_H_df.iloc[positions_in_cycle_H]['charge'].values
 
     charge_update_df = pd.concat([top_N_noH_df, mid_atoms_chg_noH_df, tail_N_noH_df, top_N_H_df, mid_atoms_chg_H_df,
                                 tail_N_H_df], ignore_index=True)
 
     # charge neutralize and scale
-    # corr_factor = model_info['polymer']['scale']
     charge_update_df_cor = charge_neutralize_scale(charge_update_df, corr_factor, target_sum_chg, )
 
     # update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)
 
-def ave_chg_to_df(resp_chg_df, repeating_unit, num_repeating_left, num_repeating_right, left_unmatched_numatom, right_unmatched_numatom, left_non_matchingH, right_non_matchingH,):
+def ave_chg_to_df(resp_chg_df, N_mid, N_mid_h, N_left, N_right, N_left_h, N_right_h,):
 
-    # 处理非氢原子
+    # deal with non-H atoms
     nonH_df = resp_chg_df[resp_chg_df['atom'] != 'H']
-    cleaned_smiles = repeating_unit.replace('[*]', '')
 
-    molecule = Chem.MolFromSmiles(cleaned_smiles)
-    atom_count = molecule.GetNumAtoms()
-
-    N_left = atom_count * num_repeating_left + left_unmatched_numatom
-    N_right = atom_count * num_repeating_right + right_unmatched_numatom
-
-    # end_ave_chg_noH_df = ave_end_chg(nonH_df, N)
     top_N_noH_df = nonH_df.head(N_left)
     tail_N_noH_df = nonH_df.tail(N_right)
     mid_df_noH_df = nonH_df.drop(nonH_df.head(N_left).index.union(nonH_df.tail(N_right).index)).reset_index(drop=True)
-    mid_ave_chg_noH_df = ave_mid_chg(mid_df_noH_df, atom_count)
+    mid_ave_chg_noH_df = ave_mid_chg(mid_df_noH_df, N_mid)
 
-    # 处理氢原子
+    # deal with H atoms
     H_df = resp_chg_df[resp_chg_df['atom'] == 'H']
 
-    molecule_with_h = Chem.AddHs(molecule)
-    num_H_repeating = molecule_with_h.GetNumAtoms() - molecule.GetNumAtoms() - 2
-
-    N_H_left = num_H_repeating * num_repeating_left + left_non_matchingH      # 多三个端集CH3中的H
-    N_H_right = num_H_repeating * num_repeating_right + right_non_matchingH    # 多三个端集CH3中的H
-
-    # end_ave_chg_H_df = ave_end_chg(H_df, N_H)
-    top_N_H_df = H_df.head(N_H_left)
-    tail_N_H_df = H_df.tail(N_H_right)
-    mid_df_H_df = H_df.drop(H_df.head(N_H_left).index.union(H_df.tail(N_H_right).index)).reset_index(drop=True)
-    mid_ave_chg_H_df = ave_mid_chg(mid_df_H_df, num_H_repeating)
+    top_N_H_df = H_df.head(N_left_h)
+    tail_N_H_df = H_df.tail(N_right_h)
+    mid_df_H_df = H_df.drop(H_df.head(N_left_h).index.union(H_df.tail(N_right_h).index)).reset_index(drop=True)
+    mid_ave_chg_H_df = ave_mid_chg(mid_df_H_df, N_mid_h)
 
     return top_N_noH_df, tail_N_noH_df, mid_ave_chg_noH_df, top_N_H_df, tail_N_H_df, mid_ave_chg_H_df
 
@@ -547,35 +498,36 @@ def xyz_to_df(xyz_file_path):
     df['charge'] = None  # 初始化为空值
     return df
 
-def count_non_matching_atoms(s, unit):
-    count = 0
-    skip = 0
-    start = s
-    left_unmatched_smiles = ''
+def count_end_index(poly_smi, unit_smi, end_repeating):
+    mol_poly = Chem.MolFromSmiles(poly_smi)
+    mol_unit = Chem.MolFromSmiles(unit_smi)
 
-    while len(start) >= len(unit):
-        if start.startswith(unit):
-            if count == 0:
-                left_unmatched_smiles = s[:skip]
-            count += 1
-            start = start[len(unit):]
-        else:
-            skip += 1
-            start = s[skip:]
-    left_unmatched_mol = Chem.MolFromSmiles(left_unmatched_smiles)
-    left_unmatched_numatom = left_unmatched_mol.GetNumAtoms()
-    print(left_unmatched_smiles)
+    matches = mol_poly.GetSubstructMatches(mol_unit, uniquify=True)
 
-    end = s
-    end = end[len(left_unmatched_smiles):]
-    print(end)
-    while end.startswith(unit):
-        end = end[len(unit):]
+    # count = len(matches)
+    match_positions = [match for match in matches]
 
-    right_unmatched_smiles = end
-    right_unmatched_mol = Chem.MolFromSmiles(right_unmatched_smiles)
-    right_unmatched_numatom = right_unmatched_mol.GetNumAtoms()
-    return left_unmatched_mol, left_unmatched_numatom, right_unmatched_mol, right_unmatched_numatom
+    matched_atoms = set()
+    for match in matches:
+        matched_atoms.update(match)
+
+    terminal_atoms = [atom.GetIdx() for atom in mol_poly.GetAtoms() if atom.GetDegree() == 1]
+
+    end_positions = [atom_idx for atom_idx in terminal_atoms if atom_idx not in matched_atoms]
+    # 假设end_positions[0]是左端，end_positions[1]是右端
+    left_end = end_positions[0]
+    right_end = end_positions[1]
+
+    left_matches = match_positions[:end_repeating]
+    if end_repeating > 0:
+        right_matches = match_positions[-end_repeating:]
+    else:
+        right_matches = []
+
+    left_index = [left_end] + [atom for match in left_matches for atom in match]
+    right_index = [right_end] + [atom for match in right_matches for atom in match]
+
+    return mol_poly, left_index, right_index
 
 def charge_neutralize_scale(df, correction_factor=1, target_total_charge=0,):
 

@@ -10,12 +10,14 @@ import re
 import subprocess
 import numpy as np
 import pandas as pd
+from collections import deque
 import networkx as nx
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from openbabel import openbabel as ob
 from openbabel import openbabel
 from openbabel import pybel
+from rdkit.Geometry import Point3D
 from rdkit.Chem import Descriptors
 from networkx.algorithms import isomorphism
 
@@ -125,6 +127,34 @@ def Init_info(poly_name, smiles_mid ):
     return dum1, dum2, atom1, atom2,
 
 def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length, smiles_LCap_, smiles_RCap_, ):
+
+    (
+        inti_mol3,
+        monomer_mol,
+        start_atom,
+        end_atom,
+    ) = gen_smiles_nocap(
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        smiles_each,
+        length,
+    )
+
+    # Obtain the SMILES with cap
+    main_mol_noDum = gen_smiles_with_cap(
+        poly_name,
+        inti_mol3,
+        atom1,
+        atom2 + (length -1) * monomer_mol.GetNumAtoms(),
+        smiles_LCap_,
+        smiles_RCap_,
+    )
+
+    return Chem.MolToSmiles(main_mol_noDum)
+
+def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     # Connect the units and caps to obtain SMILES structure
     input_mol = Chem.MolFromSmiles(smiles_each)
     edit_m1 = Chem.EditableMol(input_mol)
@@ -217,17 +247,7 @@ def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length
             )
             inti_mol3 = edcombo.GetMol()
 
-    # Obtain the SMILES with cap
-    main_mol_noDum = gen_smiles_with_cap(
-        poly_name,
-        inti_mol3,
-        atom1,
-        atom2 + (length -1) * monomer_mol.GetNumAtoms(),
-        smiles_LCap_,
-        smiles_RCap_,
-    )
-
-    return Chem.MolToSmiles(main_mol_noDum)
+    return inti_mol3, monomer_mol, first_atom, second_atom + (length-1)*monomer_mol.GetNumAtoms()
 
 def gen_smiles_with_cap(poly_name, inti_mol, first_atom, second_atom, smiles_LCap_, smiles_RCap_):
 
@@ -667,6 +687,24 @@ def smiles_to_pdb(smiles, output_file, molecule_name, resname):
         print(f"An error occurred: {e}")
         raise
 
+def smiles_to_xyz(smiles, filename, num_confs=1):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError("无效的 SMILES 字符串。")
+
+    mol = Chem.AddHs(mol)
+    result = AllChem.EmbedMultipleConfs(mol, numConfs=num_confs, randomSeed=42)
+    if not result:
+        raise ValueError("无法生成3D构象。")
+    AllChem.UFFOptimizeMolecule(mol, confId=0)
+    conf = mol.GetConformer(0)
+    atoms = mol.GetAtoms()
+    coords = [conf.GetAtomPosition(atom.GetIdx()) for atom in atoms]
+    with open(filename, 'w') as f:
+        f.write(f"{len(atoms)}\n")
+        f.write(f"SMILES: {smiles}\n")
+        for atom, coord in zip(atoms, coords):
+            f.write(f"{atom.GetSymbol()} {coord.x:.4f} {coord.y:.4f} {coord.z:.4f}\n")
 
 def print_compounds(info_dict, key_name):
     """
@@ -756,3 +794,16 @@ def calculate_box_size(numbers, pdb_files, density):
     total_volume = total_mass / density  # volume in cm^3
     length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
     return length
+
+
+
+
+
+
+
+
+
+
+
+
+

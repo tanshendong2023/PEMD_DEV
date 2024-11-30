@@ -13,8 +13,8 @@ class PEMDLigpargen:
     def __init__(
             self,
             work_dir,
-            poly_name,
-            poly_resname,
+            name,
+            resname,
             chg,
             chg_model,
             smiles=None,
@@ -34,8 +34,8 @@ class PEMDLigpargen:
         self.work_dir = work_dir
         self.smiles = smiles
         self.filename = filename
-        self.poly_name = poly_name
-        self.poly_resname = poly_resname
+        self.name = name
+        self.resname = resname
         self.chg = chg
         self.chg_model = chg_model
 
@@ -53,8 +53,8 @@ class PEMDLigpargen:
 
         # Build the command line
         command = (
-            f"ligpargen {input_option} -n {self.poly_name} -p {self.work_dir} "
-            f"-r {self.poly_resname} -c {self.chg} -cgen {self.chg_model}"
+            f"ligpargen {input_option} -n {self.name} -p {self.work_dir} "
+            f"-r {self.resname} -c {self.chg} -cgen {self.chg_model}"
         )
 
         try:

@@ -7,9 +7,7 @@ Date: 2024.03.26
 
 
 import os
-import time
 from foyer import Forcefield
-from simple_slurm import Slurm
 from PEMD.simulation import sim_lib
 from PEMD.model import model_lib, build
 from PEMD.simulation.lammps import PEMDLAMMPS
