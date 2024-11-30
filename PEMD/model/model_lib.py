@@ -10,12 +10,14 @@ import re
 import subprocess
 import numpy as np
 import pandas as pd
+from collections import deque
 import networkx as nx
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from openbabel import openbabel as ob
 from openbabel import openbabel
 from openbabel import pybel
+from rdkit.Geometry import Point3D
 from rdkit.Chem import Descriptors
 from networkx.algorithms import isomorphism
 
@@ -125,6 +127,34 @@ def Init_info(poly_name, smiles_mid ):
     return dum1, dum2, atom1, atom2,
 
 def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length, smiles_LCap_, smiles_RCap_, ):
+
+    (
+        inti_mol3,
+        monomer_mol,
+        start_atom,
+        end_atom,
+    ) = gen_smiles_nocap(
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        smiles_each,
+        length,
+    )
+
+    # Obtain the SMILES with cap
+    main_mol_noDum = gen_smiles_with_cap(
+        poly_name,
+        inti_mol3,
+        atom1,
+        atom2 + (length -1) * monomer_mol.GetNumAtoms(),
+        smiles_LCap_,
+        smiles_RCap_,
+    )
+
+    return Chem.MolToSmiles(main_mol_noDum)
+
+def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     # Connect the units and caps to obtain SMILES structure
     input_mol = Chem.MolFromSmiles(smiles_each)
     edit_m1 = Chem.EditableMol(input_mol)
@@ -217,17 +247,7 @@ def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length
             )
             inti_mol3 = edcombo.GetMol()
 
-    # Obtain the SMILES with cap
-    main_mol_noDum = gen_smiles_with_cap(
-        poly_name,
-        inti_mol3,
-        atom1,
-        atom2 + (length -1) * monomer_mol.GetNumAtoms(),
-        smiles_LCap_,
-        smiles_RCap_,
-    )
-
-    return Chem.MolToSmiles(main_mol_noDum)
+    return inti_mol3, monomer_mol, first_atom, second_atom + (length-1)*monomer_mol.GetNumAtoms()
 
 def gen_smiles_with_cap(poly_name, inti_mol, first_atom, second_atom, smiles_LCap_, smiles_RCap_):
 
@@ -774,5 +794,16 @@ def calculate_box_size(numbers, pdb_files, density):
     total_volume = total_mass / density  # volume in cm^3
     length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
     return length
+
+
+
+
+
+
+
+
+
+
+
 
 

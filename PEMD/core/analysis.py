@@ -33,6 +33,13 @@ from PEMD.analysis.polymer_ion_dynamics import (
     fit_rouse_model,
     calc_msd_M2
 )
+from PEMD.analysis.analysis_lib import (
+    num_of_neighbor,
+    pdb2mol,
+    get_cluster_index,
+    find_poly_match_subindex,
+    get_cluster_withcap
+)
 
 
 class PEMDAnalysis:
@@ -282,6 +289,74 @@ class PEMDAnalysis:
             self.get_msd_M2_array(time_window),
             self.num_o_chain
         )
+
+    @staticmethod
+    def write_cluster(work_dir, tpr_file, wrap_xtc_file, center_atom_name, distance_dict, select_dict,run_start, run_end,
+                      structure_code, write_path, max_number, write=True, write_freq=0.5, ):
+
+        tpr_path = os.path.join(work_dir, tpr_file)
+        wrap_xtc_path = os.path.join(work_dir, wrap_xtc_file)
+        nvt_run = mda.Universe(tpr_path, wrap_xtc_path)
+
+        num_of_neighbor(
+            nvt_run,
+            center_atom_name,
+            distance_dict,
+            select_dict,
+            run_start,
+            run_end,
+            write,
+            structure_code,
+            write_freq,
+            write_path,
+            max_number
+        )
+
+    @staticmethod
+    def write_poly_cluster_fragment(work_dir, xyz_filename, center_atoms, select_atoms, poly_name, repeating_unit, length,
+                                    outxyz_filename):
+
+        mol = pdb2mol(
+            work_dir,
+            xyz_filename
+        )
+
+        (
+            c_idx,
+            center_atom_idx,
+            selected_atom_idx
+        ) = get_cluster_index(
+            mol,
+            center_atoms,
+            select_atoms,
+            repeating_unit,
+            length,
+        )
+
+        (
+            match_list,
+            start_atom,
+            end_atom
+        ) = find_poly_match_subindex(
+            poly_name,
+            repeating_unit,
+            length,
+            mol,
+            selected_atom_idx,
+            c_idx,
+        )
+
+        get_cluster_withcap(
+            work_dir,
+            mol,
+            match_list,
+            center_atom_idx,
+            start_atom,
+            end_atom,
+            outxyz_filename
+        )
+
+
 
 
 

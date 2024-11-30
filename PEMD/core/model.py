@@ -19,7 +19,7 @@ from PEMD.model.packmol import PEMDPackmol
 
 
 class PEMDModel:
-    def __init__(self, work_dir, poly_name, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list):
+    def __init__(self, work_dir, poly_name, poly_resname, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list):
         """
         Initialize a PEMDModel instance.
 
@@ -34,6 +34,7 @@ class PEMDModel:
 
         self.work_dir = work_dir
         self.poly_name = poly_name
+        self.poly_resname = poly_resname
         self.repeating_unit = repeating_unit
         self.leftcap = leftcap
         self.rightcap = rightcap
@@ -59,6 +60,7 @@ class PEMDModel:
             model_info = json.load(file)
 
         poly_name = model_info['polymer']['compound']
+        poly_resname = model_info['polymer']['resname']
         repeating_unit = model_info['polymer']['repeating_unit']
         leftcap = model_info['polymer']['left_cap']
         rightcap = model_info['polymer']['right_cap']
@@ -71,7 +73,7 @@ class PEMDModel:
             numbers = details.get('numbers')
             molecule_list[compound] = numbers
 
-        return cls(work_dir, poly_name, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list)
+        return cls(work_dir, poly_name, poly_resname, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list)
 
     def gen_oligomer_smiles(self,):
         """
@@ -105,6 +107,7 @@ class PEMDModel:
         pdb_file = gen_poly_3D(
             self.work_dir,
             self.poly_name,
+            self.poly_resname,
             self.length_long,
             smiles,
         )

@@ -123,6 +123,7 @@ def get_oplsaa_xml(
     pdb_file = gen_poly_3D(
         work_dir,
         poly_name,
+        poly_resname,
         length_long,
         smiles,
     )
@@ -165,14 +166,26 @@ def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
+    xyz_filename = f'{name}.xyz'
+    model_lib.smiles_to_xyz(smiles, os.path.join(work_dir,  xyz_filename))
+
     PEMDLigpargen(
         ligpargen_dir,
         name,
         resname,
         chg,
         chg_model,
-        smiles,
+        filename = xyz_filename,
     ).run_local()
+
+    # PEMDLigpargen(
+    #     ligpargen_dir,
+    #     name,
+    #     resname,
+    #     chg,
+    #     chg_model,
+    #     smiles,
+    # ).run_local()
 
     nonbonditp_filename = os.path.join(MD_dir, f'{name}_nonbonded.itp')
     bonditp_filename = os.path.join(MD_dir, f'{name}_bonded.itp')

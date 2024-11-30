@@ -21,20 +21,6 @@ ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
-def get_slurm_job_status(job_id):
-    command = f'sacct -j {job_id} --format=State --noheader'
-    process = subprocess.run(command, shell=True, capture_output=True, text=True)
-    # Split the output by newlines and strip whitespace
-    statuses = [line.strip() for line in process.stdout.strip().split('\n')]
-    # Check if all statuses indicate the job is completed
-    if all(status == 'COMPLETED' for status in statuses):
-        return 'COMPLETED'
-    elif any(status == 'FAILED' for status in statuses):
-        return 'FAILED'
-    elif any(status == 'CANCELLED' for status in statuses):
-        return 'CANCELLED'
-    else:
-        return 'RUNNING'
 
 # Modified order_energy_xtb function
 def order_energy_xtb(work_dir, xyz_file, numconf, output_file):

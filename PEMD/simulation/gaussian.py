@@ -14,13 +14,15 @@ class PEMDGaussian:
         self,
         work_dir,
         filename,
-        core=32,
-        mem='64GB',
-        chg=0,
-        mult=1,
-        function='B3LYP',
-        basis_set='6-311+g(d,p)',
-        epsilon=5.0,
+        core = 32,
+        mem = '64GB',
+        chg = 0,
+        mult = 1,
+        function = 'B3LYP',
+        basis_set = '6-31+g(d,p)',
+        epsilon = 5.0,
+        chk = False,
+        oldchk = None,
     ):
         self.work_dir = work_dir
         self.filename = filename
@@ -31,11 +33,17 @@ class PEMDGaussian:
         self.function = function
         self.basis_set = basis_set
         self.epsilon = epsilon
+        self.oldchk = oldchk
+        self.chk = chk
 
     def generate_input_file(self, structure,):
 
         file_contents = f"%nprocshared={self.core}\n"
         file_contents += f"%mem={self.mem}\n"
+        if self.oldchk:
+            file_contents += f"%oldchk={self.work_dir}/{self.oldchk}\n"
+        if self.chk:
+            file_contents += f"%chk={self.work_dir}/{self.filename}.chk\n"
         file_contents += f"# opt freq {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
         file_contents += 'qm calculation\n\n'
         file_contents += f'{self.chg} {self.mult}\n'  # 电荷和多重度
@@ -72,7 +80,7 @@ class PEMDGaussian:
         file_contents = f"%nprocshared={self.core}\n"
         file_contents += f"%mem={self.mem}\n"
         file_contents += f"%chk={self.work_dir}/resp_{file_prefix}.chk\n"
-        file_contents += f"# opt {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
+        file_contents += f"# opt B3LYP TZVP em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
         file_contents += 'resp calculation\n\n'
         file_contents += f'{self.chg} {self.mult}\n'
 
