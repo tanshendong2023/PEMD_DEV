@@ -85,6 +85,8 @@ def opt_conf_xtb(
         mult,
         gfn,
 ):
+    xtb_dir = os.path.join(work_dir, f'XTB_{name}')
+    os.makedirs(xtb_dir, exist_ok=True)
 
     xyz_filepath = os.path.join(work_dir, xyz_filename)
     structures = sim_lib.read_xyz_file(xyz_filepath)
@@ -92,7 +94,7 @@ def opt_conf_xtb(
     for idx, structure in enumerate(structures):
         comment = structure['comment']
         atoms = structure['atoms']
-        conf_xyz_file = os.path.join(work_dir, f'conf_{idx}.xyz')
+        conf_xyz_file = os.path.join(xtb_dir, f'conf_{idx}.xyz')
         with open(conf_xyz_file, 'w') as f:
             f.write(f"{structure['num_atoms']}\n")
             f.write(f"{comment}\n")
@@ -102,7 +104,7 @@ def opt_conf_xtb(
         outfile_headname = f'conf_{idx}'
 
         PEMDXtb(
-            work_dir,
+            xtb_dir,
             chg,
             mult,
             gfn
@@ -111,19 +113,17 @@ def opt_conf_xtb(
             outfile_headname
         )
 
-        os.remove(conf_xyz_file)
-
     print("XTB run locally successfully!")
 
-    xtbopt_files = glob.glob(os.path.join(work_dir, '*.xtbopt.xyz'))
-    merged_file = os.path.join(work_dir, 'merged.xyz')
+    xtbopt_files = glob.glob(os.path.join(xtb_dir, '*.xtbopt.xyz'))
+    merged_file = os.path.join(xtb_dir, 'merged.xyz')
     with open(merged_file, 'w') as outfile:
         for fname in xtbopt_files:
             with open(fname, 'r') as infile:
                 outfile.write(infile.read())
 
-    for fname in xtbopt_files:
-        os.remove(fname)
+    # for fname in xtbopt_files:
+    #     os.remove(fname)
 
     output_file = f'{name}_xtb_top{top_n_xtb}.xyz'
     sim_lib.order_energy_xtb(
@@ -132,8 +132,7 @@ def opt_conf_xtb(
         top_n_xtb,
         output_file
     )
-    os.remove(merged_file)
-
+    # os.remove(merged_file)
     print(f"Top {top_n_xtb} conformers were saved to {output_file}")
 
     return output_file
@@ -154,6 +153,7 @@ def opt_conf_gaussian(
         epsilon=5.0,
         core=64,
         mem='128GB',
+        gaucontinue=False
 ):
 
     conf_dir = os.path.join(work_dir, f'QM_{name}')
@@ -179,9 +179,24 @@ def opt_conf_gaussian(
 
         Gau.generate_input_file(
             structure,
+            chk = False,
         )
 
-        Gau.run_local()
+        state1, log_filename = Gau.run_local()
+
+        log_file_path = os.path.join(conf_dir, log_filename)
+        structre_final = {}
+        atoms = sim_lib.read_final_structure_from_gaussian(log_file_path)
+        structre_final["atoms"] = atoms
+
+        if state1 == 'failed' and gaucontinue == True:
+            Gau.generate_input_file(
+                structre_final,
+                chk = False,
+                gaucontinue = True
+            )
+
+            Gau.run_local()
 
     output_file = f"{name}_gaussian_top{top_n_qm}.xyz"
     sim_lib.order_energy_gaussian(
@@ -203,7 +218,7 @@ def qm_gaussian(
         core = 64,
         mem = '128GB',
         chk = False,
-        oldchk = None,
+        gaucontinue = False
 ):
 
     os.makedirs(work_dir, exist_ok=True)
@@ -223,17 +238,29 @@ def qm_gaussian(
             function,
             basis_set,
             epsilon,
-            chk,
-            oldchk,
         )
 
         Gau.generate_input_file(
             structure,
+            chk,
+            gaucontinue
         )
 
-        Gau.run_local()
+        state1, log_filename = Gau.run_local()
 
+        log_file_path = os.path.join(work_dir, log_filename)
+        structre_final = {}
+        atoms = sim_lib.read_final_structure_from_gaussian(log_file_path)
+        structre_final["atoms"] = atoms
 
+        if state1 == 'failed' and gaucontinue == True:
+            Gau.generate_input_file(
+                structre_final,
+                chk,
+                gaucontinue
+            )
+
+            Gau.run_local()
 
 def calc_resp_gaussian(
         work_dir,

@@ -200,7 +200,6 @@ def pdb2mol(work_dir, pdb_filename):
         # 设置原子属性 'resname' 为残基名称
         atom.SetProp("resname", res_name)
         atom.SetProp("name", atom_name)
-        print(atom_name)
         mol.AddAtom(atom)
 
     # 生成 3D 构象
@@ -260,7 +259,6 @@ def parse_selection_string(selection_str):
             criteria[key.lower()] = value
         else:
             raise ValueError(f"无法解析的选择条件: '{condition}'")
-    print(criteria)
     return criteria
 
 def get_cluster_index(mol,
@@ -284,7 +282,6 @@ def get_cluster_index(mol,
     # 解析选择字符串
     center_criteria = parse_selection_string(center_atoms)
     select_criteria = parse_selection_string(select_atoms)
-    print()
 
     # Step 1: 根据选择条件选择中心原子（假设只有一个）
     center_atoms_list = [
@@ -420,9 +417,6 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
     smi2 = Chem.MolToSmiles(mol2, canonical=False)
     pattern = Chem.MolFromSmiles(smi2)
     matches = mol.GetSubstructMatches(pattern, uniquify=True)
-    print(matches)
-
-    print(start_atom, end_atom)
 
     for match in matches:
         if center_atom_idx in match:
@@ -430,8 +424,7 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
                 return list(match), start_atom, end_atom
 
 def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, end_atom, out_xyz_filename):
-    print(match_list)
-    print(center_atom_idx)
+
     h_atom_idx = set()
     for idx in match_list:
         atom = mol.GetAtomWithIdx(idx)
@@ -452,7 +445,6 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
 
     # 创建一个反向索引映射（新分子索引到原始原子索引）
     reverse_index_map = {v: k for k, v in index_map.items()}
-    print(reverse_index_map)
 
     # 添加原子间的键（如果两个原子都在要提取的列表中）
     for bond in mol.GetBonds():

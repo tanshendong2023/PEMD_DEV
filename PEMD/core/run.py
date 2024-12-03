@@ -65,7 +65,8 @@ class QMRun:
 
         return instance
 
-    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon, core, memory, ):
+    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon,
+                         core, memory, gaucontinue=False):
 
         # Generate conformers using RDKit
         xyz_file_MMFF = gen_conf_rdkit(
@@ -100,6 +101,7 @@ class QMRun:
             epsilon,
             core,
             memory,
+            gaucontinue
         )
 
 
@@ -161,7 +163,7 @@ class MDRun:
             atom_typing
         )
 
-    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length):
+    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length, gpu=False):
 
         anneal_amorph_poly(
             self.work_dir,
@@ -173,15 +175,17 @@ class MDRun:
             packmol_pdb,
             density,
             add_length,
+            gpu,
         )
 
-    def run_gmx_prod(self, temperature, nstep_ns):
+    def run_gmx_prod(self, temperature, nstep_ns, gpu=False):
 
         run_gmx_prod(
             self.work_dir,
             self.molecules,
             temperature,
             nstep_ns,
+            gpu
         )
 
 

@@ -58,6 +58,7 @@ def anneal_amorph_poly(
         packmol_pdb,
         density,
         add_length,
+        gpu
 ):
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
@@ -66,6 +67,7 @@ def anneal_amorph_poly(
         MD_dir,
         molecules,
         temperature,
+        gpu,
     )
 
     gmx.gen_top_file(
@@ -144,6 +146,7 @@ def run_gmx_prod(
         molecules,
         temperature,
         nstep_ns,
+        gpu
 ):
 
     MD_dir = os.path.join(work_dir, 'MD_dir')
@@ -153,6 +156,7 @@ def run_gmx_prod(
         MD_dir,
         molecules,
         temperature,
+        gpu
     )
 
     gmx.gen_top_file(

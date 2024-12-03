@@ -1,6 +1,7 @@
 import os
 import subprocess
 from PEMD.model import model_lib
+from PEMD.simulation.slurm import PEMDSlurm
 
 class PEMDGROMACS:
     def __init__(
@@ -8,12 +9,14 @@ class PEMDGROMACS:
         work_dir,
         molecules,
         temperature,
+        gpu,
     ):
         self.work_dir = work_dir
         os.makedirs(self.work_dir, exist_ok=True)
         self.molecules = molecules
         self.temperature = temperature
         self.commands = []
+        self.gpu = gpu
 
         self.compounds = [molecule['name'] for molecule in self.molecules]
         self.resnames = [molecule['resname'] for molecule in self.molecules]
@@ -305,70 +308,120 @@ class PEMDGROMACS:
             pdb_files.append(filepath)
         box_length = (model_lib.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
 
-        self.commands = [
-            f"gmx_mpi editconf -f {self.work_dir}/{packmol_pdb} -o {self.work_dir}/conf.gro -box {box_length} {box_length} {box_length}",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx editconf -f {self.work_dir}/{packmol_pdb} -o {self.work_dir}/conf.gro -box {box_length} {box_length} {box_length}",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi editconf -f {self.work_dir}/{packmol_pdb} -o {self.work_dir}/conf.gro -box {box_length} {box_length} {box_length}",
+            ]
         return self
 
-    def commands_em(self, input_gro):
+    def commands_em(self, input_gro,):
 
-        self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr",
-            f"gmx_mpi mdrun -v -deffnm {self.work_dir}/em",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr -maxwarn 1",
+                f"gmx mdrun -v -deffnm {self.work_dir}/em -ntmpi 1 -ntomp 5",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr",
+                f"gmx_mpi mdrun -v -deffnm {self.work_dir}/em -ntomp 64",
+            ]
         return self
 
-    def commands_nvt(self, input_gro, output_str):
+    def commands_nvt(self, input_gro, output_str,):
 
-        self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
-            f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
+                f"gmx mdrun -v -deffnm {self.work_dir}/{output_str} -ntmpi 1 -ntomp 5",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
+            ]
         return self
 
-    def commands_nvt_product(self, input_gro, output_str):
+    def commands_nvt_product(self, input_gro, output_str, ):
 
-        self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
-            f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
+                f"gmx mdrun -v -deffnm {self.work_dir}/{output_str} -ntmpi 1 -ntomp 5",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
+            ]
         return self
 
-    def commands_npt(self, input_gro, output_str):
+    def commands_npt(self, input_gro, output_str, ):
 
-        self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
-            f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
+                f"gmx mdrun -v -deffnm {self.work_dir}/{output_str} -ntmpi 1 -ntomp 5",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
+            ]
         return self
 
-    def commands_npt_anneal(self, input_gro):
+    def commands_npt_anneal(self, input_gro, ):
 
-        self.commands = [
-            f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr",
-            f"gmx_mpi mdrun -v -deffnm {self.work_dir}/npt_anneal",
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"gmx grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr -maxwarn 1",
+                f"gmx mdrun -v -deffnm {self.work_dir}/npt_anneal -ntmpi 1 -ntomp 5",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr",
+                f"gmx_mpi mdrun -v -deffnm {self.work_dir}/npt_anneal",
+            ]
         return self
 
-    def commands_wraptounwrap(self, output_str):
+    def commands_wraptounwrap(self, output_str, ):
 
-        self.commands = [
-            f'echo 0 | gmx_mpi trjconv -s {self.work_dir}/{output_str}.tpr -f {self.work_dir}/{output_str}.xtc -o {self.work_dir}/{output_str}_unwrap.xtc -pbc nojump -ur compact'
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f'echo 0 | gmx trjconv -s {self.work_dir}/{output_str}.tpr -f {self.work_dir}/{output_str}.xtc -o {self.work_dir}/{output_str}_unwrap.xtc -pbc nojump -ur compact'
+            ]
+        else:
+            self.commands = [
+                f'echo 0 | gmx_mpi trjconv -s {self.work_dir}/{output_str}.tpr -f {self.work_dir}/{output_str}.xtc -o {self.work_dir}/{output_str}_unwrap.xtc -pbc nojump -ur compact'
+            ]
         return self
 
-    def commands_extract_volume(self, edr_file, output_file='volume.xvg'):
+    def commands_extract_volume(self, edr_file, output_file='volume.xvg', ):
 
-        self.commands = [
-            f"echo 21 | gmx_mpi energy -f {self.work_dir}/{edr_file} -o {self.work_dir}/{output_file}"
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"echo 21 | gmx energy -f {self.work_dir}/{edr_file} -o {self.work_dir}/{output_file}"
+            ]
+        else:
+            self.commands = [
+                f"echo 21 | gmx_mpi energy -f {self.work_dir}/{edr_file} -o {self.work_dir}/{output_file}"
+            ]
         return self
 
-    def commands_extract_structure(self, tpr_file, xtc_file, save_gro_file, frame_time):
+    def commands_extract_structure(self, tpr_file, xtc_file, save_gro_file, frame_time, ):
 
-        self.commands = [
-            f"echo 0 | gmx_mpi trjconv -s {self.work_dir}/{tpr_file} -f {self.work_dir}/{xtc_file} -o {self.work_dir}/{save_gro_file} -dump {frame_time} -quiet"
-        ]
+        if self.gpu == True:
+            self.commands = [
+                f"echo 0 | gmx trjconv -s {self.work_dir}/{tpr_file} -f {self.work_dir}/{xtc_file} -o {self.work_dir}/{save_gro_file} -dump {frame_time} -quiet"
+            ]
+        else:
+            self.commands = [
+                f"echo 0 | gmx_mpi trjconv -s {self.work_dir}/{tpr_file} -f {self.work_dir}/{xtc_file} -o {self.work_dir}/{save_gro_file} -dump {frame_time} -quiet"
+            ]
         return self
 
     def run_local(self, commands=None):
@@ -385,3 +438,24 @@ class PEMDGROMACS:
             except subprocess.CalledProcessError as e:
                 print(f"Error executing command: {cmd}\n{e.stderr}")
                 break
+
+    def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
+        slurm_script = PEMDSlurm(
+            self.work_dir,
+            script_name,
+        )
+
+        # Add each command in self.commands to the SLURM script
+        for cmd in self.commands:
+            slurm_script.add_command(cmd)
+
+        # Generate the SLURM script with the accumulated commands
+        script_path = slurm_script.generate_script(
+            job_name=job_name,
+            nodes=nodes,
+            ntasks_per_node=ntasks_per_node,
+            partition=partition,
+        )
+
+        print(f"SLURM script generated successfully: {script_path}")
+        return script_path

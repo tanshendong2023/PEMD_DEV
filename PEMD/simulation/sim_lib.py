@@ -502,7 +502,17 @@ def count_end_index(poly_smi, unit_smi, end_repeating):
     mol_poly = Chem.MolFromSmiles(poly_smi)
     mol_unit = Chem.MolFromSmiles(unit_smi)
 
-    matches = mol_poly.GetSubstructMatches(mol_unit, uniquify=True)
+    # matches = mol_poly.GetSubstructMatches(mol_unit, uniquify=True, useQueryQueryMatches=True)
+    # 使用迭代匹配并移除已匹配的原子，避免重叠
+    matches = []
+    rw_mol = Chem.RWMol(mol_poly)
+    used_atoms = set()
+
+    for match in rw_mol.GetSubstructMatches(mol_unit, uniquify=True, useChirality=False):
+        if any(atom_idx in used_atoms for atom_idx in match):
+            continue  # 跳过有重叠的匹配
+        matches.append(match)
+        used_atoms.update(match)  # 标记已使用的原子
 
     # count = len(matches)
     match_positions = [match for match in matches]
@@ -512,11 +522,18 @@ def count_end_index(poly_smi, unit_smi, end_repeating):
         matched_atoms.update(match)
 
     terminal_atoms = [atom.GetIdx() for atom in mol_poly.GetAtoms() if atom.GetDegree() == 1]
-
     end_positions = [atom_idx for atom_idx in terminal_atoms if atom_idx not in matched_atoms]
-    # 假设end_positions[0]是左端，end_positions[1]是右端
-    left_end = end_positions[0]
-    right_end = end_positions[1]
+
+    if len(end_positions) == 1:
+        if end_positions[0] > mol_unit.GetNumAtoms():
+            left_end = match_positions[0][0]
+            right_end = end_positions[0]
+        else:
+            left_end = end_positions[0]
+            right_end = match_positions[-1][-1]
+    else:
+        left_end = end_positions[0]
+        right_end = end_positions[1]
 
     left_matches = match_positions[:end_repeating]
     if end_repeating > 0:

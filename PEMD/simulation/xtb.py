@@ -5,9 +5,7 @@
 # Module Docstring
 # ******************************************************************************
 
-import os
 import subprocess
-from PEMD.simulation.slurm import PEMDSlurm
 
 class PEMDXtb:
     def __init__(

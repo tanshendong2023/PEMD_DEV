@@ -14,6 +14,7 @@ Multiwfn $1 -nt 32 << EOF > /dev/null
 7
 18
 1
+
 y
 0
 0
