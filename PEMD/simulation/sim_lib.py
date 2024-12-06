@@ -21,20 +21,6 @@ ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
-def get_slurm_job_status(job_id):
-    command = f'sacct -j {job_id} --format=State --noheader'
-    process = subprocess.run(command, shell=True, capture_output=True, text=True)
-    # Split the output by newlines and strip whitespace
-    statuses = [line.strip() for line in process.stdout.strip().split('\n')]
-    # Check if all statuses indicate the job is completed
-    if all(status == 'COMPLETED' for status in statuses):
-        return 'COMPLETED'
-    elif any(status == 'FAILED' for status in statuses):
-        return 'FAILED'
-    elif any(status == 'CANCELLED' for status in statuses):
-        return 'CANCELLED'
-    else:
-        return 'RUNNING'
 
 # Modified order_energy_xtb function
 def order_energy_xtb(work_dir, xyz_file, numconf, output_file):
@@ -166,39 +152,106 @@ def read_energy_from_gaussian(log_file_path):
             energy = float(line.strip().split()[-1])
     return energy
 
-def read_final_structure_from_gaussian(log_file_path,):
+# def read_final_structure_from_gaussian(log_file_path,):
+#     if not os.path.exists(log_file_path):
+#         print(f"File not found: {log_file_path}")
+#         return None
+#
+#     with open(log_file_path, 'r') as file:
+#         lines = file.readlines()
+#
+#     start_idx = None
+#     end_idx = None
+#
+#     for i, line in enumerate(lines):
+#         if 'Standard orientation:' in line:
+#             start_idx = i + 5  # 坐标数据从 'Standard orientation:' 后的第5行开始
+#             # 从 start_idx 开始寻找结束的分隔线
+#             for j in range(start_idx, len(lines)):
+#                 if '---------------------------------------------------------------------' in lines[j]:
+#                     end_idx = j
+#                     break  # 找到当前块的结束位置
+#
+#     if start_idx is not None and end_idx is not None and start_idx < end_idx:
+#         atoms = []
+#         for line in lines[start_idx:end_idx]:
+#             tokens = line.strip().split()
+#             if len(tokens) >= 6:
+#                 atom_number = int(tokens[1])
+#                 x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
+#                 atom_symbol = Chem.PeriodicTable.GetElementSymbol(Chem.GetPeriodicTable(), atom_number)
+#                 atoms.append(f"{atom_symbol}   {x}   {y}   {z}")
+#         return atoms
+#
+#     print(f"No valid atomic coordinates found between lines {start_idx} and {end_idx}")
+#     return None
+
+
+def read_final_structure_from_gaussian(log_file_path):
+
     if not os.path.exists(log_file_path):
         print(f"File not found: {log_file_path}")
         return None
 
-    with open(log_file_path, 'r') as file:
-        lines = file.readlines()
+    try:
+        with open(log_file_path, 'r') as file:
+            lines = file.readlines()
+    except Exception as e:
+        print(f"Error reading file {log_file_path}: {e}")
+        return None
 
+    # Define the sections to search for
+    orientation_sections = ['Standard orientation:', 'Input orientation:']
     start_idx = None
     end_idx = None
 
+    # Iterate through the file to find the last occurrence of the orientation sections
     for i, line in enumerate(lines):
-        if 'Standard orientation:' in line:
-            start_idx = i + 5  # 坐标数据从 'Standard orientation:' 后的第5行开始
-            # 从 start_idx 开始寻找结束的分隔线
-            for j in range(start_idx, len(lines)):
-                if '---------------------------------------------------------------------' in lines[j]:
-                    end_idx = j
-                    break  # 找到当前块的结束位置
+        for section in orientation_sections:
+            if section in line:
+                # Assume that coordinate data starts 5 lines after the section header
+                current_start = i + 5
+                # Search for the line that indicates the end of the coordinate block
+                for j in range(current_start, len(lines)):
+                    if '-----' in lines[j]:
+                        current_end = j
+                        break
+                else:
+                    # If no separator line is found, skip to the next section
+                    continue
+                # Update start and end indices to the latest found section
+                start_idx, end_idx = current_start, current_end
 
-    if start_idx is not None and end_idx is not None and start_idx < end_idx:
-        atoms = []
-        for line in lines[start_idx:end_idx]:
-            tokens = line.strip().split()
-            if len(tokens) >= 6:
-                atom_number = int(tokens[1])
-                x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
-                atom_symbol = Chem.PeriodicTable.GetElementSymbol(Chem.GetPeriodicTable(), atom_number)
-                atoms.append(f"{atom_symbol}   {x}   {y}   {z}")
-        return atoms
+    if start_idx is None or end_idx is None or start_idx >= end_idx:
+        print(f"No valid atomic coordinates found in {log_file_path}")
+        return None
 
-    print(f"No valid atomic coordinates found between lines {start_idx} and {end_idx}")
-    return None
+    atoms = []
+    periodic_table = Chem.GetPeriodicTable()
+
+    for line in lines[start_idx:end_idx]:
+        tokens = line.strip().split()
+        if len(tokens) < 6:
+            continue  # Skip lines that do not have enough tokens
+        try:
+            atom_number = int(tokens[1])  # Atomic number is the second token
+            x = float(tokens[3])
+            y = float(tokens[4])
+            z = float(tokens[5])
+            atom_symbol = periodic_table.GetElementSymbol(atom_number)
+            atoms.append(f"{atom_symbol}   {x:.6f}   {y:.6f}   {z:.6f}")
+        except ValueError:
+            # Handle cases where conversion to int or float fails
+            continue
+        except Exception as e:
+            print(f"Unexpected error parsing line: {line}\nError: {e}")
+            continue
+
+    if not atoms:
+        print(f"No valid atomic coordinates extracted from {log_file_path}")
+        return None
+
+    return atoms
 
 def order_energy_gaussian(work_dir, numconf, output_file):
 
@@ -516,7 +569,17 @@ def count_end_index(poly_smi, unit_smi, end_repeating):
     mol_poly = Chem.MolFromSmiles(poly_smi)
     mol_unit = Chem.MolFromSmiles(unit_smi)
 
-    matches = mol_poly.GetSubstructMatches(mol_unit, uniquify=True)
+    # matches = mol_poly.GetSubstructMatches(mol_unit, uniquify=True, useQueryQueryMatches=True)
+    # 使用迭代匹配并移除已匹配的原子，避免重叠
+    matches = []
+    rw_mol = Chem.RWMol(mol_poly)
+    used_atoms = set()
+
+    for match in rw_mol.GetSubstructMatches(mol_unit, uniquify=True, useChirality=False):
+        if any(atom_idx in used_atoms for atom_idx in match):
+            continue  # 跳过有重叠的匹配
+        matches.append(match)
+        used_atoms.update(match)  # 标记已使用的原子
 
     # count = len(matches)
     match_positions = [match for match in matches]
@@ -526,11 +589,18 @@ def count_end_index(poly_smi, unit_smi, end_repeating):
         matched_atoms.update(match)
 
     terminal_atoms = [atom.GetIdx() for atom in mol_poly.GetAtoms() if atom.GetDegree() == 1]
-
     end_positions = [atom_idx for atom_idx in terminal_atoms if atom_idx not in matched_atoms]
-    # 假设end_positions[0]是左端，end_positions[1]是右端
-    left_end = end_positions[0]
-    right_end = end_positions[1]
+
+    if len(end_positions) == 1:
+        if end_positions[0] > mol_unit.GetNumAtoms():
+            left_end = match_positions[0][0]
+            right_end = end_positions[0]
+        else:
+            left_end = end_positions[0]
+            right_end = match_positions[-1][-1]
+    else:
+        left_end = end_positions[0]
+        right_end = end_positions[1]
 
     left_matches = match_positions[:end_repeating]
     if end_repeating > 0:

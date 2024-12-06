@@ -5,9 +5,7 @@
 # Module Docstring
 # ******************************************************************************
 
-import os
 import subprocess
-from PEMD.simulation.slurm import PEMDSlurm
 
 class PEMDXtb:
     def __init__(
@@ -25,8 +23,10 @@ class PEMDXtb:
 
     def run_local(self, xyz_filename, outfile_headname):
 
+        uhf = self.mult - 1 # unpaired electron number
+
         command = (
-            f"xtb {xyz_filename} --opt --chrg={self.chg} --uhf={self.mult} --gfn {self.gfn}  --ceasefiles "
+            f"xtb {xyz_filename} --opt --chrg={self.chg} --uhf={uhf} --gfn {self.gfn}  --ceasefiles "
             f"--namespace {self.work_dir}/{outfile_headname}"
         )
 

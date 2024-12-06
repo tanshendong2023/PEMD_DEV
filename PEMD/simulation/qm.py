@@ -7,9 +7,11 @@
 
 import os
 import glob
+
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
+
 from PEMD.simulation import sim_lib
 from PEMD.model import model_lib
 from PEMD.simulation.xtb import PEMDXtb
@@ -29,10 +31,6 @@ def gen_conf_rdkit(
         top_n_MMFF
 ):
 
-    # build dir
-    conf_dir = os.path.join(work_dir, f'conformer_search_{name}')
-    os.makedirs(conf_dir, exist_ok=True)
-
     # Generate multiple conformers
     mol = Chem.MolFromSmiles(smiles)
     mol = Chem.AddHs(mol)
@@ -43,18 +41,36 @@ def gen_conf_rdkit(
     minimized_conformers = []
     for conf_id in ids:
         ff = AllChem.MMFFGetMoleculeForceField(mol, props, confId=conf_id)
-        energy = ff.Minimize()
+        status = ff.Minimize()
+        if status != 0:
+            print(f"Conformer {conf_id} optimization did not converge. Status code: {status}")
+        energy = ff.CalcEnergy()
         minimized_conformers.append((conf_id, energy))
+
+    print(f"Generated {len(minimized_conformers)} conformers for {name}")
 
     # Sort the conformers by energy and select the top N conformers
     minimized_conformers.sort(key=lambda x: x[1])
     top_conformers = minimized_conformers[:top_n_MMFF]
 
-    # save the top conformers to xyz files
-    for conf_id, (original_id, _) in enumerate(top_conformers):
-        xyz_file = os.path.join(conf_dir, f'conf_{conf_id}.xyz')
-        model_lib.mol_to_xyz(mol, conf_id, xyz_file)
+    # merge the top conformers to a single xyz file
+    output_filename = f'{name}_MMFF_top{top_n_MMFF}.xyz'
+    output_xyz_filepath = os.path.join(work_dir, output_filename)
+    with open(output_xyz_filepath, 'w') as merged_xyz:
+        for idx, (conf_id, energy) in enumerate(top_conformers):
+            conf = mol.GetConformer(conf_id)
+            atoms = mol.GetAtoms()
+            num_atoms = mol.GetNumAtoms()
+            merged_xyz.write(f"{num_atoms}\n")
+            merged_xyz.write(f"Conformer {idx + 1}, Energy: {energy:.4f} kcal/mol\n")
+            for atom in atoms:
+                pos = conf.GetAtomPosition(atom.GetIdx())
+                element = atom.GetSymbol()
+                merged_xyz.write(f"{element} {pos.x:.6f} {pos.y:.6f} {pos.z:.6f}\n")
 
+    print(f"Top {top_n_MMFF} conformers were saved to {output_filename}")
+
+    return output_filename
 
 # input: a xyz file
 # output:  a xyz file
@@ -62,26 +78,33 @@ def gen_conf_rdkit(
 # new file
 def opt_conf_xtb(
         work_dir,
+        xyz_filename,
         name,
-        top_n_MMFF,
         top_n_xtb,
-        chg=0,
-        mult=1,
-        gfn=2,
+        chg,
+        mult,
+        gfn,
 ):
+    xtb_dir = os.path.join(work_dir, f'XTB_{name}')
+    os.makedirs(xtb_dir, exist_ok=True)
 
-    # build dir
-    conf_dir = os.path.join(work_dir, f'conformer_search_{name}')
-    os.makedirs(conf_dir, exist_ok=True)
+    xyz_filepath = os.path.join(work_dir, xyz_filename)
+    structures = sim_lib.read_xyz_file(xyz_filepath)
 
-    # Perform xTB optimization on the selected conformers
-    for conf_id in range(top_n_MMFF):
-        conf_xyz_file = os.path.join(conf_dir, f'conf_{conf_id}.xyz')
-        outfile_headname = f'conf_{conf_id}'
+    for idx, structure in enumerate(structures):
+        comment = structure['comment']
+        atoms = structure['atoms']
+        conf_xyz_file = os.path.join(xtb_dir, f'conf_{idx}.xyz')
+        with open(conf_xyz_file, 'w') as f:
+            f.write(f"{structure['num_atoms']}\n")
+            f.write(f"{comment}\n")
+            for atom in atoms:
+                f.write(f"{atom}\n")
 
-        # Create xtb object
+        outfile_headname = f'conf_{idx}'
+
         PEMDXtb(
-            conf_dir,
+            xtb_dir,
             chg,
             mult,
             gfn
@@ -91,12 +114,16 @@ def opt_conf_xtb(
         )
 
     print("XTB run locally successfully!")
-    filenames = glob.glob(os.path.join(conf_dir, '*.xtbopt.xyz'))
-    merged_file = os.path.join(conf_dir, 'merged.xyz')
+
+    xtbopt_files = glob.glob(os.path.join(xtb_dir, '*.xtbopt.xyz'))
+    merged_file = os.path.join(xtb_dir, 'merged.xyz')
     with open(merged_file, 'w') as outfile:
-        for fname in filenames:
+        for fname in xtbopt_files:
             with open(fname, 'r') as infile:
                 outfile.write(infile.read())
+
+    # for fname in xtbopt_files:
+    #     os.remove(fname)
 
     output_file = f'{name}_xtb_top{top_n_xtb}.xyz'
     sim_lib.order_energy_xtb(
@@ -105,6 +132,9 @@ def opt_conf_xtb(
         top_n_xtb,
         output_file
     )
+    # os.remove(merged_file)
+    print(f"Top {top_n_xtb} conformers were saved to {output_file}")
+
     return output_file
 
 
@@ -114,25 +144,27 @@ def opt_conf_xtb(
 def opt_conf_gaussian(
         work_dir,
         name,
-        xyz_file,
+        xyz_filename,
         top_n_qm,
         chg=0,
         mult=1,
         function='B3LYP',
-        basis_set='6-311+g(d,p)',
+        basis_set='6-31+g(d,p)',
         epsilon=5.0,
         core=64,
-        mem='64GB',
+        mem='128GB',
+        gaucontinue=False
 ):
 
-    conf_dir = os.path.join(work_dir, f'conformer_search_{name}')
+    conf_dir = os.path.join(work_dir, f'QM_{name}')
     os.makedirs(conf_dir, exist_ok=True)
 
-    structures = sim_lib.read_xyz_file(xyz_file)
+    xyz_filepath = os.path.join(work_dir, xyz_filename)
+    structures = sim_lib.read_xyz_file(xyz_filepath)
 
-    for i, structure in enumerate(structures):
+    for idx, structure in enumerate(structures):
 
-        filename = f'conf_{i}.gjf'
+        filename = f'conf_{idx}.gjf'
         Gau = PEMDGaussian(
             conf_dir,
             filename,
@@ -147,9 +179,24 @@ def opt_conf_gaussian(
 
         Gau.generate_input_file(
             structure,
+            chk = False,
         )
 
-        Gau.run_local()
+        state1, log_filename = Gau.run_local()
+
+        log_file_path = os.path.join(conf_dir, log_filename)
+        structre_final = {}
+        atoms = sim_lib.read_final_structure_from_gaussian(log_file_path)
+        structre_final["atoms"] = atoms
+
+        if state1 == 'failed' and gaucontinue == True:
+            Gau.generate_input_file(
+                structre_final,
+                chk = False,
+                gaucontinue = True
+            )
+
+            Gau.run_local()
 
     output_file = f"{name}_gaussian_top{top_n_qm}.xyz"
     sim_lib.order_energy_gaussian(
@@ -158,6 +205,61 @@ def opt_conf_gaussian(
         output_file,
     )
     return output_file
+
+def qm_gaussian(
+        work_dir,
+        xyz_filename,
+        gjf_filename,
+        chg = 0,
+        mult = 1,
+        function = 'B3LYP',
+        basis_set ='6-31+g(d,p)',
+        epsilon = 5.0,
+        core = 64,
+        mem = '128GB',
+        chk = False,
+        gaucontinue = False
+):
+    os.makedirs(work_dir, exist_ok=True)
+
+    xyz_filepath = os.path.join(work_dir, xyz_filename)
+    structures = sim_lib.read_xyz_file(xyz_filepath)
+
+    for idx, structure in enumerate(structures):
+
+        filename = f'{gjf_filename}_{idx}.gjf'
+        Gau = PEMDGaussian(
+            work_dir,
+            filename,
+            core,
+            mem,
+            chg,
+            mult,
+            function,
+            basis_set,
+            epsilon,
+        )
+
+        Gau.generate_input_file(
+            structure,
+            chk,
+        )
+
+        state1, log_filename = Gau.run_local()
+
+        log_file_path = os.path.join(work_dir, log_filename)
+        structre_final = {}
+        atoms = sim_lib.read_final_structure_from_gaussian(log_file_path)
+        structre_final["atoms"] = atoms
+
+        if state1 == 'failed' and gaucontinue == True:
+            Gau.generate_input_file(
+                structre_final,
+                chk,
+                gaucontinue
+            )
+
+            Gau.run_local()
 
 def calc_resp_gaussian(
         work_dir,
@@ -197,7 +299,6 @@ def calc_resp_gaussian(
         )
 
         Gau.run_local()
-
 
 def RESP_fit_Multiwfn(
         work_dir,

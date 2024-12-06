@@ -19,7 +19,6 @@ from PEMD.simulation.md import (
     anneal_amorph_poly,
     run_gmx_prod
 )
-from PEMD.core.forcefields import Forcefield
 
 
 class QMRun:
@@ -66,10 +65,11 @@ class QMRun:
 
         return instance
 
-    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon, memory, core,):
+    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon,
+                         core, memory, gaucontinue=False):
 
         # Generate conformers using RDKit
-        gen_conf_rdkit(
+        xyz_file_MMFF = gen_conf_rdkit(
             self.work_dir,
             self.name,
             self.smiles,
@@ -78,10 +78,10 @@ class QMRun:
         )
 
         # Optimize conformers using XTB
-        xyz_file = opt_conf_xtb(
+        xyz_file_xtb = opt_conf_xtb(
             self.work_dir,
+            xyz_file_MMFF,
             self.name,
-            top_n_MMFF,
             top_n_xtb,
             chg,
             mult,
@@ -92,7 +92,7 @@ class QMRun:
         return opt_conf_gaussian(
             self.work_dir,
             self.name,
-            xyz_file,
+            xyz_file_xtb,
             top_n_qm,
             chg,
             mult,
@@ -101,6 +101,7 @@ class QMRun:
             epsilon,
             core,
             memory,
+            gaucontinue
         )
 
 
@@ -162,7 +163,7 @@ class MDRun:
             atom_typing
         )
 
-    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length):
+    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length, gpu=False):
 
         anneal_amorph_poly(
             self.work_dir,
@@ -174,15 +175,17 @@ class MDRun:
             packmol_pdb,
             density,
             add_length,
+            gpu,
         )
 
-    def run_gmx_prod(self, temperature, nstep_ns):
+    def run_gmx_prod(self, temperature, nstep_ns, gpu=False):
 
         run_gmx_prod(
             self.work_dir,
             self.molecules,
             temperature,
             nstep_ns,
+            gpu
         )
 
 

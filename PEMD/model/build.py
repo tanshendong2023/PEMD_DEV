@@ -14,7 +14,6 @@ from openbabel import pybel
 from PEMD.model import model_lib
 from rdkit.Chem import Descriptors
 from rdkit.Chem import rdMolTransforms
-from rdkit.Geometry import Point3D
 
 
 def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
@@ -46,7 +45,7 @@ def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
 
     return smiles_poly
 
-def gen_poly_3D(work_dir, poly_name, length, smiles, max_attempts=3):
+def gen_poly_3D(work_dir, poly_name, poly_resname, length, smiles, max_attempts=3):
     # Read SMILES using Pybel and generate a molecule object
     mol = pybel.readstring("smi", smiles)
     mol.addh()
@@ -81,39 +80,27 @@ def gen_poly_3D(work_dir, poly_name, length, smiles, max_attempts=3):
     attempt = 0
 
     while attempt < max_attempts:
-        # Check bond lengths
         long_bonds = check_bond_lengths_rdkit(rdkit_mol)
-        # Check bond angles
         unreasonable_angles = check_bond_angles_rdkit(rdkit_mol)
 
         if not long_bonds and not unreasonable_angles:
-            print("All bond lengths and angles are within the reasonable range.")
             break  # Exit the loop if structure is acceptable
-
-        print(f"Attempt {attempt + 1} of {max_attempts}: Detected issues in the molecular geometry.")
 
         # Optionally, print detailed warnings
         if long_bonds:
-            print(f"  - Detected {len(long_bonds)} bonds exceeding the reasonable length:")
             for bond in long_bonds:
                 atom1_idx, atom2_idx, distance, standard_length = bond
                 atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
                 atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
-                print(
-                    f"    * Bond between atom {atom1_idx} ({atom1}) and atom {atom2_idx} ({atom2}) has a distance of {distance:.2f} Å (standard: {standard_length} Å)")
 
         if unreasonable_angles:
-            print(f"  - Detected {len(unreasonable_angles)} bond angles outside the reasonable range:")
             for angle in unreasonable_angles:
                 atom1_idx, center_atom_idx, atom2_idx, actual_angle, expected_angle = angle
                 atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
                 center_atom = rdkit_mol.GetAtomWithIdx(center_atom_idx - 1).GetSymbol()
                 atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
-                print(
-                    f"    * Bond angle between atom {atom1_idx} ({atom1}) - atom {center_atom_idx} ({center_atom}) - atom {atom2_idx} ({atom2}) is {actual_angle:.2f}°, expected {expected_angle}°")
 
         # Re-optimize the molecule
-        print("Re-optimizing the molecule...")
         mol.localopt()
 
         # Convert again to RDKit molecule after optimization
@@ -121,14 +108,10 @@ def gen_poly_3D(work_dir, poly_name, length, smiles, max_attempts=3):
 
         attempt += 1
 
-    if attempt == max_attempts and (long_bonds or unreasonable_angles):
-        print("Maximum optimization attempts reached. Some bonds or angles are still outside the reasonable range.")
-        # Optionally, raise an exception or proceed with warnings
-        # raise ValueError("Unacceptable molecular geometry detected after multiple optimization attempts.")
-
-    # Export to PDB file
     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
-    mol.write("pdb", pdb_file, overwrite=True)
+    Chem.MolToXYZFile(rdkit_mol, 'mid.xyz')
+    model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, poly_name, poly_resname)
+    os.remove('mid.xyz')
 
     return f"{poly_name}_N{length}.pdb"
 
@@ -213,108 +196,6 @@ def check_bond_angles_rdkit(rdkit_mol, max_deviation=15):
                     unreasonable_angles.append((idx1 + 1, center_idx + 1, idx2 + 1, angle_deg, expected_angle))
 
     return unreasonable_angles
-
-# def gen_poly_3D(work_dir, poly_name, length, smiles):
-#     mol = pybel.readstring("smi", smiles)
-#     mol.addh()
-#     mol.make3D()
-#     obmol = mol.OBMol
-#     DEG_TO_RAD = math.pi / 180
-#     num_iterations = 10
-#     angle_range = (0, 360)
-#
-#     for _ in range(num_iterations):
-#         for obatom in pybel.ob.OBMolAtomIter(obmol):
-#             for bond in pybel.ob.OBAtomBondIter(obatom):
-#                 neighbor = bond.GetNbrAtom(obatom)
-#                 if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
-#                     continue
-#                 angle = random.uniform(*angle_range)
-#                 try:
-#                     n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
-#                     n2 = next(pybel.ob.OBAtomAtomIter(n1))
-#                     obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
-#
-#                 except StopIteration:
-#                     continue
-#
-#     mol.localopt()
-#
-#     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
-#     mol.write("pdb", pdb_file, overwrite=True)
-#
-#     return f"{poly_name}_N{length}.pdb"
-
-# def gen_poly_3D(work_dir, poly_name, length, smiles):
-#     # 读取SMILES字符串并生成分子
-#     mol = pybel.readstring("smi", smiles)
-#     mol.addh()
-#     mol.make3D()
-#
-#     obmol = mol.OBMol
-#     DEG_TO_RAD = math.pi / 180
-#     num_iterations = 10
-#     angle_range = (0, 360)
-#
-#     # 使用力场初始化优化以避免初始重叠
-#     mol.localopt(forcefield="MMFF94", steps=500)
-#
-#     for _ in range(num_iterations):
-#         torsion_set = False
-#         for obatom in openbabel.OBMolAtomIter(obmol):
-#             for bond in openbabel.OBAtomBondIter(obatom):
-#                 neighbor = bond.GetNbrAtom(obatom)
-#                 # 仅对具有至少两个连接的原子进行扭转
-#                 if len(list(openbabel.OBAtomAtomIter(neighbor))) < 2:
-#                     continue
-#                 angle = random.uniform(*angle_range)
-#                 try:
-#                     # 获取四个原子用于设置扭转角
-#                     n1 = next(openbabel.OBAtomAtomIter(neighbor))
-#                     n2 = next(openbabel.OBAtomAtomIter(n1))
-#                     obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
-#                     torsion_set = True
-#                 except StopIteration:
-#                     continue
-#         if torsion_set:
-#             # 每次迭代后进行力场优化，避免原子重叠
-#             mol.localopt(forcefield="MMFF94", steps=500)
-#             # 检查最小原子间距
-#             min_distance = get_min_distance(obmol)
-#             if min_distance < 1.0:  # 根据需要调整阈值
-#                 print(f"警告：检测到最小原子距离 {min_distance:.2f} Å，小于阈值，重新调整结构。")
-#                 # 可以选择重新设置扭转角或采取其他措施
-#                 continue
-#
-#     mol.localopt(forcefield="MMFF94", steps=500)
-#
-#     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
-#     mol.write("pdb", pdb_file, overwrite=True)
-
-    # return f"{poly_name}_N{length}.pdb"
-
-
-# def get_min_distance(obmol):
-#     min_dist = float('inf')
-#     atoms = list(openbabel.OBMolAtomIter(obmol))
-#     num_atoms = len(atoms)
-#     for i in range(num_atoms):
-#         atom1 = atoms[i]
-#         x1, y1, z1 = atom1.GetX(), atom1.GetY(), atom1.GetZ()
-#         for j in range(i + 1, num_atoms):
-#             atom2 = atoms[j]
-#             x2, y2, z2 = atom2.GetX(), atom2.GetY(), atom2.GetZ()
-#             distance = calculate_distance(x1, y1, z1, x2, y2, z2)
-#             if distance < min_dist:
-#                 min_dist = distance
-#     return min_dist
-
-# def calculate_distance(x1, y1, z1, x2, y2, z2):
-#     return math.sqrt(
-#         (x1 - x2) ** 2 +
-#         (y1 - y2) ** 2 +
-#         (z1 - z2) ** 2
-#     )
 
 def calc_poly_chains(num_Li_salt , conc_Li_salt, mass_per_chain):
 

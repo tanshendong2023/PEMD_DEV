@@ -14,13 +14,13 @@ class PEMDGaussian:
         self,
         work_dir,
         filename,
-        core=32,
-        mem='64GB',
-        chg=0,
-        mult=1,
-        function='B3LYP',
-        basis_set='6-311+g(d,p)',
-        epsilon=5.0,
+        core = 32,
+        mem = '64GB',
+        chg = 0,
+        mult = 1,
+        function = 'B3LYP',
+        basis_set = '6-31+g(d,p)',
+        epsilon = 5.0,
     ):
         self.work_dir = work_dir
         self.filename = filename
@@ -32,14 +32,24 @@ class PEMDGaussian:
         self.basis_set = basis_set
         self.epsilon = epsilon
 
-    def generate_input_file(self, structure,):
+    def generate_input_file(self, structure=None, chk=None, gaucontinue=False):
+
+        prefix, _ = os.path.splitext(self.filename)
 
         file_contents = f"%nprocshared={self.core}\n"
         file_contents += f"%mem={self.mem}\n"
-        file_contents += f"# opt freq {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
+
+        if chk:
+            file_contents += f"%chk={self.work_dir}/{prefix}_opt.chk\n"
+
+        if gaucontinue == True:
+            file_contents += f"# opt(cartesian,maxstep=3,notrust,maxcyc=150,gdiis) freq {self.function} {self.basis_set}  scrf=(pcm,solvent=generic,read)\n\n"
+        else:
+            file_contents += f"# opt(maxcyc=80) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)\n\n"
+            # file_contents += f"# opt(cartesian,maxcyc=80) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm int=ultrafine\n\n"
+
         file_contents += 'qm calculation\n\n'
         file_contents += f'{self.chg} {self.mult}\n'  # 电荷和多重度
-
         for atom in structure['atoms']:
             atom_parts = atom.split()
             if len(atom_parts) >= 4:
@@ -72,7 +82,7 @@ class PEMDGaussian:
         file_contents = f"%nprocshared={self.core}\n"
         file_contents += f"%mem={self.mem}\n"
         file_contents += f"%chk={self.work_dir}/resp_{file_prefix}.chk\n"
-        file_contents += f"# opt {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
+        file_contents += f"# opt B3LYP TZVP em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
         file_contents += 'resp calculation\n\n'
         file_contents += f'{self.chg} {self.mult}\n'
 
@@ -112,20 +122,42 @@ class PEMDGaussian:
         with open(file_path, 'w') as file:
             file.write(file_contents)
 
-    def run_local(self, ):
+    def execute_gaussian(self, log_file_path, command):
+        with open(log_file_path, 'w') as log_file:
+            subprocess.run(
+                command,
+                shell=True,
+                check=True,
+                text=True,
+                stdout=log_file,
+                stderr=None # 将 stderr 重定向到 stdout，即同一日志文件
+            )
 
+    def run_local(self,):
+
+        prefix, _ = os.path.splitext(self.filename)
+        log_file_path = os.path.join(self.work_dir, f"{prefix}.log")
+        # log_file_path = f"{self.work_dir}/{prefix}.log"
         input_file = os.path.join(self.work_dir, self.filename)
-        prefix, _ = os.path.splitext(input_file)
-        command = (
-            f"g16 {input_file} > {prefix}.log"
-        )
+        command = f"g16  {input_file}"
 
         try:
-            result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
-            return result.stdout  # Return the standard output from the Gaussian command
+            self.execute_gaussian(log_file_path, command)
+            print("Gaussian calculation completed successfully.")
+            return 'success', f'{prefix}.log'
         except subprocess.CalledProcessError as e:
-            print(f"Error executing Gaussian: {e}")
-            return e.stderr
+
+            print(f"Error executing Gaussian: {e}\n")
+
+            with open(log_file_path, 'r') as log_file_read:
+                lines = log_file_read.readlines()
+                error_lines = [line for line in lines if "Error termination" in line]
+
+                print("Gaussian error output:")
+                for line in error_lines:
+                    print(line.strip())
+
+            return 'failed', f'{prefix}.log'
 
     def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
         slurm_script = PEMDSlurm(
