@@ -220,7 +220,6 @@ def qm_gaussian(
         chk = False,
         gaucontinue = False
 ):
-
     os.makedirs(work_dir, exist_ok=True)
 
     xyz_filepath = os.path.join(work_dir, xyz_filename)
@@ -228,9 +227,10 @@ def qm_gaussian(
 
     for idx, structure in enumerate(structures):
 
+        filename = f'{gjf_filename}_{idx}.gjf'
         Gau = PEMDGaussian(
             work_dir,
-            gjf_filename,
+            filename,
             core,
             mem,
             chg,
@@ -243,7 +243,6 @@ def qm_gaussian(
         Gau.generate_input_file(
             structure,
             chk,
-            gaucontinue
         )
 
         state1, log_filename = Gau.run_local()

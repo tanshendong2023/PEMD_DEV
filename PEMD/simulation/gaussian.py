@@ -43,9 +43,10 @@ class PEMDGaussian:
             file_contents += f"%chk={self.work_dir}/{prefix}_opt.chk\n"
 
         if gaucontinue == True:
-            file_contents += f"# opt(gdiis,maxstep=2,notrust,maxcyc=100,Cartesian) freq {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
+            file_contents += f"# opt(cartesian,maxstep=3,notrust,maxcyc=150,gdiis) freq {self.function} {self.basis_set}  scrf=(pcm,solvent=generic,read)\n\n"
         else:
-            file_contents += f"# opt freq {self.function} {self.basis_set} em=GD3BJ scrf=(pcm,solvent=generic,read)\n\n"
+            file_contents += f"# opt(maxcyc=80) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)\n\n"
+            # file_contents += f"# opt(cartesian,maxcyc=80) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm int=ultrafine\n\n"
 
         file_contents += 'qm calculation\n\n'
         file_contents += f'{self.chg} {self.mult}\n'  # 电荷和多重度
@@ -135,8 +136,10 @@ class PEMDGaussian:
     def run_local(self,):
 
         prefix, _ = os.path.splitext(self.filename)
-        log_file_path = f"{self.work_dir}/{prefix}.log"
-        command = f"g16 {self.work_dir}/{self.filename}"
+        log_file_path = os.path.join(self.work_dir, f"{prefix}.log")
+        # log_file_path = f"{self.work_dir}/{prefix}.log"
+        input_file = os.path.join(self.work_dir, self.filename)
+        command = f"g16  {input_file}"
 
         try:
             self.execute_gaussian(log_file_path, command)

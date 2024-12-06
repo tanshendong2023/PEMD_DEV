@@ -24,7 +24,7 @@ class PEMDLAMMPS:
         file_contents += f"angle_style      harmonic\n"
         file_contents += f"dihedral_style   fourier\n"
         file_contents += f"improper_style   cvff\n"
-        file_contents += f"pair_style       lj/cut 2.0\n\n"
+        file_contents += f"pair_style       lj/cut 4.0\n\n"
 
         file_contents += f"################## Model ##################\n"
         file_contents += f"read_data        {self.lammps_dir}/{name}_gaff2.lmp\n\n"
@@ -33,21 +33,23 @@ class PEMDLAMMPS:
         file_contents += f"thermo           100\n"
         file_contents += f"thermo_style     custom step temp pxx pyy pzz ebond eangle edihed eimp epair ecoul evdwl pe ke etotal lx ly lz vol density\n\n"
 
-        file_contents += f"################## Confinement ##################\n"
-        file_contents += f"fix              xwalls all wall/reflect xlo EDGE xhi EDGE\n"
-        file_contents += f"fix              ywalls all wall/reflect ylo EDGE yhi EDGE\n"
-        file_contents += f"fix              zwalls all wall/reflect zlo EDGE zhi EDGE\n\n"
+        # file_contents += f"################## Confinement ##################\n"
+        # file_contents += f"fix              xwalls all wall/reflect xlo EDGE xhi EDGE\n"
+        # file_contents += f"fix              ywalls all wall/reflect ylo EDGE yhi EDGE\n"
+        # file_contents += f"fix              zwalls all wall/reflect zlo EDGE zhi EDGE\n\n"
 
         file_contents += f"################## Minimze ##################\n"
         file_contents += f"velocity         all create 300 3243242\n"
         file_contents += f"minimize         1e-8 1e-8 10000 10000\n\n"
 
         file_contents += f"################## Annealing ##################\n"
-        file_contents += f"dump             1 all custom 500 {self.lammps_dir}/soft.lammpstrj id type mass mol x y z\n"
+        # file_contents += f"dump             1 all custom 500 {self.lammps_dir}/soft.lammpstrj id type mass mol x y z\n"
+        file_contents += f"dump             1 all custom 500 {self.lammps_dir}/soft.lammpstrj id type mass mol xu yu zu\n"
         file_contents += f"fix              1 all nvt temp 800 800 100 drag 2\n"
         file_contents += f"run              1000000\n"
         file_contents += f"write_data       {self.lammps_dir}/{name}_gaff2.data\n"
         file_contents += f"write_dump       all xyz {self.lammps_dir}/{name}_lmp.xyz\n\n"
+        # file_contents += f"write_dump       all custom {self.lammps_dir}/{name}_lmp.xyz type xu yu zu\n\n"
 
         input_file_path = os.path.join(self.lammps_dir, 'lammps.in')
         with open(input_file_path, 'w') as file:

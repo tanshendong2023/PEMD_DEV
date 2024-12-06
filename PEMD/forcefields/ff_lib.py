@@ -57,6 +57,7 @@ def get_gaff2(
 
         s.write_lammps(data_fname)
         sys.stdout = original_stdout
+        print(sys.stdout)
 
         print("GAFF2 parameter file generated successfully.\n")
     except Exception as e:
