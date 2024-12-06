@@ -45,6 +45,115 @@ def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
 
     return smiles_poly
 
+def gen_copoly_smiles(poly_name, repeating_unit, x_length, y_length):
+    # Generate the SMILES connecting two type units.
+    (
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+    ) = model_lib.Init_info(
+        poly_name,
+        repeating_unit[0],
+    )
+    (
+        dum3,
+        dum4,
+        atom3,
+        atom4,
+    ) = model_lib.Init_info(
+        poly_name,
+        repeating_unit[1],
+    )
+
+    # Connecting x first type units.
+    (
+        inti_mol_x,
+        monomer_mol_x,
+        start_atom_x,
+        end_atom_x,
+    ) = model_lib.gen_smiles_nocap(
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        repeating_unit[0],
+        x_length,
+    )
+
+    # Connecting y second type units.
+    (
+        inti_mol_y,
+        monomer_mol_y,
+        start_atom_y,
+        end_atom_y,
+    ) = model_lib.gen_smiles_nocap(
+        dum3,
+        dum4,
+        atom3,
+        atom4,
+        repeating_unit[1],
+        y_length,
+    )
+
+    # Delete dum2 of first type units.
+    (
+        dumx1,
+        dumx2,
+        atomx1,
+        atomx2,
+    ) = model_lib.Init_info(
+        poly_name,
+        Chem.MolToSmiles(inti_mol_x, canonical=False), # Must add canonical is false to genereate right smiles corresbonding to mol objective.
+    )
+
+    edit_m_x = Chem.EditableMol(inti_mol_x)
+    edit_m_x.RemoveAtom(int(dumx2))
+    molx_without_dum2 = Chem.Mol(edit_m_x.GetMol())
+
+    if atomx1 > atomx2:
+        atomx1, atomx2 = atomx2, atomx1
+
+    if  atomx2 > dumx2:
+        second_atom_x = atomx2 - 1
+    else:
+        second_atom_x = atomx2
+
+    # Delete dum1 of second type units.
+    (
+        dumy1,
+        dumy2,
+        atomy1,
+        atomy2,
+    ) = model_lib.Init_info(
+        poly_name,
+        Chem.MolToSmiles(inti_mol_y, canonical=False),
+    )
+
+    edit_m_y = Chem.EditableMol(inti_mol_y)
+    edit_m_y.RemoveAtom(dumy1) # Delete dum1
+    moly_without_dum1 = Chem.Mol(edit_m_y.GetMol())
+    if atomy1 > atomy2:
+        atomy1, atomy2 = atomy2, atomy1
+
+    if  atomy1 > dumy1:
+        first_atom_y = atomy1 - 1
+    else:
+        first_atom_y = atomy1
+
+    # Connecting first and second type units.
+    combo = Chem.CombineMols(molx_without_dum2, moly_without_dum1)
+    edcombo = Chem.EditableMol(combo)
+    edcombo.AddBond(
+        second_atom_x,
+        first_atom_y + molx_without_dum2.GetNumAtoms(),
+        order=Chem.rdchem.BondType.SINGLE,
+    )# Add bond according to the index of atoms to be connected
+    unit_mol = edcombo.GetMol()
+    unit_smiles = Chem.MolToSmiles(unit_mol)
+
+    return unit_smiles
+
 def gen_poly_3D(work_dir, poly_name, poly_resname, length, smiles, max_attempts=3):
     # Read SMILES using Pybel and generate a molecule object
     mol = pybel.readstring("smi", smiles)
