@@ -10,6 +10,7 @@ import os
 import json
 from PEMD.model.build import (
     gen_poly_smiles,
+    gen_copoly_smiles,
     gen_poly_3D,
 )
 from PEMD.simulation.md import (
@@ -78,10 +79,6 @@ class PEMDModel:
     def gen_oligomer_smiles(self,):
         """
         Generate the SMILES representation of the polymer.
-
-        Parameters:
-        short (bool): If True, generate the SMILES for the short polymer; if False, generate the SMILES for the long polymer.
-
         Returns:
         str: The generated SMILES string.
         """
@@ -95,10 +92,104 @@ class PEMDModel:
         )
 
     def gen_flex_poly(self, core, atom_typing = 'pysimm'):
+        """
+        Generate the SMILES representation of the homo polymer.
+
+        Parameters:
+            core: The number of kernels used for segmental relaxation using LAMMPS.
+
+        Returns:
+            str: The name of relaxed polymer structure file.
+        """
 
         smiles = gen_poly_smiles(
             self.poly_name,
             self.repeating_unit,
+            self.length_long,
+            self.leftcap,
+            self.rightcap,
+        )
+
+        pdb_file = gen_poly_3D(
+            self.work_dir,
+            self.poly_name,
+            self.poly_resname,
+            self.length_long,
+            smiles,
+        )
+
+        return relax_poly_chain(
+            self.work_dir,
+            pdb_file,
+            core,
+            atom_typing
+        )
+
+    def gen_flex_alter_copoly(self, core, atom_typing='pysimm'):
+        """
+        Generate the SMILES representation of the alternating copolymer.
+
+        Parameters:
+            core: The number of kernels used for segment relaxation using LAMMPS.
+
+        Returns:
+            str: The name of relaxed polymer structure file.
+        """
+
+        # Obtain smiles of copolymerized polymer segments.
+        unit_smiles = gen_copoly_smiles(
+            self.poly_name,
+            self.repeating_unit,
+            x_length = 1,
+            y_length = 1,
+        )
+
+        smiles = gen_poly_smiles(
+            self.poly_name,
+            unit_smiles,
+            self.length_long,
+            self.leftcap,
+            self.rightcap,
+        )
+
+        pdb_file = gen_poly_3D(
+            self.work_dir,
+            self.poly_name,
+            self.poly_resname,
+            self.length_long,
+            smiles,
+        )
+
+        return relax_poly_chain(
+            self.work_dir,
+            pdb_file,
+            core,
+            atom_typing
+        )
+
+    def gen_flex_block_copoly(self, core, atom_typing = 'pysimm', x_length=1, y_length=1):
+        """
+        Generate the SMILES representation of the block copolymer.
+
+        Parameters:
+            core: The number of kernels used for segment relaxation using LAMMPS.
+            x_length: The length of first type unit in one block.
+            y_length: The length of second type unit in one block.
+        Returns:
+            str: The name of relaxed polymer structure file.
+        """
+
+        # Obtain smiles of copolymerized polymer segments.
+        unit_smiles = gen_copoly_smiles(
+            self.poly_name,
+            self.repeating_unit,
+            x_length,
+            y_length,
+        )
+
+        smiles = gen_poly_smiles(
+            self.poly_name,
+            unit_smiles,
             self.length_long,
             self.leftcap,
             self.rightcap,
