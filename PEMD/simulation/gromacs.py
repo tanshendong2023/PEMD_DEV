@@ -106,9 +106,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -171,9 +171,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -243,9 +243,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -300,13 +300,16 @@ class PEMDGROMACS:
             file.write(file_contents)
         print(f"NPT anneal mdp file generation successful：{filename}")
 
-    def commands_pdbtogro(self, packmol_pdb, density, add_length):
+    def commands_pdbtogro(self, packmol_pdb, density=None, add_length=None):
 
         pdb_files = []
         for com in self.compounds:
             filepath = os.path.join(self.work_dir, f"{com}.pdb")
             pdb_files.append(filepath)
-        box_length = (model_lib.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
+        if density:
+            box_length = (model_lib.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
+        else:
+            box_length = 4
 
         if self.gpu == True:
             self.commands = [
@@ -315,6 +318,18 @@ class PEMDGROMACS:
         else:
             self.commands = [
                 f"gmx_mpi editconf -f {self.work_dir}/{packmol_pdb} -o {self.work_dir}/conf.gro -box {box_length} {box_length} {box_length}",
+            ]
+        return self
+
+    def commands_grotopdb(self, gro_filename, pdb_filename):
+
+        if self.gpu == True:
+            self.commands = [
+                f"gmx editconf -f {self.work_dir}/{gro_filename} -o {self.work_dir}/{pdb_filename}",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi editconf -f {self.work_dir}/{gro_filename} -o {self.work_dir}/{pdb_filename}",
             ]
         return self
 
@@ -370,7 +385,7 @@ class PEMDGROMACS:
         else:
             self.commands = [
                 f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
-                f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
+                f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
             ]
         return self
 

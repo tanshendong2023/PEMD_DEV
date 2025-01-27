@@ -8,18 +8,18 @@
 import os
 import json
 from PEMD.forcefields.ff_lib import (
-    get_gaff2,
     get_oplsaa_xml,
     get_xml_ligpargen,
     get_oplsaa_ligpargen,
     gen_ff_from_data
 )
-from PEMD.simulation.sim_lib import (
+from PEMD.forcefields.ff_lib import (
     apply_chg_to_poly,
     apply_chg_to_molecule
 )
 from PEMD.model.build import (
-    gen_poly_smiles,
+    gen_poly_3D,
+    gen_poly_smiles
 )
 
 
@@ -72,25 +72,12 @@ class Forcefield:
             length = data.get('length')
             instance.length_short = length[0]
             instance.length_long = length[1]
-            # if length is not None:
-            #     if isinstance(length, list):
-            #         instance.length = length[0]
-            #     else:
-            #         instance.length = length
         else:
             instance.smiles = data.get('smiles')
 
         return instance
 
-    @staticmethod
-    def get_gaff2(gaff_dir, pdb_file, atom_typing):
-        return get_gaff2(
-            gaff_dir,
-            pdb_file,
-            atom_typing
-        )
-
-    def get_oplsaa_xml(self, xml, xyz_file, chg_model = 'CM1A'):
+    def get_oplsaa_xml(self, xml, pdb_file, chg_model = 'CM1A'):
 
         if xml == "ligpargen":
             get_xml_ligpargen(
@@ -105,39 +92,56 @@ class Forcefield:
             return get_oplsaa_xml(
                 self.work_dir,
                 self.name,
-                self.resname,
-                self.repeating_unit,
-                self.length_long,
-                self.leftcap,
-                self.rightcap,
-                xyz_file,
+                pdb_file,
                 xml = "ligpargen",
             )
 
         else:
-            get_oplsaa_xml(
+            return get_oplsaa_xml(
                 self.work_dir,
                 self.name,
-                self.resname,
-                self.repeating_unit,
-                self.length_long,
-                self.leftcap,
-                self.rightcap,
-                xyz_file,
+                pdb_file,
                 xml = "database",
             )
 
-    def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, ):
-        poly_smi = gen_poly_smiles(
+    def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, max_retries=500):
+
+        # mol_short = gen_poly_3D(
+        #     self.name,
+        #     self.repeating_unit,
+        #     self.length_short,
+        #     max_retries
+        # )
+        #
+        mol_long = gen_poly_3D(
+            self.name,
+            self.repeating_unit,
+            self.length_long,
+            max_retries
+        )
+
+        smiles_short = gen_poly_smiles(
             self.name,
             self.repeating_unit,
             self.length_short,
             self.leftcap,
             self.rightcap,
         )
+
+        # smiles_long = gen_poly_smiles(
+        #     self.name,
+        #     self.repeating_unit,
+        #     self.length_long,
+        #     self.leftcap,
+        #     self.rightcap,
+        # )
+
         return apply_chg_to_poly(
             self.work_dir,
-            poly_smi,
+            # mol_short,
+            smiles_short,
+            mol_long,
+            # smiles_long,
             itp_file,
             resp_chg_df,
             self.repeating_unit,
@@ -154,7 +158,7 @@ class Forcefield:
             self.charge,
         )
 
-    def get_oplsaa_ligpargen(self, chg_model, ):
+    def get_oplsaa_ligpargen(self, chg_model = 'CM1A', ):
         return get_oplsaa_ligpargen(
             self.work_dir,
             self.name,

@@ -66,7 +66,7 @@ class QMRun:
         return instance
 
     def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon,
-                         core, memory, gaucontinue=False):
+                         core, memory, multi_step=False, max_attempts=1):
 
         # Generate conformers using RDKit
         xyz_file_MMFF = gen_conf_rdkit(
@@ -86,6 +86,7 @@ class QMRun:
             chg,
             mult,
             gfn,
+            optimize = True
         )
 
         # Optimize conformers using Gaussian
@@ -101,9 +102,9 @@ class QMRun:
             epsilon,
             core,
             memory,
-            gaucontinue
+            multi_step,
+            max_attempts,
         )
-
 
     def resp_chg_fitting(self, xyz_file, chg, mult, function, basis_set, epsilon, core, mem, method):
         calc_resp_gaussian(
@@ -128,9 +129,10 @@ class QMRun:
 
 
 class MDRun:
-    def __init__(self, work_dir, molecules):
+    def __init__(self, work_dir, molecules, model_info=None):
         self.work_dir = work_dir
         self.molecules = molecules
+        self.model_info = model_info
 
     @classmethod
     def from_json(cls, work_dir, json_file):
@@ -152,15 +154,20 @@ class MDRun:
             }
             molecules.append(molecule)
 
-        return cls(work_dir, molecules)
+        return cls(work_dir, molecules, model_info=model_info)
 
-    @staticmethod
-    def relax_poly_chain(work_dir, pdb_file, core, atom_typing = 'pysimm'):
+
+    def relax_poly_chain(self, gro_file, temperature=1000, gpu=False):
+
+        name = self.model_info['polymer']['compound']
+        resname = self.model_info['polymer']['resname']
         return relax_poly_chain(
-            work_dir,
-            pdb_file,
-            core,
-            atom_typing
+            self.work_dir,
+            name,
+            resname,
+            gro_file,
+            temperature,
+            gpu,
         )
 
     def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length, gpu=False):

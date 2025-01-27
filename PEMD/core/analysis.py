@@ -292,13 +292,14 @@ class PEMDAnalysis:
 
     @staticmethod
     def write_cluster(work_dir, tpr_file, wrap_xtc_file, center_atom_name, distance_dict, select_dict,run_start, run_end,
-                      structure_code, write_path, max_number, write=True, write_freq=0.5, ):
+                      structure_code, max_number, write=True, write_freq=0.01, ):
 
         tpr_path = os.path.join(work_dir, tpr_file)
         wrap_xtc_path = os.path.join(work_dir, wrap_xtc_file)
         nvt_run = mda.Universe(tpr_path, wrap_xtc_path)
 
         num_of_neighbor(
+            work_dir,
             nvt_run,
             center_atom_name,
             distance_dict,
@@ -308,17 +309,16 @@ class PEMDAnalysis:
             write,
             structure_code,
             write_freq,
-            write_path,
             max_number
         )
 
     @staticmethod
-    def write_poly_cluster_fragment(work_dir, xyz_filename, center_atoms, select_atoms, poly_name, repeating_unit, length,
-                                    outxyz_filename):
+    def write_poly_cluster_fragment(work_dir, pdb_filename, center_atom_name, poly_atom_name, poly_name, repeating_unit,
+                                    length, outxyz_filename):
 
         mol = pdb2mol(
             work_dir,
-            xyz_filename
+            pdb_filename
         )
 
         (
@@ -327,8 +327,8 @@ class PEMDAnalysis:
             selected_atom_idx
         ) = get_cluster_index(
             mol,
-            center_atoms,
-            select_atoms,
+            center_atom_name,
+            poly_atom_name,
             repeating_unit,
             length,
         )

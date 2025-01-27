@@ -1,14 +1,19 @@
 
 import os
 import re
-import numpy as np
-from collections import deque
-from rdkit import Chem
-from rdkit.Geometry import Point3D
-from PEMD.model import model_lib
+import warnings
 
+import numpy as np
+
+from rdkit import Chem
+from collections import deque
+from PEMD.model import model_lib
+from rdkit.Geometry import Point3D
+
+warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
 
 def num_of_neighbor(
+        work_dir,
         nvt_run,
         center_atom_name,
         distance_dict,
@@ -18,13 +23,17 @@ def num_of_neighbor(
         write,
         structure_code,
         write_freq,
-        write_path,
         max_number
 ):
+    # build the dir to store the cluster file
+    write_path = os.path.join(work_dir, 'cluster_dir')
+    os.makedirs(write_path, exist_ok=True)
+
     center_atoms = nvt_run.select_atoms(center_atom_name)
-    trj_analysis = nvt_run.trajectory[run_start:run_end:]
+    trj_analysis = nvt_run.trajectory[run_start:run_end:10]
     cn_values = {}
     species = list(distance_dict.keys())
+
     for kw in species:
         cn_values[kw] = np.zeros(int(len(trj_analysis)))
     cn_values["total"] = np.zeros(int(len(trj_analysis)))
@@ -57,7 +66,8 @@ def num_of_neighbor(
                     structure = nvt_run.select_atoms(selection_write, periodic=True)
                     center_pos = ts[center_atom.index]
                     # path = write_path + 'num' + "_" + str(int(written_structures)) + ".xyz"
-                    path = os.path.join(write_path, 'num' + "_" + str(int(written_structures)) + ".pdb")
+                    pdb_filename = 'num' + "_" + str(int(written_structures)) + ".pdb"
+                    path = os.path.join(write_path, pdb_filename)
                     write_out(center_pos, structure, path)
 
                     written_structures += 1
@@ -65,41 +75,13 @@ def num_of_neighbor(
                         print(f"{max_number} structures have been written out in {write_path}!!!.")
                         max_reached = True  # Set the flag to True
                         break  # Break out of the innermost loop
+
                 if max_reached:
                     break  # Check the flag and break if needed
         if max_reached:
             break  # Check the flag and break if needed
 
     return cn_values
-
-# def write_out(
-#         center_pos,
-#         neighbors,
-#         path
-# ):
-#     lines = []
-#     lines.append(str(len(neighbors)))
-#     lines.append("")
-#     box = neighbors.dimensions
-#     half_box = np.array([box[0], box[1], box[2]]) / 2
-#     for atom in neighbors:
-#         locs = []
-#         for i in range(3):
-#             loc = atom.position[i] - center_pos[i]
-#             if loc > half_box[i]:
-#                 loc = loc - box[i]
-#             elif loc < -half_box[i]:
-#                 loc = loc + box[i]
-#             else:
-#                 pass
-#             locs.append(loc)
-#         element_name = atom.name
-#         assert element_name is not None
-#         line = element_name + " " + " ".join(str(loc) for loc in locs)
-#         lines.append(line)
-#     with open(path, "w") as xyz_file:
-#         xyz_file.write("\n".join(lines))
-
 
 def write_out(center_pos, neighbors, path):
     # 计算相对坐标，处理周期性边界条件
@@ -135,7 +117,6 @@ def select_shell(
         distance_str = distance
     return "(" + species_selection + ") and (around " + distance_str + " index " + str(center_atom.index) + ")"
 
-
 def pdb2mol(work_dir, pdb_filename):
     label_to_element = {
         'N': 'N',
@@ -143,7 +124,8 @@ def pdb2mol(work_dir, pdb_filename):
         'O': 'O',
         'C': 'C',
         'F': 'F',
-        # 根据需要添加更多元素
+        'CL': 'Cl',
+        'BR': 'Br',
     }
 
     # PDB 文件的路径
@@ -246,7 +228,6 @@ def pdb2mol(work_dir, pdb_filename):
 
     return mol
 
-
 def parse_selection_string(selection_str):
 
     # 使用正则表达式分割 'and'，并提取键值对
@@ -262,8 +243,8 @@ def parse_selection_string(selection_str):
     return criteria
 
 def get_cluster_index(mol,
-                      center_atoms,
-                      select_atoms,
+                      center_atom_name,
+                      poly_atom_name,
                       repeating_unit,
                       length):
 
@@ -280,8 +261,8 @@ def get_cluster_index(mol,
     conf = mol.GetConformer()
 
     # 解析选择字符串
-    center_criteria = parse_selection_string(center_atoms)
-    select_criteria = parse_selection_string(select_atoms)
+    center_criteria = parse_selection_string(center_atom_name)
+    select_criteria = parse_selection_string(poly_atom_name)
 
     # Step 1: 根据选择条件选择中心原子（假设只有一个）
     center_atoms_list = [
@@ -293,9 +274,9 @@ def get_cluster_index(mol,
     ]
 
     if not center_atoms_list:
-        raise ValueError(f"No center atoms found with criteria '{center_atoms}'.")
+        raise ValueError(f"No center atoms found with criteria '{center_atom_name}'.")
     if len(center_atoms_list) > 1:
-        print(f"Warning: Multiple center atoms found with criteria '{center_atoms}'. Using the first one.")
+        print(f"Warning: Multiple center atoms found with criteria '{center_atom_name}'. Using the first one.")
 
     center_atom = center_atoms_list[0]
     n_idx = center_atom.GetIdx()
@@ -310,7 +291,7 @@ def get_cluster_index(mol,
     ]
 
     if not select_atoms_list:
-        raise ValueError(f"No select atoms found with criteria '{select_atoms}'.")
+        raise ValueError(f"No select atoms found with criteria '{poly_atom_name}'.")
 
     select_positions = np.array([conf.GetAtomPosition(atom.GetIdx()) for atom in select_atoms_list])
 
@@ -484,6 +465,7 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
         # 获取连接到端基原子的非氢原子，用于计算方向
         neighbor_indices = [nbr.GetIdx() for nbr in terminal_atom.GetNeighbors()
                             if nbr.GetAtomicNum() > 1 and nbr.GetIdx() != terminal_idx]
+
         if neighbor_indices:
             neighbor_idx = neighbor_indices[0]
             neighbor_old_idx = reverse_index_map[neighbor_idx]
@@ -566,7 +548,7 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
             if neighbor_old_idx[0] > terminal_old_idx:
                 bond_vec = neighbor_old_pos - terminal_pos
             else:
-                bond_vec = terminal_pos - neighbor_old_pos
+                bond_vec = - terminal_pos + neighbor_old_pos
             direction = bond_vec / np.linalg.norm(bond_vec)
             C_pos = terminal_pos + direction * C_C_bond_length
 
@@ -627,7 +609,15 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
     out_xyz_filepath = os.path.join(work_dir, out_xyz_filename)
     Chem.MolToXYZFile(new_mol, out_xyz_filepath)
 
-
+def rotate_vector_around_axis(v, axis, theta):
+    """
+    使用Rodrigues旋转公式将向量v围绕单位向量axis旋转theta弧度。
+    """
+    axis = axis / np.linalg.norm(axis)
+    v_parallel = np.dot(v, axis) * axis
+    v_perp = v - v_parallel
+    w = np.cross(axis, v)
+    return v_parallel + v_perp * np.cos(theta) + w * np.sin(theta)
 
 # def xyz2mol(work_dir, xyz_filename):
 #

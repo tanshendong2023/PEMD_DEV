@@ -8,9 +8,8 @@ Date: 2024.01.18
 
 import os
 import math
-import random
+
 from rdkit import Chem
-from openbabel import pybel
 from PEMD.model import model_lib
 from rdkit.Chem import Descriptors
 from rdkit.Chem import rdMolTransforms
@@ -56,6 +55,7 @@ def gen_copoly_smiles(poly_name, repeating_unit, x_length, y_length):
         poly_name,
         repeating_unit[0],
     )
+
     (
         dum3,
         dum4,
@@ -154,75 +154,140 @@ def gen_copoly_smiles(poly_name, repeating_unit, x_length, y_length):
 
     return unit_smiles
 
-def gen_poly_3D(work_dir, poly_name, poly_resname, length, smiles, max_attempts=3):
-    # Read SMILES using Pybel and generate a molecule object
-    mol = pybel.readstring("smi", smiles)
-    mol.addh()
-    mol.make3D()
-    obmol = mol.OBMol
-    DEG_TO_RAD = math.pi / 180
-    num_iterations = 10
-    angle_range = (0, 360)
+def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 10):
 
-    # Randomly set torsion angles
-    for _ in range(num_iterations):
-        for obatom in pybel.ob.OBMolAtomIter(obmol):
-            for bond in pybel.ob.OBAtomBondIter(obatom):
-                neighbor = bond.GetNbrAtom(obatom)
-                if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
-                    continue
-                angle = random.uniform(*angle_range)
-                try:
-                    n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
-                    n2 = next(pybel.ob.OBAtomAtomIter(n1))
-                    obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
-                except StopIteration:
-                    continue
+    (
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+    ) = model_lib.Init_info(
+        poly_name,
+        repeating_unit,
+    )
 
-    # Perform local optimization
-    mol.localopt()
+    (
+        inti_mol3,
+        monomer_mol,
+        start_atom,
+        end_atom,
+    ) = model_lib.gen_3D_nocap(
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        repeating_unit,
+        length,
+        max_retries
+    )
 
-    # Convert Pybel molecule to RDKit molecule
-    rdkit_mol = convert_pybel_to_rdkit(mol)
+    mol_3D = model_lib.gen_3D_withcap(
+        inti_mol3,
+        start_atom,
+        end_atom,
+        max_retries
+    )
 
-    # Initialize attempt counter
-    attempt = 0
+    # 处理基于 SMILES 的分子
+    # mol = Chem.MolFromSmiles(smiles)
+    # mol_with_h = Chem.AddHs(mol)
 
-    while attempt < max_attempts:
-        long_bonds = check_bond_lengths_rdkit(rdkit_mol)
-        unreasonable_angles = check_bond_angles_rdkit(rdkit_mol)
+    # mol = pybel.readstring("smi", smiles)
+    # mol.addh()
+    # mol.make3D()
+    # mol_with_h = convert_pybel_to_rdkit(mol)
+    # ob_conversion = openbabel.OBConversion()
+    # ob_conversion.SetInFormat("smi")
+    #
+    # ob_mol = openbabel.OBMol()
+    # ob_conversion.ReadString(ob_mol, smiles)
+    # ob_mol.AddHydrogens()
+    #
+    # mapping = model_lib.get_atom_mapping(mol_3D, ob_mol)
+    #
+    # if mapping:
+        # 复制坐标
+        # reordered_mol_3D = model_lib.reorder_atoms(mol_3D, mapping)
 
-        if not long_bonds and not unreasonable_angles:
-            break  # Exit the loop if structure is acceptable
+        # 保存最终 PDB 文件
+    # pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
+    # Chem.MolToXYZFile(mol_3D, 'mid.xyz')
+    # model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, poly_name, poly_resname)
+    # os.remove('mid.xyz')
+    #
+    # print(f"Generated {pdb_file}")
 
-        # Optionally, print detailed warnings
-        if long_bonds:
-            for bond in long_bonds:
-                atom1_idx, atom2_idx, distance, standard_length = bond
-                atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
-                atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
+    return mol_3D
 
-        if unreasonable_angles:
-            for angle in unreasonable_angles:
-                atom1_idx, center_atom_idx, atom2_idx, actual_angle, expected_angle = angle
-                atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
-                center_atom = rdkit_mol.GetAtomWithIdx(center_atom_idx - 1).GetSymbol()
-                atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
-
-        # Re-optimize the molecule
-        mol.localopt()
-
-        # Convert again to RDKit molecule after optimization
-        rdkit_mol = convert_pybel_to_rdkit(mol)
-
-        attempt += 1
-
-    pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
-    Chem.MolToXYZFile(rdkit_mol, 'mid.xyz')
-    model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, poly_name, poly_resname)
-    os.remove('mid.xyz')
-
-    return f"{poly_name}_N{length}.pdb"
+# def gen_poly_3D(work_dir, poly_name, poly_resname, length, smiles, max_attempts=3):
+#     # Read SMILES using Pybel and generate a molecule object
+#     mol = pybel.readstring("smi", smiles)
+#     mol.addh()
+#     mol.make3D()
+#     obmol = mol.OBMol
+#     DEG_TO_RAD = math.pi / 180
+#     num_iterations = 10
+#     angle_range = (0, 360)
+#
+#     # Randomly set torsion angles
+#     for _ in range(num_iterations):
+#         for obatom in pybel.ob.OBMolAtomIter(obmol):
+#             for bond in pybel.ob.OBAtomBondIter(obatom):
+#                 neighbor = bond.GetNbrAtom(obatom)
+#                 if len(list(pybel.ob.OBAtomAtomIter(neighbor))) < 2:
+#                     continue
+#                 angle = random.uniform(*angle_range)
+#                 try:
+#                     n1 = next(pybel.ob.OBAtomAtomIter(neighbor))
+#                     n2 = next(pybel.ob.OBAtomAtomIter(n1))
+#                     obmol.SetTorsion(obatom.GetIdx(), neighbor.GetIdx(), n1.GetIdx(), n2.GetIdx(), angle * DEG_TO_RAD)
+#                 except StopIteration:
+#                     continue
+#
+#     # Perform local optimization
+#     mol.localopt()
+#
+#     # Convert Pybel molecule to RDKit molecule
+#     rdkit_mol = convert_pybel_to_rdkit(mol)
+#
+#     # Initialize attempt counter
+#     attempt = 0
+#
+#     while attempt < max_attempts:
+#         long_bonds = check_bond_lengths_rdkit(rdkit_mol)
+#         unreasonable_angles = check_bond_angles_rdkit(rdkit_mol)
+#
+#         if not long_bonds and not unreasonable_angles:
+#             break  # Exit the loop if structure is acceptable
+#
+#         # Optionally, print detailed warnings
+#         if long_bonds:
+#             for bond in long_bonds:
+#                 atom1_idx, atom2_idx, distance, standard_length = bond
+#                 atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
+#                 atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
+#
+#         if unreasonable_angles:
+#             for angle in unreasonable_angles:
+#                 atom1_idx, center_atom_idx, atom2_idx, actual_angle, expected_angle = angle
+#                 atom1 = rdkit_mol.GetAtomWithIdx(atom1_idx - 1).GetSymbol()
+#                 center_atom = rdkit_mol.GetAtomWithIdx(center_atom_idx - 1).GetSymbol()
+#                 atom2 = rdkit_mol.GetAtomWithIdx(atom2_idx - 1).GetSymbol()
+#
+#         # Re-optimize the molecule
+#         mol.localopt()
+#
+#         # Convert again to RDKit molecule after optimization
+#         rdkit_mol = convert_pybel_to_rdkit(mol)
+#
+#         attempt += 1
+#
+#     pdb_file = os.path.join(work_dir, f"{poly_name}_N{length}.pdb")
+#     Chem.MolToXYZFile(rdkit_mol, 'mid.xyz')
+#     model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, poly_name, poly_resname)
+#     os.remove('mid.xyz')
+#
+#     return f"{poly_name}_N{length}.pdb"
 
 def convert_pybel_to_rdkit(pybel_mol):
     """

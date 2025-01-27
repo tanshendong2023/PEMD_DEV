@@ -8,15 +8,15 @@
 
 import os
 import json
+from rdkit import Chem
+
+from PEMD.model import model_lib
+from PEMD.model.packmol import PEMDPackmol
 from PEMD.model.build import (
     gen_poly_smiles,
     gen_copoly_smiles,
     gen_poly_3D,
 )
-from PEMD.simulation.md import (
-    relax_poly_chain
-)
-from PEMD.model.packmol import PEMDPackmol
 
 
 class PEMDModel:
@@ -91,7 +91,7 @@ class PEMDModel:
             self.rightcap,
         )
 
-    def gen_flex_poly(self, core, atom_typing = 'pysimm'):
+    def gen_homopolymer(self, max_retries=10):
         """
         Generate the SMILES representation of the homo polymer.
 
@@ -102,113 +102,97 @@ class PEMDModel:
             str: The name of relaxed polymer structure file.
         """
 
-        smiles = gen_poly_smiles(
+        mol = gen_poly_3D(
             self.poly_name,
             self.repeating_unit,
             self.length_long,
-            self.leftcap,
-            self.rightcap,
+            max_retries
         )
 
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
-        )
+        pdb_filename = f"{self.poly_name}_N{self.length_long}.pdb"
+        pdb_file = os.path.join(self.work_dir, pdb_filename)
+        Chem.MolToXYZFile(mol, 'mid.xyz', confId=0)
+        model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, self.poly_name, self.poly_resname)
+        os.remove('mid.xyz')
 
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
-        )
+        print(f"Generated the pdb file {pdb_filename} successfully")
 
-    def gen_flex_alter_copoly(self, core, atom_typing='pysimm'):
-        """
-        Generate the SMILES representation of the alternating copolymer.
+        return pdb_filename
 
-        Parameters:
-            core: The number of kernels used for segment relaxation using LAMMPS.
-
-        Returns:
-            str: The name of relaxed polymer structure file.
-        """
-
-        # Obtain smiles of copolymerized polymer segments.
-        unit_smiles = gen_copoly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            x_length = 1,
-            y_length = 1,
-        )
-
-        smiles = gen_poly_smiles(
-            self.poly_name,
-            unit_smiles,
-            self.length_long,
-            self.leftcap,
-            self.rightcap,
-        )
-
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
-        )
-
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
-        )
-
-    def gen_flex_block_copoly(self, core, atom_typing = 'pysimm', x_length=1, y_length=1):
-        """
-        Generate the SMILES representation of the block copolymer.
-
-        Parameters:
-            core: The number of kernels used for segment relaxation using LAMMPS.
-            x_length: The length of first type unit in one block.
-            y_length: The length of second type unit in one block.
-        Returns:
-            str: The name of relaxed polymer structure file.
-        """
-
-        # Obtain smiles of copolymerized polymer segments.
-        unit_smiles = gen_copoly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            x_length,
-            y_length,
-        )
-
-        smiles = gen_poly_smiles(
-            self.poly_name,
-            unit_smiles,
-            self.length_long,
-            self.leftcap,
-            self.rightcap,
-        )
-
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
-        )
-
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
-        )
+    # def gen_flex_alter_copoly(self, max_retries=50):
+    #     """
+    #     Generate the SMILES representation of the alternating copolymer.
+    #
+    #     Parameters:
+    #         core: The number of kernels used for segment relaxation using LAMMPS.
+    #
+    #     Returns:
+    #         str: The name of relaxed polymer structure file.
+    #     """
+    #
+    #     # Obtain smiles of copolymerized polymer segments.
+    #     unit_smiles = gen_copoly_smiles(
+    #         self.poly_name,
+    #         self.repeating_unit,
+    #         x_length = 1,
+    #         y_length = 1,
+    #     )
+    #
+    #     smiles = gen_poly_smiles(
+    #         self.poly_name,
+    #         unit_smiles,
+    #         self.length_long,
+    #         self.leftcap,
+    #         self.rightcap,
+    #     )
+    #
+    #     return gen_poly_3D(
+    #         self.work_dir,
+    #         self.poly_name,
+    #         self.poly_resname,
+    #         self.repeating_unit,
+    #         self.length_long,
+    #         smiles,
+    #         max_retries
+    #     )
+    #
+    # def gen_flex_block_copoly(self, x_length=1, y_length=1, max_retries=50):
+    #     """
+    #     Generate the SMILES representation of the block copolymer.
+    #
+    #     Parameters:
+    #         core: The number of kernels used for segment relaxation using LAMMPS.
+    #         x_length: The length of first type unit in one block.
+    #         y_length: The length of second type unit in one block.
+    #     Returns:
+    #         str: The name of relaxed polymer structure file.
+    #     """
+    #
+    #     # Obtain smiles of copolymerized polymer segments.
+    #     unit_smiles = gen_copoly_smiles(
+    #         self.poly_name,
+    #         self.repeating_unit,
+    #         x_length,
+    #         y_length,
+    #     )
+    #
+    #     smiles = gen_poly_smiles(
+    #         self.poly_name,
+    #         unit_smiles,
+    #         self.length_long,
+    #         self.leftcap,
+    #         self.rightcap,
+    #     )
+    #
+    #     return gen_poly_3D(
+    #         self.work_dir,
+    #         self.poly_name,
+    #         self.poly_resname,
+    #         self.repeating_unit,
+    #         self.length_long,
+    #         smiles,
+    #         max_retries
+    #     )
 
     def gen_amorphous_structure(self, density, add_length, packinp_name, packpdb_name,):
         MD_dir = os.path.join(self.work_dir, 'MD_dir')

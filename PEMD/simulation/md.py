@@ -7,46 +7,68 @@ Date: 2024.03.26
 
 
 import os
-from foyer import Forcefield
-from PEMD.simulation import sim_lib
-from PEMD.model import model_lib, build
-from PEMD.simulation.lammps import PEMDLAMMPS
-from PEMD.core.forcefields import Forcefield
+from PEMD.model import model_lib
 from PEMD.simulation.gromacs import PEMDGROMACS
 
 
 def relax_poly_chain(
         work_dir,
-        pdb_file,
-        core,
-        atom_typing
+        name,
+        resname,
+        gro_file,
+        temperature,
+        gpu,
 ):
 
-    file_prefix, file_extension = os.path.splitext(pdb_file)
-    relax_dir = os.path.join(work_dir, 'relax_polymer_lmp')
-    os.makedirs(relax_dir, exist_ok=True)
+    MD_dir = os.path.join(work_dir, 'MD_dir')
+    os.makedirs(MD_dir, exist_ok=True)
 
-    Forcefield.get_gaff2(
-        relax_dir,
-        pdb_file,
-        atom_typing
+    molecules = []
+    molecule = {
+        "name": name,
+        "number": 1,
+        "resname": resname,
+    }
+    molecules.append(molecule)
+
+    gmx = PEMDGROMACS(
+        MD_dir,
+        molecules,
+        temperature,
+        gpu,
     )
 
-    lmp = PEMDLAMMPS(
-        relax_dir,
-        core,
+    gmx.gen_top_file(
+        top_filename = 'topol.top'
     )
 
-    lmp.generate_input_file(
-        file_prefix
+    gmx.gen_em_mdp_file(
+        filename = 'em.mdp'
     )
 
-    lmp.run_local()
-
-    return sim_lib.lmptoxyz(
-        relax_dir,
-        pdb_file,
+    gmx.gen_nvt_mdp_file(
+        filename = 'nvt.mdp'
     )
+
+    gmx.commands_pdbtogro(
+        gro_file,
+    ).run_local()
+
+    gmx.commands_em(
+        input_gro = 'conf.gro'
+    ).run_local()
+
+    gmx.commands_nvt(
+        input_gro = 'em.gro',
+        output_str = 'nvt'
+    ).run_local()
+
+    gmx.commands_grotopdb(
+        gro_filename = 'nvt.gro',
+        pdb_filename = f'{name}.pdb',
+    ).run_local()
+
+    print(f'The polymer chain has been relaxed and the {name}.pdb were saved successful.')
 
 def anneal_amorph_poly(
         work_dir,
