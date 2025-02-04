@@ -91,7 +91,7 @@ class PEMDModel:
             self.rightcap,
         )
 
-    def gen_homopolymer(self, max_retries=10):
+    def gen_homopolymer(self, max_retries=50):
         """
         Generate the SMILES representation of the homo polymer.
 

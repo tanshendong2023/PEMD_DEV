@@ -154,7 +154,7 @@ def gen_copoly_smiles(poly_name, repeating_unit, x_length, y_length):
 
     return unit_smiles
 
-def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 10):
+def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 50):
 
     (
         dum1,
@@ -185,7 +185,7 @@ def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 10):
         inti_mol3,
         start_atom,
         end_atom,
-        max_retries
+        # max_retries
     )
 
     # 处理基于 SMILES 的分子
