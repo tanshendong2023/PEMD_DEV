@@ -14,12 +14,12 @@ from PEMD.forcefields.xml import XMLGenerator
 from PEMD.forcefields.ligpargen import PEMDLigpargen
 
 
-def get_xml_ligpargen(work_dir, name, resname, repeating_unit, chg, chg_model, ):
+def get_xml_ligpargen(work_dir, name, resname, repeating_unit, length, chg, chg_model, ):
 
     smiles = gen_poly_smiles(
         name,
         repeating_unit,
-        length=4,
+        length,
         leftcap='',
         rightcap='',
     )
@@ -51,6 +51,10 @@ def get_xml_ligpargen(work_dir, name, resname, repeating_unit, chg, chg_model, )
 
     os.remove(f'{work_dir}/temp.sdf')
     os.remove(pdb_filepath)
+
+    chg_file = os.path.join(ligpargen_dir, f'{name}.csv')
+    resp_chg_df = pd.read_csv(chg_file)
+    return resp_chg_df
 
 def get_oplsaa_xml(
         work_dir,
@@ -175,8 +179,6 @@ def mol_to_charge_df(mol):
 
     return df
 
-# def apply_chg_to_poly(work_dir, mol_short, mol_long, itp_file, resp_chg_df, repeating_unit,
-#                       end_repeating, corr_factor, target_sum_chg, ):
 
 def apply_chg_to_poly(work_dir, smiles_short, mol_long, itp_file, resp_chg_df, repeating_unit,
                           end_repeating, corr_factor, target_sum_chg, ):
@@ -242,10 +244,6 @@ def apply_chg_to_poly(work_dir, smiles_short, mol_long, itp_file, resp_chg_df, r
 
     # update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)
-
-
-# def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
-#     # mol_poly = Chem.MolFromSmiles(poly_smi)
 
 
 def apply_chg2mol(resp_chg_df, poly_smi, repeating_unit, end_repeating):
@@ -360,6 +358,8 @@ def apply_chg2mol(resp_chg_df, poly_smi, repeating_unit, end_repeating):
                     right_neighbor.add(idx)
                     no_matched_atoms.remove(idx)
                     break
+    # print(f"Left end atoms: {left_end_atoms}")
+    # print(f"Right end atoms: {right_end_atoms}")
 
     # 组装左右端原子
     left_atoms = left_end_atoms + [

@@ -10,7 +10,6 @@ import subprocess
 import numpy as np
 import pandas as pd
 import networkx as nx
-from mpmath import angerj
 
 from math import pi
 from rdkit import Chem
@@ -21,8 +20,23 @@ from rdkit.Chem import Descriptors
 from collections import defaultdict
 from openbabel import openbabel as ob
 from networkx.algorithms import isomorphism
-from rdkit.Chem.rdmolfiles import MolToPDBFile
 from scipy.spatial.transform import Rotation as R
+
+import numpy as np
+import logging
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from rdkit.Chem.rdchem import BondType
+from scipy.spatial.transform import Rotation as R
+from rdkit.Chem import rdMolTransforms
+
+# 配置日志记录
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 全局默认方向及判断阈值
+DEFAULT_DIRECTION = np.array([1.0, 0.0, 0.0])
+MIN_DIRECTION_NORM = 0.1
 
 
 # OpenBabel setup
@@ -30,6 +44,7 @@ obConversion = ob.OBConversion()
 ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
+
 
 def rdkitmol2xyz(unit_name, m, out_dir, IDNum):
     try:
@@ -40,6 +55,7 @@ def rdkitmol2xyz(unit_name, m, out_dir, IDNum):
         mol = ob.OBMol()
         obConversion.ReadFile(mol, out_dir + '/' + unit_name + '.mol')
         obConversion.WriteFile(mol, out_dir + '/' + unit_name + '.xyz')
+
 
 def smile_toxyz(name, SMILES, ):
     # Generate XYZ file from SMILES
@@ -52,6 +68,7 @@ def smile_toxyz(name, SMILES, ):
     rdkitmol2xyz(name, m2, '.', -1)
     file_name = name + '.xyz'
     return file_name
+
 
 def FetchDum(smiles):
     # Get index of dummy atoms and bond type associated with it
@@ -70,6 +87,7 @@ def FetchDum(smiles):
                 bond_type = bond.GetBondType()
                 break
     return dummy_index, str(bond_type)
+
 
 def connec_info(name):
     # Collect valency and connecting information for each atom according to XYZ coordinates
@@ -90,7 +108,7 @@ def connec_info(name):
     return neigh_atoms_info
 
 
-# Initializes and retrieves information about dummy atoms in a molecule.
+# Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
 def Init_info(poly_name, smiles_mid ):
     # Get index of dummy atoms and atoms associated with them
     dum_index, bond_type = FetchDum(smiles_mid)
@@ -121,6 +139,7 @@ def Init_info(poly_name, smiles_mid ):
 
     return dum1, dum2, atom1, atom2,
 
+
 def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length, smiles_LCap_, smiles_RCap_, ):
 
     (
@@ -148,6 +167,7 @@ def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length
     )
 
     return Chem.MolToSmiles(main_mol_noDum)
+
 
 def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     # Connect the units and caps to obtain SMILES structure
@@ -246,538 +266,347 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     return inti_mol3, monomer_mol, first_atom, second_atom + (length-1)*monomer_mol.GetNumAtoms()
 
 
-def place_h_in_tetrahedral(mol, atom_idx, h_indices):
-    """
-    强行将 atom_idx 这个中心原子上的氢 (列表 h_indices) 与其余非氢配体
-    一起摆成近似的sp3(正四面体)几何。
-    假设总配体数=4（或小于4但要补成4）。这里演示核心几何思路。
-    """
-    conf = mol.GetConformer()
-    center_atom = mol.GetAtomWithIdx(atom_idx)
-    center_pos = np.array(conf.GetAtomPosition(atom_idx))
 
-    # 拿到非氢配体
-    neighbors = [nbr.GetIdx() for nbr in center_atom.GetNeighbors()]
-    heavy_neighbors = [idx for idx in neighbors if mol.GetAtomWithIdx(idx).GetAtomicNum() != 1]
-
-    # 如果中心原子与非氢配体之和 + 氢原子总计不到4，可以看作要凑够 4
-    # 比如有2个非氢配体，那就需要2个氢；有3个非氢配体，需要1个氢，等等
-    # 这里假设加起来正好=4，或者你自己做检查/补氢操作
-    # -------------------------------------------------------------------
-    # 1. 计算已有非氢配体的向量
-    heavy_vecs = []
-    for hv in heavy_neighbors:
-        hv_pos = np.array(conf.GetAtomPosition(hv))
-        heavy_vecs.append(hv_pos - center_pos)
-    # 2. 我们想得到理想四面体的 4 根单位向量 directions_tet
-    directions_tet = _get_ideal_tetrahedral_vectors()
-    # 这里 directions_tet 是形如 [v1, v2, v3, v4], 每个 v_i 是 3D 向量，互相夹角 ~109.47°，
-    # 但它们在全局坐标系里都是固定的参考，要与当前 heavy_vecs 对齐。
-
-    # 3. 将实际的 heavy_vecs 对齐到 ideal tetra 的前 n 个方向
-    #    （最简单的思路：如果 n=1，就直接把 heavy_vecs[0] 对齐到 directions_tet[0]，
-    #      如果 n=2，就让 heavy_vecs[0], heavy_vecs[1] 分别对齐 directions_tet[0], directions_tet[1]，等等）
-    #    实际中需要构造一个最小 RMSD 的最佳旋转矩阵，这里演示用 rdkit 自带的对齐功能或numpy的Kabsch算法等。
-    if len(heavy_vecs) > 0:
-        # 先把 heavy_vecs 标准化
-        heavy_vecs_array = np.array([v / np.linalg.norm(v) for v in heavy_vecs])
-        target_vecs_array = np.array(directions_tet[:len(heavy_vecs)])
-        # Kabsch 算法求旋转矩阵 R, 使 heavy_vecs_array * R ~ target_vecs_array
-        R = _kabsch_rotation(heavy_vecs_array, target_vecs_array)
-    else:
-        # 如果没有非氢配体(很罕见)，那就啥也不用对齐，直接用 directions_tet 即可
-        R = np.eye(3)
-
-    # 4. 把对齐后的 directions_tet 应用这个旋转 R，得到与实际分子布局匹配的 4 个方向
-    directions_aligned = []
-    for v in directions_tet:
-        directions_aligned.append(R @ v)  # numpy 矩阵乘法
-
-    # 5. 分配哪些方向给非氢，哪些方向给氢
-    #    heavy_neighbors 已经有 len(heavy_vecs) 个，把 directions_aligned[:len(heavy_vecs)] 给它们
-    #    剩下 directions_aligned[len(heavy_vecs):] 就是氢的方向
-    #    但实际上非氢配体原子不需要我们去改它坐标（它们已经有了真实坐标），只有氢需要调整
-    #    这里演示一种策略，即只重定位氢原子的方向
-    needed_h_count = 4 - len(heavy_neighbors)
-    h_directions = directions_aligned[-needed_h_count:]
-
-    # 6. 设置氢的坐标
-    #    如果 h_indices 里面的氢数量 == needed_h_count，则一一对应
-    #    否则你要根据实际情况进行映射/删除/补氢
-    # if len(h_indices) != needed_h_count:
-    #     print("警告：氢原子数量和理论需要数量不一致，需要自行处理！")
-
-    # 以典型 C—H 距离 1.09 Å 为例
-    CH_BOND = 1.09
-
-    for i, h_idx in enumerate(h_indices):
-        h_dir = h_directions[i] / np.linalg.norm(h_directions[i])  # 归一化
-        new_h_pos = center_pos + CH_BOND * h_dir
-        conf.SetAtomPosition(h_idx, new_h_pos)
-
-
-def _get_ideal_tetrahedral_vectors():
-    """
-    返回正四面体4个顶点相对于中心的归一化参考向量 (numpy array)。
-    常用的一个简单表示是让它们尽量等距分布在单位球面上。
-    下面仅给出一种常见 hard-coded 版本，互相夹角约 109.47 度。
-    """
-    # 这里给出一种坐标：在立方体对角空间中挑选4个顶点即可
-    # 例如：
-    vs = [
-        [1.0, 1.0, 1.0],
-        [1.0, -1.0, -1.0],
-        [-1.0, 1.0, -1.0],
-        [-1.0, -1.0, 1.0],
-    ]
-    # 归一化
-    vs = [np.array(v) / np.linalg.norm(v) for v in vs]
-    return vs
-
-
-def _kabsch_rotation(P, Q):
-    """
-    给定两个点集/向量集 P, Q (形状相同)，
-    用 Kabsch 算法求最优旋转矩阵 R，使得 P*R ~ Q。
-    P, Q 大小为 (n, 3)，n>=1。
-    返回 3x3 的旋转矩阵 R (numpy)。
-    """
-    # 去质心 (不过我们只是方向向量，无需质心修正)
-    # 直接算协方差矩阵:
-    C = np.dot(P.T, Q)
-    # 奇异值分解
-    V, S, Wt = np.linalg.svd(C)
-    # 检查行列式，避免反射
-    d = (np.linalg.det(V) * np.linalg.det(Wt)) < 0.0
-    if d:
-        # 修正
-        V[:, -1] = -V[:, -1]
-    # 旋转矩阵
-    R = np.dot(V, Wt)
-    return R
 
 def rotate_mol_around_axis(mol, axis, anchor, angle_rad):
     """
-    对 mol 整体绕给定 axis（应为单位向量），
-    以 anchor 为中心，旋转 angle_rad 弧度（右手法则）。
-    当你只想旋转某个子集也可以针对性写循环，这里简单对 mol 的所有原子做旋转。
+    将整个分子绕给定单位向量 axis，以 anchor 为中心旋转 angle_rad 弧度。
     """
     conf = mol.GetConformer()
+    rot = R.from_rotvec(axis * angle_rad)
     for atom_idx in range(mol.GetNumAtoms()):
         pos = np.array(conf.GetAtomPosition(atom_idx))
-        # 平移到 anchor，使 anchor 成为原点
         pos_shifted = pos - anchor
-        # 绕 axis 旋转
-        rot = R.from_rotvec(axis * angle_rad)
         pos_rot = rot.apply(pos_shifted)
-        # 平移回去
-        pos_new = pos_rot + anchor
-        conf.SetAtomPosition(atom_idx, pos_new)
-
-def gen_3D_info(monomer_mol, length, first_atom, second_atom, bond_length):
-
-    connecting_mol = Chem.RWMol(monomer_mol)
-
-    trans = False
-    for i in range(1, length):
-        # ---- 1) 找到当前链条“头部”信息 ----
-        conf_connecting_mol = connecting_mol.GetConformer()
-        pos_first = np.array(conf_connecting_mol.GetAtomPosition(first_atom))
-
-        # ---- 2) 找到当前链条“尾巴”信息 ----
-        last_atom_idx = second_atom + (i - 1) * monomer_mol.GetNumAtoms()
-        pos_last, direction_vector = get_vector(connecting_mol, last_atom_idx)
-        pos_new_first_adjusted = pos_last + direction_vector * bond_length
-
-        # ---- 3) 将 monomer_mol 平移到正确的位置 ----
-        translated_monomer = Chem.Mol(monomer_mol)
-        translated_conf = translated_monomer.GetConformer()
-        translation = pos_new_first_adjusted - pos_first
-
-        for atom_idx in range(translated_monomer.GetNumAtoms()):
-            pos_old = np.array(translated_conf.GetAtomPosition(atom_idx))
-            pos_new = pos_old + translation
-            translated_conf.SetAtomPosition(atom_idx, pos_new)
-
-        # ---- 4) 首先不旋转，直接尝试合并到聚合物 ----
-        combo = Chem.CombineMols(connecting_mol, translated_monomer)
-        editable_combo = Chem.EditableMol(combo)
-        editable_combo.AddBond(
-            second_atom + (i - 1) * monomer_mol.GetNumAtoms(),
-            first_atom + i * monomer_mol.GetNumAtoms(),
-            order=Chem.rdchem.BondType.SINGLE
-        )
-        connected_mol = editable_combo.GetMol()
-
-        check_mol = Chem.RWMol(connected_mol)
-        atom_idx = first_atom + i * monomer_mol.GetNumAtoms()
-        # 找到该中心原子的氢
-        h_indices = [
-            nbr.GetIdx() for nbr in check_mol.GetAtomWithIdx(atom_idx).GetNeighbors()
-            if nbr.GetAtomicNum() == 1
-        ]
-        place_h_in_tetrahedral(check_mol, atom_idx, h_indices)
-        connected_mol = check_mol.GetMol()
-
-        # ---- 5) 检查是否重叠 ----
-        check_mol = Chem.RWMol(connected_mol)
-        overlap = has_overlapping_atoms(check_mol)
-        print(f'test overlap: {overlap}')
-
-        if overlap:
-            for rot in range(1, 13):
-                print(f'[Step {i}] Overlap detected, trying {(np.pi / 6) * rot:.2f} rad rotation...')
-                # 获取原始单体中的关键原子位置
-                pos_head_ = np.array(monomer_mol.GetConformer().GetAtomPosition(first_atom))
-                pos_tail_ = np.array(monomer_mol.GetConformer().GetAtomPosition(second_atom))
-                initial_vector = pos_tail_ - pos_head_
-                initial_distance = np.linalg.norm(initial_vector)
-                unit_vector = initial_vector / initial_distance  # 单位向量
-
-                # 重新创建一个单体，并进行旋转（此处直接使用旋转角度，不需要切换 trans 标志）
-                translated_monomer = Chem.Mol(monomer_mol)
-                rotate_mol_around_axis(
-                    translated_monomer,
-                    axis=unit_vector,
-                    anchor=pos_head_,
-                    angle_rad=(np.pi / 6) * rot  # 依次尝试 30°, 60°, ... 360° 的旋转
-                )
-
-                # 将旋转后的单体平移到正确位置
-                translated_conf = translated_monomer.GetConformer()
-                translation = pos_new_first_adjusted - pos_first
-                for atom_idx in range(translated_monomer.GetNumAtoms()):
-                    pos_old = np.array(translated_conf.GetAtomPosition(atom_idx))
-                    pos_new = pos_old + translation
-                    translated_conf.SetAtomPosition(atom_idx, pos_new)
-
-                # 合并分子，并添加连接键
-                combo2 = Chem.CombineMols(connecting_mol, translated_monomer)
-                editable_combo2 = Chem.EditableMol(combo2)
-                editable_combo2.AddBond(
-                    second_atom + (i - 1) * monomer_mol.GetNumAtoms(),
-                    first_atom + i * monomer_mol.GetNumAtoms(),
-                    order=Chem.rdchem.BondType.SINGLE
-                )
-                final_mol2 = editable_combo2.GetMol()  # 得到旋转后合并的分子
-
-                # 对合并后的分子进行氢原子调整
-                check_mol2 = Chem.RWMol(final_mol2)
-                atom_idx = first_atom + i * monomer_mol.GetNumAtoms()
-                h_indices = [
-                    nbr.GetIdx() for nbr in check_mol2.GetAtomWithIdx(atom_idx).GetNeighbors()
-                    if nbr.GetAtomicNum() == 1
-                ]
-                place_h_in_tetrahedral(check_mol2, atom_idx, h_indices)
-
-                # 检查重叠情况
-                overlap = has_overlapping_atoms(check_mol2)
-                print(f'test overlap after rotation {rot}: {overlap}')
-
-                # 如果当前旋转后没有重叠，则跳出旋转循环
-                if not overlap:
-                    connected_mol = check_mol2.GetMol()
-                    break
-            else:
-                # 如果经过所有旋转尝试后仍有重叠，可以在这里添加错误处理或提示信息
-                print(f'[Step {i}] All rotations failed to remove overlap.')
-
-        # 7) 更新 new_mol 供下一轮使用
-        connecting_mol = Chem.RWMol(connected_mol)
-
-    final_mol = connecting_mol.GetMol()
-    return final_mol, first_atom, second_atom + (length - 1) * monomer_mol.GetNumAtoms()
+        conf.SetAtomPosition(atom_idx, pos_rot + anchor)
 
 def rotate_vector_to_align(a, b):
-    # 归一化向量
-    a_norm = a / np.linalg.norm(a)
-    b_norm = b / np.linalg.norm(b)
-
-    # 计算旋转轴（a × b）
-    cross_prod = np.cross(b_norm, a_norm)
+    """
+    返回一个旋转对象，使得向量 a 旋转后与向量 b 对齐。
+    """
+    a_norm = a / np.linalg.norm(a) if np.linalg.norm(a) > 1e-6 else DEFAULT_DIRECTION
+    b_norm = b / np.linalg.norm(b) if np.linalg.norm(b) > 1e-6 else DEFAULT_DIRECTION
+    cross_prod = np.cross(a_norm, b_norm)
     norm_cross = np.linalg.norm(cross_prod)
-
     if norm_cross < 1e-6:
-        # 向量 a 和 b 已经平行或反向平行
-        # 选择一个任意垂直于 a 的旋转轴
         arbitrary = np.array([1, 0, 0])
         if np.allclose(a_norm, arbitrary) or np.allclose(a_norm, -arbitrary):
             arbitrary = np.array([0, 1, 0])
-        cross_prod = np.cross(a_norm, arbitrary)
-        norm_cross = np.linalg.norm(cross_prod)
-        rotation_axis = cross_prod / norm_cross
-        # 计算旋转角度
+        rotation_axis = np.cross(a_norm, arbitrary)
+        rotation_axis = rotation_axis / np.linalg.norm(rotation_axis)
         dot_prod = np.dot(a_norm, b_norm)
-        angle_rad = np.pi if dot_prod < 0 else 0  # 180度或0度
+        angle_rad = np.pi if dot_prod < 0 else 0
     else:
-        # 正常情况
         rotation_axis = cross_prod / norm_cross
-        # 计算旋转角度
         dot_prod = np.dot(a_norm, b_norm)
-        # 防止数值误差导致的arccos域错误
         dot_prod = np.clip(dot_prod, -1.0, 1.0)
         angle_rad = np.arccos(dot_prod)
+    return R.from_rotvec(rotation_axis * angle_rad)
 
-    # 创建旋转对象
-    rotation = R.from_rotvec(rotation_axis * angle_rad)
-    return rotation
+def _get_ideal_tetrahedral_vectors():
+    """
+    返回理想正四面体状态下4个顶点的归一化参考向量。
+    """
+    vs = [
+        [1, 1, 1],
+        [1, -1, -1],
+        [-1, 1, -1],
+        [-1, -1, 1],
+    ]
+    return [np.array(v) / np.linalg.norm(v) for v in vs]
+
+def _kabsch_rotation(P, Q):
+    """
+    利用 Kabsch 算法计算最佳旋转矩阵，使得 P 旋转后与 Q 尽可能匹配。
+    P, Q 均为 (n, 3) 数组。
+    """
+    C = np.dot(P.T, Q)
+    V, S, Wt = np.linalg.svd(C)
+    d = (np.linalg.det(V) * np.linalg.det(Wt)) < 0.0
+    if d:
+        V[:, -1] = -V[:, -1]
+    return np.dot(V, Wt)
+
+def place_h_in_tetrahedral(mol, atom_idx, h_indices):
+    """
+    重新定位中心原子 atom_idx 上的氢原子，使局部几何尽量符合预期构型。
+    针对 NH2（氮原子、1 个重邻居、2 个氢）单独处理，
+    对于其他情况仍采用正四面体方法。
+    """
+    conf = mol.GetConformer()
+    center_pos = np.array(conf.GetAtomPosition(atom_idx))
+    center_atom = mol.GetAtomWithIdx(atom_idx)
+    heavy_neighbors = [nbr.GetIdx() for nbr in center_atom.GetNeighbors() if nbr.GetAtomicNum() != 1]
+
+    # 检测是否为 NH2 型：氮原子、1 个重邻居、传入2个氢
+    if center_atom.GetAtomicNum() == 7 and len(heavy_neighbors) == 1 and len(h_indices) == 2:
+        hv_idx = heavy_neighbors[0]
+        hv_pos = np.array(conf.GetAtomPosition(hv_idx))
+        v = hv_pos - center_pos
+        if np.linalg.norm(v) < 1e-6:
+            logger.warning("Atom %s: heavy neighbor vector too small; using default.", atom_idx)
+            v = np.array([0, 0, 1])
+        else:
+            v = v / np.linalg.norm(v)
+
+        # 获取理想正四面体方向
+        tet_dirs = _get_ideal_tetrahedral_vectors()  # 返回4个单位向量
+
+        # 1. 找出与 v 最一致的方向（应对应于重邻居方向）
+        dots = [np.dot(d, v) for d in tet_dirs]
+        idx_heavy = np.argmax(dots)
+
+        # 2. 在剩下的3个方向中，找出与 -v 最一致的方向（对应孤对，暂不放氢）
+        remaining = [(i, d) for i, d in enumerate(tet_dirs) if i != idx_heavy]
+        dots_neg = [np.dot(d, -v) for i, d in remaining]
+        idx_lonepair = remaining[np.argmax(dots_neg)][0]
+
+        # 3. 剩下的两个方向用来放置氢原子
+        h_dirs = [d for i, d in enumerate(tet_dirs) if i not in (idx_heavy, idx_lonepair)]
+        if len(h_dirs) != 2:
+            logger.error("Internal error: expected 2 hydrogen directions, got %s", len(h_dirs))
+            return
+
+        CH_BOND = 1.09  # 典型 C–H 键长
+        # 首先为两个氢原子设定新的位置
+        new_pos_1 = center_pos + CH_BOND * h_dirs[0]
+        new_pos_2 = center_pos + CH_BOND * h_dirs[1]
+
+        # 检查氢原子之间的距离，避免重叠
+        for i, h_idx in enumerate(h_indices):
+            if i == 0:
+                new_pos = new_pos_1
+            else:
+                new_pos = new_pos_2
+            for other_h_idx in h_indices:
+                if other_h_idx != h_idx:
+                    other_h_pos = np.array(conf.GetAtomPosition(other_h_idx))
+                    if np.linalg.norm(new_pos - other_h_pos) < 0.8:  # 检查阈值，防止重叠
+                        logger.warning(f"Hydrogen atoms {h_idx} and {other_h_idx} overlap! Adjusting.")
+                        new_pos += np.random.uniform(0.1, 0.2, size=3)  # 轻微调整位置
+
+        # 更新氢原子位置
+        conf.SetAtomPosition(h_indices[0], new_pos_1)
+        conf.SetAtomPosition(h_indices[1], new_pos_2)
+        return
 
 def get_vector(mol, index):
-
-    conf_mol = mol.GetConformer()
+    """
+    对于指定原子，返回其位置及其与所有邻接原子连线方向的平均单位向量。
+    若无邻居或平均向量过小，则返回默认方向。
+    """
+    conf = mol.GetConformer()
+    pos = np.array(conf.GetAtomPosition(index))
     atom = mol.GetAtomWithIdx(index)
-    degree = atom.GetDegree()
-    pos = np.array(conf_mol.GetAtomPosition(index))
-
-    # 获取原子的邻居位置
     neighbors = atom.GetNeighbors()
-    neb_pos = []
-    for neighbor in neighbors:
-        neighbor_idx = neighbor.GetIdx()
-        neighbor_pos = conf_mol.GetAtomPosition(neighbor_idx)
-        neb_pos.append(np.array([neighbor_pos.x, neighbor_pos.y, neighbor_pos.z]))
+    if not neighbors:
+        return pos, DEFAULT_DIRECTION
+    vecs = []
+    for nbr in neighbors:
+        nbr_pos = np.array(conf.GetAtomPosition(nbr.GetIdx()))
+        v = pos - nbr_pos
+        if np.linalg.norm(v) > 1e-6:
+            vecs.append(v / np.linalg.norm(v))
+    if not vecs:
+        return pos, DEFAULT_DIRECTION
+    avg = np.mean(vecs, axis=0)
+    norm_avg = np.linalg.norm(avg)
+    if norm_avg < MIN_DIRECTION_NORM:
+        logger.warning("Atom %s: Computed local direction norm too small (%.3f); using default.", index, norm_avg)
+        return pos, DEFAULT_DIRECTION
+    return pos, avg / norm_avg
 
-    v_norm = None
-    if degree == 1:
+def align_monomer_unit(monomer, connection_atom_idx, target_position, target_direction):
+    conf = monomer.GetConformer()
+    B = np.array(conf.GetAtomPosition(connection_atom_idx))
+    if np.linalg.norm(target_direction) < MIN_DIRECTION_NORM:
+        logger.warning("Target direction is too small; using default direction.")
+        target_direction = DEFAULT_DIRECTION
+    _, local_dir = get_vector(monomer, connection_atom_idx)
+    if np.linalg.norm(local_dir) < MIN_DIRECTION_NORM:
+        logger.warning("Local direction of atom %s is too small; using default.", connection_atom_idx)
+        local_dir = DEFAULT_DIRECTION
+    rot_obj = rotate_vector_to_align(local_dir, -target_direction)
+    for i in range(monomer.GetNumAtoms()):
+        pos_i = np.array(conf.GetAtomPosition(i))
+        new_pos = B + rot_obj.apply(pos_i - B)
+        conf.SetAtomPosition(i, new_pos)
+    B_rot = np.array(conf.GetAtomPosition(connection_atom_idx))
+    translation = target_position - B_rot
+    for i in range(monomer.GetNumAtoms()):
+        pos_i = np.array(conf.GetAtomPosition(i))
+        conf.SetAtomPosition(i, pos_i + translation)
+    return monomer
 
-        # 计算向量
-        v = pos - neb_pos[0]
-        v_norm = v / np.linalg.norm(v)
+def local_optimize(mol, maxIters=50, num_retries=10, perturbation=0.01):
 
-        # # 设置旋转轴，这里使用z轴
-        # rotation_axis = np.array([0, 0, 1])
-        #
-        # # 旋转角度，从度转换为弧度
-        # rotation_degrees = 60  # 180 - 109.5
-        # rotation_radians = np.deg2rad(rotation_degrees)
-        #
-        # # 创建旋转对象
-        # rotation = R.from_rotvec(rotation_axis * rotation_radians)
-        #
-        # # 应用旋转到向量
-        # v_norm = rotation.apply(v_norm)
+    import numpy as np
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
 
-    elif degree > 1:
+    for attempt in range(num_retries):
+        try:
+            mol.UpdatePropertyCache(strict=False)
+            _ = Chem.GetSymmSSSR(mol)
 
-        sum_vi_norm = np.zeros(3)
-        for i in range(degree):
+            # 优化前检查是否有重叠原子
+            if has_overlapping_atoms(mol):
+                logger.warning("Molecule has overlapping atoms, adjusting atomic positions.")
+                conf = mol.GetConformer()
+                for i in range(mol.GetNumAtoms()):
+                    pos = np.array(conf.GetAtomPosition(i))
+                    if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:  # 仅调整氢原子
+                        conf.SetAtomPosition(i, pos + np.random.uniform(0.01, 1.8, size=3))
 
-            # 计算向量和归一化向量
-            vi = pos - neb_pos[i]
-            vi_norm = vi / np.linalg.norm(vi)
+            status = AllChem.MMFFOptimizeMolecule(mol, maxIters=maxIters)
+            if status < 0:
+                raise RuntimeError("MMFF optimization returned status %s" % status)
+            return mol  # 优化成功，返回分子
 
-            sum_vi_norm += vi_norm
+        except Exception as e:
+            logger.warning(f"Local optimization attempt {attempt + 1} failed: {e}")
+            conf = mol.GetConformer()
+            for i in range(mol.GetNumAtoms()):
+                pos = np.array(conf.GetAtomPosition(i))
+                delta = np.random.uniform(-perturbation, perturbation, size=3)
+                conf.SetAtomPosition(i, pos + delta)
+    logger.error("Local optimization failed after {num_retries} attempts.")
+    return mol
 
-        # 计算向量 v_tail_norm
-        v_norm = sum_vi_norm / np.linalg.norm(sum_vi_norm)
+def rotate_substructure_around_axis(mol, atom_indices, axis, anchor, angle_rad):
+    """
+    对分子中给定 atom_indices 列表中的原子，
+    以 anchor 为中心绕单位向量 axis 旋转 angle_rad 弧度。
+    """
+    conf = mol.GetConformer()
+    rot = R.from_rotvec(axis * angle_rad)
+    for idx in atom_indices:
+        pos = np.array(conf.GetAtomPosition(idx))
+        pos_shifted = pos - anchor
+        pos_rot = rot.apply(pos_shifted)
+        conf.SetAtomPosition(idx, pos_rot + anchor)
 
-    return pos, v_norm
+def gen_3D_info(monomer_mol, length, polymer_conn_idx, monomer_conn_idx, bond_length):
+    """
+    利用刚性对齐方法将多个单体按顺序连接构建 3D 聚合物结构，增加精细的距离检查。
+    """
+    connecting_mol = Chem.RWMol(monomer_mol)
+    num_atoms = monomer_mol.GetNumAtoms()
 
-def connect_mols(mol1, mol2, tail_index, head_index, bond_length, trans, do_tetrahedral=True):
+    for i in range(1, length):
+        conf_poly = connecting_mol.GetConformer()
 
-    # 1. 先对齐 v1_norm 和 -v2_norm
-    pos1_tail, v1_norm = get_vector(mol1, tail_index)
-    pos2_head, v2_norm = get_vector(mol2, head_index)
+        tail_idx = polymer_conn_idx + (i - 1) * num_atoms
+        tail_pos = np.array(conf_poly.GetAtomPosition(tail_idx))
+        ideal_direction = compute_monomer_direction(monomer_mol, monomer_conn_idx, polymer_conn_idx)
 
-    # 计算旋转，让 v1_norm 对齐到 -v2_norm
-    rot = rotate_vector_to_align(v1_norm, -v2_norm)
+        # 增加0.3 Å的额外距离以缓解关键基团过近的问题
+        target_pos = tail_pos + (bond_length + 0.1) * ideal_direction
 
-    # 把 mol2 所有原子坐标收集，做旋转
-    conf_2 = mol2.GetConformer()
-    all_coords = []
-    for atom_idx in range(mol2.GetNumAtoms()):
-        p = conf_2.GetAtomPosition(atom_idx)
-        all_coords.append(np.array([p.x, p.y, p.z]))
+        new_unit = Chem.Mol(monomer_mol)
+        new_unit = align_monomer_unit(new_unit, monomer_conn_idx, target_pos, ideal_direction)
 
-    # 对 mol2 施加旋转
-    center = pos2_head  # 以 head 原子为锚点
-    rotated_coords = []
-    for pos in all_coords:
-        translated = pos - center
-        rotated = rot.apply(translated)
-        new_pos = rotated + center
-        rotated_coords.append(new_pos)
+        # 对新单元沿连接键轴进行额外旋转，中心设为 target_pos，旋转角度为 extra_angle
+        extra_angle = 0.5
+        atom_indices_to_rotate = [j for j in range(new_unit.GetNumAtoms()) if j != monomer_conn_idx]
+        rotate_substructure_around_axis(new_unit, atom_indices_to_rotate, ideal_direction, target_pos, extra_angle)
 
-    # 更新 mol2 的 Conformer
-    rotated_conf = Chem.Conformer(mol2.GetNumAtoms())
-    for idx, pos in enumerate(rotated_coords):
-        rotated_conf.SetAtomPosition(idx, pos)
-    rotated_mol = Chem.Mol(mol2)
-    rotated_mol.RemoveAllConformers()
-    rotated_mol.AddConformer(rotated_conf, assignId=True)
+        combined = Chem.CombineMols(connecting_mol, new_unit)
+        editable = Chem.EditableMol(combined)
+        new_unit_conn_idx = monomer_conn_idx + i * num_atoms
+        editable.AddBond(tail_idx, new_unit_conn_idx, order=BondType.SINGLE)
 
-    # 2. 再平移使得 head_index 与 mol1 的 tail_index 间距 = bond_length
-    pos2_adjusted = pos1_tail + v1_norm * bond_length
-    translation = pos2_adjusted - pos2_head
+        combined_mol = editable.GetMol()
+        combined_mol = Chem.RWMol(combined_mol)
+        h_indices = [nbr.GetIdx() for nbr in combined_mol.GetAtomWithIdx(new_unit_conn_idx).GetNeighbors()
+                     if nbr.GetAtomicNum() == 1]
+        place_h_in_tetrahedral(combined_mol, new_unit_conn_idx, h_indices)
 
-    new_conf = rotated_mol.GetConformer()
-    for atom_idx in range(rotated_mol.GetNumAtoms()):
-        pos = np.array([
-            new_conf.GetAtomPosition(atom_idx).x,
-            new_conf.GetAtomPosition(atom_idx).y,
-            new_conf.GetAtomPosition(atom_idx).z
-        ])
-        pos_new = pos + translation
-        new_conf.SetAtomPosition(atom_idx, pos_new)
+        # 进行局部能量优化，帮助调整连接区域几何
+        combined_mol = local_optimize(combined_mol, maxIters=100)
 
-    # 额外旋转 rotated_mol 围绕 v1_norm 旋转 90 度(示例)
-    if trans:
-        rotate_mol_around_axis(rotated_mol, axis=v1_norm, anchor=pos1_tail, angle_rad=pi/2)
+        # 连接后的分子重叠检查
+        if has_overlapping_atoms(combined_mol):
+            logger.warning(f"After unit {i + 1}, overlapping atoms detected.")
 
-    # 再次合并
-    combo = Chem.CombineMols(mol1, rotated_mol)
-    editable_combo = Chem.EditableMol(combo)
-    editable_combo.AddBond(
-        tail_index,
-        head_index + mol1.GetNumAtoms(),
-        order=Chem.rdchem.BondType.SINGLE
+        connecting_mol = Chem.RWMol(combined_mol)
+
+    final_polymer = connecting_mol.GetMol()
+    new_tail_idx = polymer_conn_idx + (length - 1) * num_atoms
+    return final_polymer, polymer_conn_idx, new_tail_idx
+
+def gen_3D_nocap(dum1, dum2, atom1, atom2, smiles_each, length):
+
+    input_mol = Chem.MolFromSmiles(smiles_each)
+    if input_mol is None:
+        raise ValueError("Invalid SMILES string.")
+    rw_mol = Chem.RWMol(input_mol)
+    for atom in rw_mol.GetAtoms():
+        if atom.GetSymbol() == '*':
+            atom.SetAtomicNum(53)
+    mol_with_h = Chem.AddHs(rw_mol)
+    rw_mol = Chem.RWMol(mol_with_h)
+
+    params = AllChem.ETKDGv3()
+    params.randomSeed = -1
+    if AllChem.EmbedMolecule(rw_mol, params) != 0:
+        logger.warning("3D embedding failed.")
+    AllChem.MMFFOptimizeMolecule(rw_mol)
+
+    indices_to_remove = sorted([dum1, dum2], reverse=True)
+    for idx in indices_to_remove:
+        rw_mol.RemoveAtom(idx)
+    monomer_mol = Chem.Mol(rw_mol)
+    if atom1 > atom2:
+        atom1, atom2 = atom2, atom1
+
+    def adjust_index(idx, removals):
+        return idx - sum(1 for r in removals if r < idx)
+
+    head_atom = adjust_index(atom1, indices_to_remove)
+    tail_atom = adjust_index(atom2, indices_to_remove)
+    if length == 1:
+        return monomer_mol, monomer_mol, head_atom, tail_atom
+    polymer, poly_conn_idx, new_tail_idx = gen_3D_info(
+        monomer_mol, length,
+        polymer_conn_idx=tail_atom,
+        monomer_conn_idx=head_atom,
+        bond_length=1.5
     )
-    mol_connected = editable_combo.GetMol()
 
-    # 5. 如果需要，对“新加的接头原子”做氢的四面体化
-    if do_tetrahedral:
-        # 假设要对 mol2 的 head_index 那个碳做氢的四面体化
-        # 它在合并后索引变为 head_index + mol1.GetNumAtoms()
-        new_head_idx = head_index + mol1.GetNumAtoms()
+    return polymer, monomer_mol, head_atom, new_tail_idx
 
-        rw_connected = Chem.RWMol(mol_connected)
-        # 找出这个原子的氢
-        h_indices = [nbr.GetIdx() for nbr in rw_connected.GetAtomWithIdx(new_head_idx).GetNeighbors()
-                     if rw_connected.GetAtomWithIdx(nbr.GetIdx()).GetAtomicNum() == 1]
-        if h_indices:
-            place_h_in_tetrahedral(rw_connected, new_head_idx, h_indices)
-            mol_connected = rw_connected.GetMol()
+def compute_monomer_direction(monomer, head_atom, tail_atom):
+    """
+    计算单体中两个连接原子之间的方向向量。
+    对于复杂环境（例如包含羰基和醚基的单体），优先采用 tail_atom 的非氢重原子邻居作为参考，
+    以获得更合理的连接方向。
+    """
+    from rdkit import Chem
+    conf = monomer.GetConformer()
+    tail_atom_obj = monomer.GetAtomWithIdx(tail_atom)
+    tail_pos = np.array(conf.GetAtomPosition(tail_atom))
+    head_pos = np.array(conf.GetAtomPosition(head_atom))
 
-    return mol_connected
+    # 获取 tail_atom 的所有非氢邻居（排除 head_atom）
+    heavy_neighbors = [nbr for nbr in tail_atom_obj.GetNeighbors()
+                       if nbr.GetAtomicNum() != 1 and nbr.GetIdx() != head_atom]
 
-def gen_3D_nocap(dum1, dum2, atom1, atom2, smiles_each, length, max_retries,):
+    if heavy_neighbors:
+        # 选择第一个重原子作为参考
+        ref_nbr = heavy_neighbors[0]
+        ref_pos = np.array(conf.GetAtomPosition(ref_nbr.GetIdx()))
+        vec = ref_pos - tail_pos
+    else:
+        vec = head_pos - tail_pos
 
-    for attempt in range(max_retries):
-        # Connect the units and caps to obtain SMILES structure
-        input_mol = Chem.MolFromSmiles(smiles_each)
-        rw_mol = Chem.RWMol(input_mol)
-        for atom in rw_mol.GetAtoms():
-            if atom.GetSymbol() == '*':
-                atom.SetAtomicNum(53)  # Iodine (as a placeholder for dummy atoms)
-        rw_mol = Chem.AddHs(rw_mol)
-
-        params = AllChem.ETKDGv3()
-        params.randomSeed = -1
-        AllChem.EmbedMolecule(rw_mol, params)
-        AllChem.MMFFOptimizeMolecule(rw_mol)
-
-        edit_m3 = Chem.EditableMol(rw_mol)
-
-        edit_m3.RemoveAtom(dum1)  # Delete dum1
-        if dum1 < dum2:
-            edit_m3.RemoveAtom(dum2 - 1)  # Adjust for index shift after removing dum1
-        else:
-            edit_m3.RemoveAtom(dum2)
-        monomer_mol = Chem.Mol(edit_m3.GetMol())
-
-        # Adjust the order of atoms and set connection points
-        if atom1 > atom2:
-            atom1, atom2 = atom2, atom1
-
-        def adjust_atom_index(dum1, dum2, atom):
-            if dum1 < atom and dum2 < atom:
-                return atom - 2
-            elif (dum1 < atom < dum2) or (dum1 > atom > dum2):
-                return atom - 1
-            else:
-                return atom
-
-        first_atom = adjust_atom_index(dum1, dum2, atom1)
-        second_atom = adjust_atom_index(dum1, dum2, atom2)
-
-        bond_length = 1.5
-        if length == 1:
-            mol_nocap = monomer_mol
-            return mol_nocap, monomer_mol, first_atom, second_atom
-
-        if 1 < length < 6:
-
-            mol_nocap, first_atom, second_atom = gen_3D_info(
-                monomer_mol,
-                length,
-                first_atom,
-                second_atom,
-                bond_length,
-            )
-            return mol_nocap, monomer_mol, first_atom, second_atom
-
-        if length > 5:
-
-            # num = length // int(5)
-            # add = length % int(5)
-
-            mol_len5, first_atom_len5, second_atom_len5 = gen_3D_info(
-                monomer_mol = monomer_mol,
-                length = length,
-                first_atom = first_atom,
-                second_atom = second_atom,
-                bond_length = bond_length
-            )
-
-            # mol_add, first_atom_len_add, second_atom_len_add = gen_3D_info(
-            #     monomer_mol = monomer_mol,
-            #     length = add,
-            #     first_atom = first_atom,
-            #     second_atom = second_atom,
-            #     bond_length = bond_length
-            # )
-            #
-            # mol_main = Chem.Mol(mol_len5)
-            #
-            # trans = True
-            # for i in range(1, num):
-            #
-            #     tail_index = second_atom_len5 + (i - 1) * mol_len5.GetNumAtoms()
-            #     head_index = first_atom_len5
-            #
-            #     mol_main = connect_mols(
-            #         mol_main,
-            #         mol_len5,
-            #         tail_index,
-            #         head_index,
-            #         bond_length,
-            #         trans,
-            #     )
-            #
-            #     if not trans:
-            #         trans = True
-            #     else:
-            #         trans = False
-            #
-            # if add > 0:
-            #
-            #     # Add the remaining units
-            #     tail_index = second_atom_len5 + (num - 1) * mol_len5.GetNumAtoms()
-            #     head_index = first_atom_len_add
-            #
-            #     mol_main = connect_mols(
-            #         mol_main,
-            #         mol_add,
-            #         tail_index,
-            #         head_index,
-            #         bond_length,
-            #         trans,
-            #     )
-
-        # check 3D structure
-        mol_nocap = mol_len5
-        return mol_nocap, monomer_mol, first_atom, second_atom + (length - 1) * monomer_mol.GetNumAtoms()
-        # overlap = has_overlapping_atoms(mol_nocap,)
-        # if not overlap:
-        #     return mol_nocap, monomer_mol, first_atom, second_atom + (length - 1) * monomer_mol.GetNumAtoms()
-        # else:
-        #     print(f"Attempt nocap {attempt + 1}. Retrying...")
-        #     continue
-
+    norm = np.linalg.norm(vec)
+    if norm < 1e-6:
+        logger.warning("Monomer connection vector norm too small; using default direction.")
+        return DEFAULT_DIRECTION
+    return vec / norm
 
 def gen_3D_withcap(mol, start_atom, end_atom):
-
-    # for attempt in range(max_retries):
 
     capped_mol = Chem.RWMol(mol)
     terminal_atoms = [start_atom, end_atom]
@@ -791,7 +620,6 @@ def gen_3D_withcap(mol, start_atom, end_atom):
             capping_info.append({'type': 'H', 'atom_idx': terminal_idx})
         else:
             capping_info.append({'type': 'CH3', 'atom_idx': terminal_idx})
-    # print(capping_info)
 
     for cap in capping_info:
 
@@ -844,30 +672,96 @@ def gen_3D_withcap(mol, start_atom, end_atom):
                 trans = True
             )
 
-    # return capped_mol
-
     # 检查原子间距离是否合理
     overlap = check_molecule_structure(capped_mol, energy_threshold=50.0)
     if not overlap:
-        print("生成结构成功")
         return capped_mol
     else:
-        print("生成结构失败")
+        print(f"Generated the pdb file failed !!!")
+
+def connect_mols(mol1, mol2, tail_index, head_index, bond_length, trans, do_tetrahedral=True):
+    # 获取连接原子（尾部原子和头部原子）的位置和方向
+    pos1_tail, v1_norm = get_vector(mol1, tail_index)  # 获取mol1尾部原子的方向
+    pos2_head, v2_norm = get_vector(mol2, head_index)  # 获取mol2头部原子的方向
+
+    # 计算旋转，使v1_norm对齐到-v2_norm
+    rot = rotate_vector_to_align(v1_norm, -v2_norm)
+
+    # 获取mol2中所有原子的坐标
+    conf_2 = mol2.GetConformer()
+    all_coords = []
+    for atom_idx in range(mol2.GetNumAtoms()):
+        p = conf_2.GetAtomPosition(atom_idx)
+        all_coords.append(np.array([p.x, p.y, p.z]))
+
+    # 旋转mol2的原子
+    center = pos2_head  # 以头部原子作为旋转的中心
+    rotated_coords = []
+    for pos in all_coords:
+        translated = pos - center
+        rotated = rot.apply(translated)  # 旋转原子
+        new_pos = rotated + center
+        rotated_coords.append(new_pos)
+
+    # 更新mol2的Conformer
+    rotated_conf = Chem.Conformer(mol2.GetNumAtoms())
+    for idx, pos in enumerate(rotated_coords):
+        rotated_conf.SetAtomPosition(idx, pos)
+    rotated_mol = Chem.Mol(mol2)
+    rotated_mol.RemoveAllConformers()
+    rotated_mol.AddConformer(rotated_conf, assignId=True)
+
+    # 计算并平移mol2，使得它与mol1的尾端原子之间的距离为bond_length
+    pos2_adjusted = pos1_tail + v1_norm * bond_length  # 目标位置
+    translation = pos2_adjusted - pos2_head  # 计算平移量
+
+    new_conf = rotated_mol.GetConformer()
+    for atom_idx in range(rotated_mol.GetNumAtoms()):
+        pos = np.array([
+            new_conf.GetAtomPosition(atom_idx).x,
+            new_conf.GetAtomPosition(atom_idx).y,
+            new_conf.GetAtomPosition(atom_idx).z
+        ])
+        pos_new = pos + translation  # 平移后的新位置
+        new_conf.SetAtomPosition(atom_idx, pos_new)
+
+    # 如果需要，进一步旋转mol2
+    if trans:
+        rotate_mol_around_axis(rotated_mol, axis=v1_norm, anchor=pos1_tail, angle_rad=np.pi / 2)
+
+    # 合并mol1和mol2
+    combo = Chem.CombineMols(mol1, rotated_mol)
+    editable_combo = Chem.EditableMol(combo)
+    editable_combo.AddBond(
+        tail_index,
+        head_index + mol1.GetNumAtoms(),
+        order=Chem.rdchem.BondType.SINGLE
+    )
+    mol_connected = editable_combo.GetMol()
+
+    # 进行重叠原子检查
+    if has_overlapping_atoms(mol_connected):
+        logger.warning("After connecting molecules, overlapping atoms detected.")
+        # 对分子进行微调，避免重叠
+        mol_connected = local_optimize(mol_connected, maxIters=100)
+
+    # 如果需要，对新连接的头部原子做氢的四面体化处理
+    if do_tetrahedral:
+        # 获取新连接的头部原子的氢原子索引
+        new_head_idx = head_index + mol1.GetNumAtoms()
+
+        rw_connected = Chem.RWMol(mol_connected)
+        # 获取头部原子的氢原子
+        h_indices = [nbr.GetIdx() for nbr in rw_connected.GetAtomWithIdx(new_head_idx).GetNeighbors()
+                     if rw_connected.GetAtomWithIdx(nbr.GetIdx()).GetAtomicNum() == 1]
+        if h_indices:
+            place_h_in_tetrahedral(rw_connected, new_head_idx, h_indices)  # 对氢原子进行四面体化
+            mol_connected = rw_connected.GetMol()
+
+    return mol_connected
 
 def check_molecule_structure(mol, energy_threshold=50.0):
-    """
-    检查 RDKit 分子对象是否包含合理的 3D 结构。
-    1. 尝试 Sanitize 检查基本化学合理性。
-    2. 检查是否存在 3D 构象。
-    3. 简单力场优化并检查能量是否过高。
 
-    参数：
-        mol (rdkit.Chem.rdchem.Mol): 含有 3D 坐标的 RDKit 分子对象。
-        energy_threshold (float): 优化后能量阈值，超过则判定结构可能不合理。
-
-    返回：
-        bool: 合理则返回 True，否则返回 False。
-    """
     # 1. 尝试对分子进行基本的 Sanitize 检查
     try:
         Chem.SanitizeMol(mol)
@@ -903,60 +797,118 @@ def check_molecule_structure(mol, energy_threshold=50.0):
     return True
 
 
-def get_min_distance(atom1, atom2, bond_graph):
-    # 检查原子1和原子2是否相连
-    if bond_graph.has_edge(atom1, atom2):
-        # 如果相连，则使用较小的距离（1.1 Å）
-        return 1.0
-    else:
-        # 如果不相连，则使用较大的距离（1.2 Å）
-        return 1.2
-
-def  has_overlapping_atoms(mol):
-    # 获取分子的拓扑结构
+def has_overlapping_atoms(mol, connected_distance=1.0, disconnected_distance=1.55):
+    """
+    检查分子中是否存在原子重叠：
+      - 如果两个原子通过化学键相连，则允许的最小距离为 connected_distance
+      - 如果不相连，则默认使用 disconnected_distance，
+        如果任一原子为氧或卤素（F, Cl, Br, I）或两个原子均为碳，
+        则要求最小距离为 1.6 Å（你也可以修改为 2.1 Å，根据需要）。
+    当检测到原子对距离过近时，会输出相关信息，包括原子的名称。
+    """
+    # 获取分子的拓扑结构（邻接矩阵）
     mol_graph = Chem.rdmolops.GetAdjacencyMatrix(mol)
 
     # 获取所有原子的坐标
     conf = mol.GetConformer()
     positions = conf.GetPositions()
 
-    # 获取分子中的原子类型
-    atom_types = [mol.GetAtomWithIdx(i).GetSymbol() for i in range(mol.GetNumAtoms())]
-
-    # 创建一个无向图用于存储原子间的连接关系
+    # 构建一个无向图来存储化学键连接关系
     bond_graph = nx.Graph()
-
-    # 将分子中的原子添加为节点
     for i in range(mol.GetNumAtoms()):
         bond_graph.add_node(i, position=positions[i])
-
-    # 添加边：通过 RDKit 获取化学键连接的原子对
     for bond in mol.GetBonds():
         atom1 = bond.GetBeginAtomIdx()
         atom2 = bond.GetEndAtomIdx()
         bond_graph.add_edge(atom1, atom2)
 
-    # 创建一个无向图存储计算的重叠关系
+    # 创建一个图用于存储重叠关系
     G = nx.Graph()
-
-    # 计算原子之间的距离并添加边
     num_atoms = mol.GetNumAtoms()
     for i in range(num_atoms):
         for j in range(i + 1, num_atoms):
             distance = np.linalg.norm(positions[i] - positions[j])
-            # 获取原子对的最小距离
-            actual_min_distance = get_min_distance(i, j, bond_graph)
-            # 如果原子间的距离小于实际的最小距离，则认为原子发生重叠，添加边
+            # 获取原子对允许的最小距离
+            actual_min_distance = get_min_distance(mol, i, j, bond_graph, connected_distance, disconnected_distance)
+            # 如果实际距离小于允许距离，则认为这对原子重叠
             if distance < actual_min_distance:
+                atom1_name = mol.GetAtomWithIdx(i).GetSymbol()
+                atom2_name = mol.GetAtomWithIdx(j).GetSymbol()
+                print(f"Overlapping detected: Atom {atom1_name} ({i}) and Atom {atom2_name} ({j}) are too close "
+                      f"(distance: {distance:.2f} Å, allowed minimum: {actual_min_distance:.2f} Å)")
                 G.add_edge(i, j, weight=distance)
 
-    # 判断图中是否有边（即是否存在重叠原子）
-    if len(G.edges) > 0:
-        return True  # 存在重叠原子
+    # 如果图中有边，则表示存在重叠原子
+    return len(G.edges) > 0
+
+
+def get_min_distance(mol, atom1, atom2, bond_graph, connected_distance=1.0, disconnected_distance=1.55):
+    """
+    根据原子对的连接情况及原子类型返回最小允许距离：
+      - 如果 atom1 和 atom2 之间存在化学键，则返回 connected_distance
+      - 如果不相连，则：
+          * 如果任一原子为氧、卤素（F, Cl, Br, I）、氢原子，
+            或两个原子均为碳，则返回 1.6 Å （你可以根据需要调整该数值，例如改为 2.1 Å）
+          * 如果有氧、卤素与氢原子之间的连接，返回 1.8 Å
+          * 否则返回 disconnected_distance。
+    """
+    if bond_graph.has_edge(atom1, atom2):
+        return connected_distance
     else:
-        return False  # 没有重叠原子
+        symbol1 = mol.GetAtomWithIdx(atom1).GetSymbol()
+        symbol2 = mol.GetAtomWithIdx(atom2).GetSymbol()
+
+        # 判断条件：氧、卤素和氢原子之间的连接返回 1.8 Å
+        if (symbol1 in ['O', 'F', 'Cl', 'Br', 'I'] and symbol2 in ['H']) or \
+                (symbol1 in ['H'] and symbol2 in ['O', 'F', 'Cl', 'Br', 'I']) or \
+                (symbol1 == 'N' and symbol2 == 'O') or (symbol1 == 'O' and symbol2 == 'N'):
+            return 1.8
+        # 判断条件：氧、卤素、氮和碳之间的连接返回 1.6 Å
+        elif (symbol1 in ['O', 'F', 'Cl', 'Br', 'I'] and symbol2 in ['O', 'F', 'Cl', 'Br', 'I']) or \
+                (symbol1 == 'C' and symbol2 == 'O') or (symbol1 == 'O' and symbol2 == 'C'):
+            return 1.6
+        else:
+            return disconnected_distance
 
 
+def set_connection_dihedral(mol, tail_index, head_index_new, fixed_angle=180.0):
+    """
+    固定连接键处的二面角以刚性化聚合物链片段。
+
+    参数：
+      - mol: 合并后的分子（RDKit Mol 对象）。
+      - tail_index: 来自第一个分子（mol1）的连接原子索引。
+      - head_index_new: 来自第二个分子（mol2）经过合并后对应的连接原子索引。
+      - fixed_angle: 希望设置的二面角（单位：度），例如 180 度。
+
+    实现思路：
+      1. 对 tail_index，选择其除 head_index_new 外的一个邻居作为 dihedral 第一个原子。
+      2. 对 head_index_new，选择其除 tail_index 外的一个邻居作为 dihedral 第四个原子。
+      3. 利用 rdMolTransforms.SetDihedralDeg 设置这 4 个原子的二面角。
+    """
+    conf = mol.GetConformer()
+    tail_atom = mol.GetAtomWithIdx(tail_index)
+    head_atom = mol.GetAtomWithIdx(head_index_new)
+
+    # 找出 tail_index 的其他邻居（排除已连接的 head_index_new）
+    tail_neighbors = [nbr.GetIdx() for nbr in tail_atom.GetNeighbors() if nbr.GetIdx() != head_index_new]
+    if len(tail_neighbors) == 0:
+        print(f"Warning: Tail atom {tail_index} 无其他邻居，无法定义二面角！")
+        return
+    atom_a = tail_neighbors[0]
+
+    # 找出 head_index_new 的其他邻居（排除 tail_index）
+    head_neighbors = [nbr.GetIdx() for nbr in head_atom.GetNeighbors() if nbr.GetIdx() != tail_index]
+    if len(head_neighbors) == 0:
+        print(f"Warning: Head atom {head_index_new} 无其他邻居，无法定义二面角！")
+        return
+    atom_d = head_neighbors[0]
+
+    rdMolTransforms.SetDihedralDeg(conf, atom_a, tail_index, head_index_new, atom_d, fixed_angle)
+    print(f"已将原子 ({atom_a}, {tail_index}, {head_index_new}, {atom_d}) 的二面角设置为 {fixed_angle}°.")
+
+# (symbol1 == 'C' and symbol2 == 'C') or
+#            (symbol1 == 'O' and symbol2 == 'H') or (symbol1 == 'H' and symbol2 == 'O'):
 def gen_smiles_with_cap(poly_name, inti_mol, first_atom, second_atom, smiles_LCap_, smiles_RCap_):
 
     # Add cap to main chain
@@ -1395,44 +1347,6 @@ def calculate_box_size(numbers, pdb_files, density):
     total_volume = total_mass / density  # volume in cm^3
     length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
     return length
-
-
-# def mol_to_networkx(mol):
-#     """
-#     将 RDKit 的 mol 对象转换为 networkx 图
-#     节点属性包括原子类型
-#     """
-#     G = nx.Graph()
-#     for atom in mol.GetAtoms():
-#         G.add_node(atom.GetIdx(), element=atom.GetSymbol())
-#     for bond in mol.GetBonds():
-#         G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), bond_type=str(bond.GetBondType()))
-#     return G
-#
-#
-# def get_atom_mapping(mol1, mol2):
-#     """
-#     获取两个 mol 对象的原子对应关系
-#     返回 mapping: dict 从 mol1 节点索引到 mol2 节点索引
-#     """
-#     G1 = mol_to_networkx(mol1)
-#     G2 = mol_to_networkx(mol2)
-#
-#     # 定义节点匹配函数，基于原子元素
-#     def node_match(n1, n2):
-#         return n1['element'] == n2['element']
-#
-#     # 创建同构匹配对象
-#     gm = isomorphism.GraphMatcher(G1, G2, node_match=node_match)
-#
-#     if gm.is_isomorphic():
-#         # 返回一个可能的匹配字典，从 G1 节点到 G2 节点
-#         mapping = gm.mapping
-#         return mapping
-#     else:
-#         return None
-#
-#
 
 from openbabel import openbabel
 

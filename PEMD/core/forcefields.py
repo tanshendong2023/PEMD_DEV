@@ -77,25 +77,27 @@ class Forcefield:
 
         return instance
 
-    def get_oplsaa_xml(self, xml, pdb_file, chg_model = 'CM1A'):
+    def get_oplsaa_xml(self, xml, pdb_file, chg_model = 'CM1A-LBCC'):
 
         if xml == "ligpargen":
-            get_xml_ligpargen(
+            resp_chg_df = get_xml_ligpargen(
                 self.work_dir,
                 self.name,
                 self.resname,
                 self.repeating_unit,
+                self.length_short,
                 self.charge,
                 chg_model,
             )
 
-            return get_oplsaa_xml(
+            bonditp_filename, gro_filename = get_oplsaa_xml(
                 self.work_dir,
                 self.name,
                 pdb_file,
                 xml = "ligpargen",
             )
 
+            return bonditp_filename, gro_filename, resp_chg_df
         else:
             return get_oplsaa_xml(
                 self.work_dir,
@@ -104,7 +106,7 @@ class Forcefield:
                 xml = "database",
             )
 
-    def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, max_retries=500):
+    def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating):
 
         # mol_short = gen_poly_3D(
         #     self.name,
@@ -117,7 +119,6 @@ class Forcefield:
             self.name,
             self.repeating_unit,
             self.length_long,
-            max_retries
         )
 
         smiles_short = gen_poly_smiles(

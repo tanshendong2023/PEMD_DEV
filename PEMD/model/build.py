@@ -39,8 +39,8 @@ def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
         rightcap,
     )
 
-    if os.path.exists(poly_name + '.xyz'):
-        os.remove(poly_name + '.xyz')             # Delete intermediate XYZ file if exists
+    # if os.path.exists(poly_name + '.xyz'):
+    #     os.remove(poly_name + '.xyz')             # Delete intermediate XYZ file if exists
 
     return smiles_poly
 
@@ -154,8 +154,9 @@ def gen_copoly_smiles(poly_name, repeating_unit, x_length, y_length):
 
     return unit_smiles
 
-def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 50):
+def gen_poly_3D(poly_name, repeating_unit, length,):
 
+    # Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
     (
         dum1,
         dum2,
@@ -178,14 +179,12 @@ def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 50):
         atom2,
         repeating_unit,
         length,
-        max_retries
     )
 
     mol_3D = model_lib.gen_3D_withcap(
         inti_mol3,
         start_atom,
         end_atom,
-        # max_retries
     )
 
     # 处理基于 SMILES 的分子
@@ -216,7 +215,8 @@ def gen_poly_3D(poly_name, repeating_unit, length, max_retries = 50):
     # os.remove('mid.xyz')
     #
     # print(f"Generated {pdb_file}")
-
+    #
+    # return inti_mol3
     return mol_3D
 
 # def gen_poly_3D(work_dir, poly_name, poly_resname, length, smiles, max_attempts=3):

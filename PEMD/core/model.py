@@ -91,9 +91,9 @@ class PEMDModel:
             self.rightcap,
         )
 
-    def gen_homopolymer(self, max_retries=50):
+    def gen_homopolymer(self):
         """
-        Generate the SMILES representation of the homo polymer.
+        Generate the structure of the homo polymer.
 
         Parameters:
             core: The number of kernels used for segmental relaxation using LAMMPS.
@@ -106,7 +106,6 @@ class PEMDModel:
             self.poly_name,
             self.repeating_unit,
             self.length_long,
-            max_retries
         )
 
         pdb_filename = f"{self.poly_name}_N{self.length_long}.pdb"
@@ -115,7 +114,7 @@ class PEMDModel:
         model_lib.convert_xyz_to_pdb('mid.xyz', pdb_file, self.poly_name, self.poly_resname)
         os.remove('mid.xyz')
 
-        print(f"Generated the pdb file {pdb_filename} successfully")
+        print(f"\nGenerated the pdb file {pdb_filename} successfully")
 
         return pdb_filename
 
