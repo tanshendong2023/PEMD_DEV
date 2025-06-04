@@ -13,6 +13,12 @@ from PEMD.model.build import gen_poly_smiles
 from PEMD.forcefields.xml import XMLGenerator
 from PEMD.forcefields.ligpargen import PEMDLigpargen
 
+from PEMD.model.build import (
+    gen_poly_smiles,
+    gen_copoly_smiles,
+    gen_poly_3D,
+)
+
 
 def get_xml_ligpargen(work_dir, name, resname, repeating_unit, length, chg, chg_model, ):
 
