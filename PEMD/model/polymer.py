@@ -6,6 +6,8 @@ Date: 2025.05.23
 """
 
 import logging
+import os
+
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -23,7 +25,7 @@ from scipy.spatial.transform import Rotation as R
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.ERROR)
 
-# 配置日志记录
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -33,80 +35,14 @@ ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
-# Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
-def Init_info(poly_name, smiles_mid):
-    # Get index of dummy atoms and atoms associated with them
-    dum_index, bond_type = FetchDum(smiles_mid)
-    dum1 = dum_index[0]
-    dum2 = dum_index[1]
 
-    # Assign dummy atom according to bond type
-    dum = None
-    if bond_type == 'SINGLE':
-        dum = 'Cl'
-
-    # Replace '*' with dummy atom
-    smiles_each = smiles_mid.replace(r'*', dum)
-
-    # Convert SMILES to XYZ coordinates
-    xyz_filename = io.smile_toxyz(
-        poly_name,
-        smiles_each,       # Replace '*' with dummy atom
-    )
-
-    # Collect valency and connecting information for each atom according to XYZ coordinates
-    neigh_atoms_info = connec_info(xyz_filename)
-
-    # Find connecting atoms associated with dummy atoms.
-    # Dum1 and dum2 are connected to atom1 and atom2, respectively.
-    atom1 = neigh_atoms_info['NeiAtom'][dum1].copy()[0]
-    atom2 = neigh_atoms_info['NeiAtom'][dum2].copy()[0]
-
-    return dum1, dum2, atom1, atom2,
-
-# Get index of dummy atoms and bond type associated with it
-def FetchDum(smiles):
-    m = Chem.MolFromSmiles(smiles)
-    dummy_index = []
-    bond_type = None
-    if m is not None:
-        for atom in m.GetAtoms():
-            if atom.GetSymbol() == '*':
-                dummy_index.append(atom.GetIdx())
-        for bond in m.GetBonds():
-            if (
-                bond.GetBeginAtom().GetSymbol() == '*'
-                or bond.GetEndAtom().GetSymbol() == '*'
-            ):
-                bond_type = bond.GetBondType()
-                break
-    return dummy_index, str(bond_type)
-
-def connec_info(name):
-    # Collect valency and connecting information for each atom according to XYZ coordinates
-    obConversion = ob.OBConversion()
-    obConversion.SetInFormat("xyz")
-    mol = ob.OBMol()
-    obConversion.ReadFile(mol, name)
-    neigh_atoms_info = []
-
-    for atom in ob.OBMolAtomIter(mol):
-        neigh_atoms = []
-        bond_orders = []
-        for allatom in ob.OBAtomAtomIter(atom):
-            neigh_atoms.append(allatom.GetIndex())
-            bond_orders.append(atom.GetBond(allatom).GetBondOrder())
-        neigh_atoms_info.append([neigh_atoms, bond_orders])
-    neigh_atoms_info = pd.DataFrame(neigh_atoms_info, columns=['NeiAtom', 'BO'])
-    return neigh_atoms_info
-
-def gen_sequence_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, sequence, bond_length=1.5):
+def gen_sequence_copolymer_3D(poly_name, smiles_A, smiles_B, sequence, bond_length=1.5):
     """
     通用序列构建：sequence 是一个列表，如 ['A','B','B','A',…]
     """
     # 1. 预先初始化 A、B 单体的信息
-    dumA1, dumA2, atomA1, atomA2 = Init_info(poly_name_A, smiles_A)
-    dumB1, dumB2, atomB1, atomB2 = Init_info(poly_name_B, smiles_B)
+    dumA1, dumA2, atomA1, atomA2 = Init_info(poly_name, smiles_A)
+    dumB1, dumB2, atomB1, atomB2 = Init_info(poly_name, smiles_B)
 
     first_unit = sequence[0]
     if first_unit == 'A':
@@ -170,6 +106,75 @@ def gen_sequence_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, sequ
     final_poly = gen_3D_withcap(connecting_mol, h_1, tail_idx, length)
 
     return final_poly
+
+# Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
+def Init_info(poly_name, smiles_mid):
+    # Get index of dummy atoms and atoms associated with them
+    dum_index, bond_type = FetchDum(smiles_mid)
+    dum1 = dum_index[0]
+    dum2 = dum_index[1]
+
+    # Assign dummy atom according to bond type
+    dum = None
+    if bond_type == 'SINGLE':
+        dum = 'Cl'
+
+    # Replace '*' with dummy atom
+    smiles_each = smiles_mid.replace(r'*', dum)
+
+    # Convert SMILES to XYZ coordinates
+    xyz_filename = io.smile_toxyz(
+        poly_name,
+        smiles_each,       # Replace '*' with dummy atom
+    )
+
+    # Collect valency and connecting information for each atom according to XYZ coordinates
+    neigh_atoms_info = connec_info(xyz_filename)
+
+    # Find connecting atoms associated with dummy atoms.
+    # Dum1 and dum2 are connected to atom1 and atom2, respectively.
+    atom1 = neigh_atoms_info['NeiAtom'][dum1].copy()[0]
+    atom2 = neigh_atoms_info['NeiAtom'][dum2].copy()[0]
+
+    os.remove(xyz_filename)  # Clean up the temporary XYZ file
+
+    return dum1, dum2, atom1, atom2,
+
+# Get index of dummy atoms and bond type associated with it
+def FetchDum(smiles):
+    m = Chem.MolFromSmiles(smiles)
+    dummy_index = []
+    bond_type = None
+    if m is not None:
+        for atom in m.GetAtoms():
+            if atom.GetSymbol() == '*':
+                dummy_index.append(atom.GetIdx())
+        for bond in m.GetBonds():
+            if (
+                bond.GetBeginAtom().GetSymbol() == '*'
+                or bond.GetEndAtom().GetSymbol() == '*'
+            ):
+                bond_type = bond.GetBondType()
+                break
+    return dummy_index, str(bond_type)
+
+def connec_info(name):
+    # Collect valency and connecting information for each atom according to XYZ coordinates
+    obConversion = ob.OBConversion()
+    obConversion.SetInFormat("xyz")
+    mol = ob.OBMol()
+    obConversion.ReadFile(mol, name)
+    neigh_atoms_info = []
+
+    for atom in ob.OBMolAtomIter(mol):
+        neigh_atoms = []
+        bond_orders = []
+        for allatom in ob.OBAtomAtomIter(atom):
+            neigh_atoms.append(allatom.GetIndex())
+            bond_orders.append(atom.GetBond(allatom).GetBondOrder())
+        neigh_atoms_info.append([neigh_atoms, bond_orders])
+    neigh_atoms_info = pd.DataFrame(neigh_atoms_info, columns=['NeiAtom', 'BO'])
+    return neigh_atoms_info
 
 def prepare_monomer_nocap(smiles_mid: str,
                           dum1: int,
