@@ -13,10 +13,7 @@ from pathlib import Path
 from PEMD.model.packmol import PEMDPackmol
 from dataclasses import dataclass, field
 from PEMD.model.build import (
-    gen_homopolymer_3D,
-    gen_random_copolymer_3D,
-    gen_alternating_copolymer_3D,
-    gen_block_copolymer_3D,
+    gen_copolymer_3D,
     mol_to_pdb,
 )
 
@@ -63,31 +60,79 @@ class PEMDModel:
 
 
     @staticmethod
-    def gen_homopolymer(
+    def gen_copolymer(
         work_dir: Path,
-        poly_name: str,
-        smiles: str,
-        length: int,
-        poly_resname: str
+        poly_name_A: str,
+        poly_name_B: str,
+        smiles_A: str,
+        smiles_B: str,
+        *,
+        mode: str | None = None,
+        length: int | None = None,
+        frac_A: float = 0.5,
+        block_sizes: list[int] | None = None,
+        sequence: list[str] | None = None,
+        poly_resname: str = "MOL",
     ) -> str:
+        """Generate a copolymer PDB file using a unified interface."""
 
-        mol = gen_homopolymer_3D(
-            poly_name,
-            smiles,
-            length
+        mol = gen_copolymer_3D(
+            poly_name_A,
+            poly_name_B,
+            smiles_A,
+            smiles_B,
+            mode=mode,
+            length=length,
+            frac_A=frac_A,
+            block_sizes=block_sizes,
+            sequence=sequence,
         )
 
-        pdb_filename = f"{poly_name}_N{length}.pdb"
+        poly_name = (
+            poly_name_A if poly_name_A == poly_name_B else f"{poly_name_A}_{poly_name_B}"
+        )
+
+        if sequence is not None:
+            seq_len = len(sequence)
+        elif length is not None:
+            seq_len = length
+        elif block_sizes is not None:
+            seq_len = sum(block_sizes)
+        else:
+            raise ValueError("length information missing")
+
+        pdb_filename = f"{poly_name}_N{seq_len}.pdb"
 
         mol_to_pdb(
             work_dir=work_dir,
             mol=mol,
             poly_name=poly_name,
             poly_resname=poly_resname,
-            pdb_filename=pdb_filename
+            pdb_filename=pdb_filename,
         )
         print(f"\nGenerated the pdb file {pdb_filename} successfully")
         return pdb_filename
+
+
+    @staticmethod
+    def gen_homopolymer(
+        work_dir: Path,
+        poly_name: str,
+        smiles: str,
+        length: int,
+        poly_resname: str,
+    ) -> str:
+
+        return PEMDModel.gen_copolymer(
+            work_dir=work_dir,
+            poly_name_A=poly_name,
+            poly_name_B=poly_name,
+            smiles_A=smiles,
+            smiles_B=smiles,
+            mode="homopolymer",
+            length=length,
+            poly_resname=poly_resname,
+        )
 
 
     def build_homopolymer(self) -> str:
@@ -98,6 +143,39 @@ class PEMDModel:
             smiles=self.repeating_unit,
             length=self.length_long,
             poly_resname=self.poly_resname
+        )
+
+    def build_copolymer(
+        self,
+        poly_name_A: str,
+        poly_name_B: str,
+        smiles_A: str,
+        smiles_B: str,
+        *,
+        mode: str | None = None,
+        length: int | None = None,
+        frac_A: float = 0.5,
+        block_sizes: list[int] | None = None,
+        sequence: list[str] | None = None,
+        poly_resname: str | None = None,
+    ) -> str:
+        """Build a copolymer specified by ``mode`` or ``sequence``."""
+
+        if poly_resname is None:
+            poly_resname = self.poly_resname
+
+        return PEMDModel.gen_copolymer(
+            work_dir=self.work_dir,
+            poly_name_A=poly_name_A,
+            poly_name_B=poly_name_B,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode=mode,
+            length=length,
+            frac_A=frac_A,
+            block_sizes=block_sizes,
+            sequence=sequence,
+            poly_resname=poly_resname,
         )
 
 
@@ -112,29 +190,16 @@ class PEMDModel:
             frac_A: float
     ) -> str:
 
-        mol = gen_random_copolymer_3D(
-            poly_name_A,
-            poly_name_B,
-            smiles_A,
-            smiles_B,
-            length,
-            frac_A,
+        return PEMDModel.gen_copolymer(
+            work_dir=work_dir,
+            poly_name_A=poly_name_A,
+            poly_name_B=poly_name_B,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode="random",
+            length=length,
+            frac_A=frac_A,
         )
-
-        poly_name = f"{poly_name_A}_{poly_name_B}"
-        pdb_filename = f"{poly_name}_N{length}.pdb"
-
-        mol_to_pdb(
-            work_dir,
-            mol,
-            poly_name,
-            poly_resname = "MOL",
-            pdb_filename = pdb_filename,
-        )
-
-        print(f"\nGenerated the pdb file {pdb_filename} successfully")
-
-        return pdb_filename
 
 
     @staticmethod
@@ -147,28 +212,15 @@ class PEMDModel:
             length: int
     ) -> str:
 
-        mol = gen_alternating_copolymer_3D(
-            poly_name_A,
-            poly_name_B,
-            smiles_A,
-            smiles_B,
-            length,
+        return PEMDModel.gen_copolymer(
+            work_dir=work_dir,
+            poly_name_A=poly_name_A,
+            poly_name_B=poly_name_B,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode="alternating",
+            length=length,
         )
-
-        poly_name = f"{poly_name_A}_{poly_name_B}"
-        pdb_filename = f"{poly_name}_N{length}.pdb"
-
-        mol_to_pdb(
-            work_dir,
-            mol,
-            poly_name,
-            poly_resname = "MOL",
-            pdb_filename = pdb_filename,
-        )
-
-        print(f"\nGenerated the pdb file {pdb_filename} successfully")
-
-        return pdb_filename
 
 
     @staticmethod
@@ -181,29 +233,15 @@ class PEMDModel:
             block_sizes: list[int]
     ) -> str:
 
-        mol = gen_block_copolymer_3D(
-            poly_name_A,
-            poly_name_B,
-            smiles_A,
-            smiles_B,
-            block_sizes,
+        return PEMDModel.gen_copolymer(
+            work_dir=work_dir,
+            poly_name_A=poly_name_A,
+            poly_name_B=poly_name_B,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode="block",
+            block_sizes=block_sizes,
         )
-
-        poly_name = f"{poly_name_A}_{poly_name_B}"
-        length = sum(block_sizes)
-        pdb_filename = f"{poly_name}_N{length}.pdb"
-
-        mol_to_pdb(
-            work_dir,
-            mol,
-            poly_name,
-            poly_resname = "MOL",
-            pdb_filename = pdb_filename,
-        )
-
-        print(f"\nGenerated the pdb file {pdb_filename} successfully")
-
-        return pdb_filename
 
     def gen_amorphous_structure(
         self,

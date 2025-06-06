@@ -1,8 +1,8 @@
-"""
-Polymer model building tools.
+"""Polymer model building tools.
 
-Developed by: Tan Shendong
-Date: 2024.01.18
+The :func:`gen_copolymer_3D` helper offers a unified interface to build
+homopolymers and various copolymers. Legacy functions remain as thin wrappers
+for backward compatibility.
 """
 
 
@@ -15,28 +15,138 @@ from PEMD.model import polymer
 from rdkit.Chem import Descriptors
 
 
+def gen_copolymer_3D(poly_name_A,
+                     poly_name_B,
+                     smiles_A,
+                     smiles_B,
+                     *,
+                     mode: str | None = None,
+                     length: int | None = None,
+                     frac_A: float = 0.5,
+                     block_sizes: list[int] | None = None,
+                     sequence: list[str] | None = None):
+    """Generate a 3D copolymer model.
+
+    Parameters
+    ----------
+    poly_name_A, poly_name_B : str
+        Names of the two monomer units.
+    smiles_A, smiles_B : str
+        SMILES of the two monomer units.
+    mode : {"homopolymer", "random", "alternating", "block"}, optional
+        Sequence generation mode. Ignored if ``sequence`` is provided.
+    length : int, optional
+        Polymer length for ``homopolymer``, ``random`` and ``alternating``.
+    frac_A : float, default 0.5
+        Fraction of monomer A for ``random`` mode.
+    block_sizes : list[int], optional
+        Sizes of each block for ``block`` mode.
+    sequence : list[str], optional
+        Explicit sequence composed of 'A' and 'B'.
+    """
+
+    if sequence is None:
+        if mode == "homopolymer":
+            if length is None:
+                raise ValueError("length is required for homopolymer mode")
+            sequence = ['A'] * length
+        elif mode == "random":
+            if length is None:
+                raise ValueError("length is required for random mode")
+            sequence = [
+                'A' if random.random() < frac_A else 'B'
+                for _ in range(length)
+            ]
+        elif mode == "alternating":
+            if length is None:
+                raise ValueError("length is required for alternating mode")
+            sequence = ['A' if i % 2 == 0 else 'B' for i in range(length)]
+        elif mode == "block":
+            if not block_sizes:
+                raise ValueError("block_sizes is required for block mode")
+            sequence = []
+            for i, blk in enumerate(block_sizes):
+                mon = 'A' if i % 2 == 0 else 'B'
+                sequence += [mon] * blk
+        else:
+            raise ValueError("mode must be provided when sequence is None")
+
+    return polymer.gen_sequence_copolymer_3D(
+        poly_name_A,
+        poly_name_B,
+        smiles_A,
+        smiles_B,
+        sequence,
+    )
+
+
 # homopolymer -A-A-A-
 def gen_homopolymer_3D(poly_name, smiles, length):
-    sequence = ['A'] * length
-    return polymer.gen_sequence_copolymer_3D(poly_name, poly_name, smiles, smiles, sequence)
+    """Deprecated wrapper for :func:`gen_copolymer_3D`."""
+    return gen_copolymer_3D(
+        poly_name,
+        poly_name,
+        smiles,
+        smiles,
+        mode="homopolymer",
+        length=length,
+    )
 
 # random copolymer -A-B-A-A-B-B-
-def gen_random_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, length, frac_A=0.5):
-    sequence = ['A' if random.random() < frac_A else 'B' for _ in range(length)]
-    return polymer.gen_sequence_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, sequence)
+def gen_random_copolymer_3D(
+    poly_name_A,
+    poly_name_B,
+    smiles_A,
+    smiles_B,
+    length,
+    frac_A=0.5,
+):
+    """Deprecated wrapper for :func:`gen_copolymer_3D`."""
+    return gen_copolymer_3D(
+        poly_name_A,
+        poly_name_B,
+        smiles_A,
+        smiles_B,
+        mode="random",
+        length=length,
+        frac_A=frac_A,
+    )
 
 # alternating copolymer -A-B-A-B-
-def gen_alternating_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, length):
-    sequence = ['A' if i % 2 == 0 else 'B' for i in range(length)]
-    return polymer.gen_sequence_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, sequence)
+def gen_alternating_copolymer_3D(
+    poly_name_A,
+    poly_name_B,
+    smiles_A,
+    smiles_B,
+    length,
+):
+    """Deprecated wrapper for :func:`gen_copolymer_3D`."""
+    return gen_copolymer_3D(
+        poly_name_A,
+        poly_name_B,
+        smiles_A,
+        smiles_B,
+        mode="alternating",
+        length=length,
+    )
 
 # block copolymer -A-A-A-B-B-B-
-def gen_block_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, block_sizes,):
-    sequence = []
-    for i, blk in enumerate(block_sizes):
-        mon = 'A' if i % 2 == 0 else 'B'
-        sequence += [mon] * blk
-    return polymer.gen_sequence_copolymer_3D(poly_name_A, poly_name_B, smiles_A, smiles_B, sequence,)
+def gen_block_copolymer_3D(
+    poly_name_A,
+    poly_name_B,
+    smiles_A,
+    smiles_B,
+    block_sizes,
+):
+    """Deprecated wrapper for :func:`gen_copolymer_3D`."""
+    return gen_copolymer_3D(
+        poly_name_A,
+        poly_name_B,
+        smiles_A,
+        smiles_B,
+        mode="block",
+        block_sizes=block_sizes,
+    )
 
 def mol_to_pdb(work_dir, mol, poly_name, poly_resname, pdb_filename):
 
