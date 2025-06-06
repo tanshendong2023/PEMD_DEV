@@ -6,7 +6,7 @@ Date: 2025.05.23
 """
 
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -36,13 +36,13 @@ mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
 
-def gen_sequence_copolymer_3D(poly_name, smiles_A, smiles_B, sequence, bond_length=1.5):
+def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.5):
     """
     通用序列构建：sequence 是一个列表，如 ['A','B','B','A',…]
     """
     # 1. 预先初始化 A、B 单体的信息
-    dumA1, dumA2, atomA1, atomA2 = Init_info(poly_name, smiles_A)
-    dumB1, dumB2, atomB1, atomB2 = Init_info(poly_name, smiles_B)
+    dumA1, dumA2, atomA1, atomA2 = Init_info(name, smiles_A)
+    dumB1, dumB2, atomB1, atomB2 = Init_info(name, smiles_B)
 
     first_unit = sequence[0]
     if first_unit == 'A':
@@ -108,7 +108,7 @@ def gen_sequence_copolymer_3D(poly_name, smiles_A, smiles_B, sequence, bond_leng
     return final_poly
 
 # Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
-def Init_info(poly_name, smiles_mid):
+def Init_info(name, smiles_mid):
     # Get index of dummy atoms and atoms associated with them
     dum_index, bond_type = FetchDum(smiles_mid)
     dum1 = dum_index[0]
@@ -124,7 +124,7 @@ def Init_info(poly_name, smiles_mid):
 
     # Convert SMILES to XYZ coordinates
     xyz_filename = io.smile_toxyz(
-        poly_name,
+        name,
         smiles_each,       # Replace '*' with dummy atom
     )
 
@@ -136,7 +136,7 @@ def Init_info(poly_name, smiles_mid):
     atom1 = neigh_atoms_info['NeiAtom'][dum1].copy()[0]
     atom2 = neigh_atoms_info['NeiAtom'][dum2].copy()[0]
 
-    os.remove(xyz_filename)  # Clean up the temporary XYZ file
+    Path(xyz_filename).unlink(missing_ok=True)  # Clean up the temporary XYZ file
 
     return dum1, dum2, atom1, atom2,
 
@@ -309,12 +309,19 @@ def has_overlapping_atoms(mol, connected_distance=1.0, disconnected_distance=1.5
                 coord_i = positions[i]
                 coord_j = positions[j]
                 conf_id = mol.GetConformer().GetId()
-                print(
-                    f"Overlapping detected in conformer {conf_id}: "
-                    f"Atom {atom_i.GetSymbol()} ({i}) at {coord_i} and "
-                    f"Atom {atom_j.GetSymbol()} ({j}) at {coord_j} "
-                    f"are too close (distance: {distance:.2f} Å, "
-                    f"allowed: {actual_min:.2f} Å)"
+                logger.info(
+                    "Overlapping detected in conformer %s: Atom %s (%d) at %s"
+                    " and Atom %s (%d) at %s are too close (distance: %.2f Å, "
+                    "allowed: %.2f Å)",
+                    conf_id,
+                    atom_i.GetSymbol(),
+                    i,
+                    coord_i,
+                    atom_j.GetSymbol(),
+                    j,
+                    coord_j,
+                    distance,
+                    actual_min,
                 )
                 G.add_edge(i, j, weight=distance)
 
@@ -575,7 +582,7 @@ def gen_3D_withcap(mol, start_atom, end_atom, length):
     if length <= 3 or not overlap:
         return capped_mol
     else:
-        print(f"Generated the pdb file failed !!!")
+        logger.warning("Failed to generate the final PDB file.")
 
 def check_molecule_structure(mol, energy_threshold=50.0):
 

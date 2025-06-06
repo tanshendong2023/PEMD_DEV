@@ -55,52 +55,6 @@ def smile_toxyz(name: str, smiles: str, out_dir: str = '.') -> str:
     AllChem.UFFOptimizeMolecule(mol)
     return rdkitmol2xyz(name, mol, out_dir, conf_id=-1)
 
-def convert_xyz_to_pdb(xyz_file: str, pdb_file: str, mol_name: str, resname: str) -> str:
-    """
-    Convert an XYZ file to PDB using OpenBabel, setting molecule name and residue name.
-    Returns the path to the written PDB file.
-    """
-    ob_conversion = ob.OBConversion()
-    ob_conversion.SetInAndOutFormats("xyz", "pdb")
-    ob_mol = ob.OBMol()
-    ob_conversion.ReadFile(ob_mol, xyz_file)
-    ob_mol.SetTitle(mol_name)
-    for atom in ob.OBMolAtomIter(ob_mol):
-        atom.GetResidue().SetName(resname)
-    # Ensure the output directory exists
-    out_dir = os.path.dirname(pdb_file)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-    ob_conversion.WriteFile(ob_mol, pdb_file)
-    return pdb_file
-
-def convert_pdb_to_xyz(pdb_file: str, xyz_file: str) -> str:
-    """
-    Convert a PDB file to XYZ using OpenBabel.
-    Returns the path to the written XYZ file.
-    """
-    ob_conversion = ob.OBConversion()
-    ob_conversion.SetInAndOutFormats("pdb", "xyz")
-    ob_mol = ob.OBMol()
-    ob_conversion.ReadFile(ob_mol, pdb_file)
-    ob_conversion.WriteFile(ob_mol, xyz_file)
-    return xyz_file
-
-def convert_xyz_to_mol2(xyz_file: str, mol2_file: str, mol_name: str, resname: str) -> str:
-    """
-    Convert an XYZ file to MOL2 using OpenBabel, setting molecule and residue names.
-    Returns the path to the written MOL2 file.
-    """
-    ob_conversion = ob.OBConversion()
-    ob_conversion.SetInAndOutFormats("xyz", "mol2")
-    ob_mol = ob.OBMol()
-    ob_conversion.ReadFile(ob_mol, xyz_file)
-    ob_mol.SetTitle(mol_name)
-    for atom in ob.OBMolAtomIter(ob_mol):
-        atom.GetResidue().SetName(resname)
-    ob_conversion.WriteFile(ob_mol, mol2_file)
-    return mol2_file
-
 # 5. Convert LOG to XYZ
 def log_to_xyz(log_file_path, xyz_file_path):
     obConversion = ob.OBConversion()
@@ -260,6 +214,7 @@ def convert_xyz_to_pdb(xyz_filename, pdb_filename, molecule_name, resname):
     for atom in ob.OBMolAtomIter(mol):
         res = atom.GetResidue()
         res.SetName(resname)
+    pdb_filename = str(pdb_filename)
     obConversion.WriteFile(mol, pdb_filename)
 
 # 3. Convert XYZ to MOL2

@@ -6,8 +6,8 @@ Date: 2024.01.18
 """
 
 
-import os
 import random
+from pathlib import Path
 
 from PEMD import io
 from rdkit import Chem
@@ -18,7 +18,7 @@ from rdkit.Chem import Descriptors
 def gen_copolymer_3D(smiles_A,
                      smiles_B,
                      *,
-                     poly_name: str | None = None,
+                     name: str | None = None,
                      mode: str | None = None,
                      length: int | None = None,
                      frac_A: float = 0.5,
@@ -53,19 +53,19 @@ def gen_copolymer_3D(smiles_A,
             raise ValueError("mode must be provided when sequence is None")
 
     return polymer.gen_sequence_copolymer_3D(
-        poly_name,
+        name,
         smiles_A,
         smiles_B,
         sequence,
     )
 
 
-def mol_to_pdb(work_dir, mol, poly_name, poly_resname, pdb_filename):
-
-    pdb_file = os.path.join(work_dir, pdb_filename)
+def mol_to_pdb(work_dir, mol, name, resname, pdb_filename):
+    work_path = Path(work_dir)
+    pdb_file = work_path / pdb_filename
     Chem.MolToXYZFile(mol, 'mid.xyz', confId=0)
-    io.convert_xyz_to_pdb('mid.xyz', pdb_file, poly_name, poly_resname)
-    os.remove('mid.xyz')
+    io.convert_xyz_to_pdb('mid.xyz', pdb_file, name, resname)
+    Path("mid.xyz").unlink(missing_ok=True)
 
 
 def calc_poly_chains(num_Li_salt , conc_Li_salt, mass_per_chain):

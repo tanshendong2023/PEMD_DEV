@@ -6,12 +6,12 @@
 # ******************************************************************************
 
 
-import os
 import json
 
 from pathlib import Path
 from PEMD.model.packmol import PEMDPackmol
 from dataclasses import dataclass, field
+
 from PEMD.model.build import (
     gen_copolymer_3D,
     mol_to_pdb,
@@ -21,32 +21,48 @@ from PEMD.model.build import (
 @dataclass
 class PEMDModel:
     work_dir: Path
-    poly_name: str
-    poly_resname: str
+    name: str
+    resname: str
     repeating_unit: str
     leftcap: str
     rightcap: str
     length_short: int
     length_long: int
+    smiles_A: str = ""
+    smiles_B: str = ""
+    mode: str | None = None
+    block_sizes: list[int] | None = None
+    frac_A: float = 0.5
     molecule_list: dict = field(default_factory=dict)
 
 
     @classmethod
     def from_json(cls, work_dir, json_file):
-        json_path = os.path.join(work_dir, json_file)
-        with open(json_path, 'r', encoding='utf-8') as file:
-            model_info = json.load(file)
+        work_dir = Path(work_dir)
+        json_path = work_dir / json_file
+        try:
+            with open(json_path, "r", encoding="utf-8") as file:
+                model_info = json.load(file)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"JSON file '{json_file}' not found in '{work_dir}'.") from exc
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"JSON file '{json_file}' is not valid JSON: {exc}") from exc
 
         polymer_info = model_info.get('polymer', {})
 
-        poly_name = polymer_info.get('compound', '')
-        poly_resname = polymer_info.get('resname', '')
+        name = polymer_info.get('compound', '')
+        resname = polymer_info.get('resname', '')
         repeating_unit = polymer_info.get('repeating_unit', '')
         leftcap = polymer_info.get('left_cap', '')
         rightcap = polymer_info.get('right_cap', '')
         length_list = polymer_info.get('length', [0, 0])
         length_short = length_list[0] if len(length_list) > 0 else 0
         length_long = length_list[1] if len(length_list) > 1 else 0
+        smiles_A = polymer_info.get("smiles_A", None)
+        smiles_B = polymer_info.get("smiles_B", None)
+        mode = polymer_info.get("mode", None)
+        block_sizes = polymer_info.get("block_sizes", None)
+        frac_A = polymer_info.get("frac_A", 0.5)
 
         molecule_list = {}
         for category, details in model_info.items():
@@ -56,7 +72,8 @@ class PEMDModel:
                 if compound is not None and numbers is not None:
                     molecule_list[compound] = numbers
 
-        return cls(work_dir, poly_name, poly_resname, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list)
+        return cls(work_dir, name, resname, repeating_unit, leftcap, rightcap, length_short,
+                   length_long, smiles_A, smiles_B, mode, block_sizes, frac_A, molecule_list)
 
 
     @staticmethod
@@ -70,15 +87,15 @@ class PEMDModel:
         frac_A: float = 0.5,
         block_sizes: list[int] | None = None,
         sequence: list[str] | None = None,
-        poly_name: str = "PE",
-        poly_resname: str = "MOL",
+        name: str = "PE",
+        resname: str = "MOL",
     ) -> str:
         """Generate a copolymer PDB file using a unified interface."""
 
         mol = gen_copolymer_3D(
             smiles_A,
             smiles_B,
-            poly_name=poly_name,
+            name=name,
             mode=mode,
             length=length,
             frac_A=frac_A,
@@ -95,17 +112,39 @@ class PEMDModel:
         else:
             raise ValueError("length information missing")
 
-        pdb_filename = f"{poly_name}_N{seq_len}.pdb"
+        pdb_filename = f"{name}_N{seq_len}.pdb"
 
         mol_to_pdb(
             work_dir=work_dir,
             mol=mol,
-            poly_name=poly_name,
-            poly_resname=poly_resname,
+            name=name,
+            resname=resname,
             pdb_filename=pdb_filename,
         )
         print(f"\nGenerated the pdb file {pdb_filename} successfully")
         return pdb_filename
+
+
+    @classmethod
+    def copolymer_from_json(
+        cls,
+        work_dir: Path,
+        json_file: str
+    ) -> str:
+        instance = cls.from_json(work_dir, json_file)
+
+        pdb_file = cls.copolymer(
+            work_dir=instance.work_dir,
+            smiles_A=instance.smiles_A,
+            smiles_B=instance.smiles_B,
+            mode=instance.mode,
+            length=instance.length_long,
+            frac_A=instance.frac_A,
+            block_sizes=instance.block_sizes,
+            name=instance.name,
+            resname=instance.resname
+        )
+        return pdb_file
 
 
     @staticmethod
@@ -113,30 +152,39 @@ class PEMDModel:
         work_dir: Path,
         smiles: str,
         length: int,
-        poly_name: str = "PE",
-        poly_resname: str = "MOL",
+        name: str = "PE",
+        resname: str = "MOL",
     ) -> str:
 
         return PEMDModel.copolymer(
             work_dir=work_dir,
-            poly_name=poly_name,
+            name=name,
             smiles_A=smiles,
             smiles_B=smiles,
             mode="homopolymer",
             length=length,
-            poly_resname=poly_resname,
+            resname=resname,
         )
 
+    @classmethod
+    def homopolymer_from_json(
+            cls,
+            work_dir:
+            Path,
+            json_file: str
+    ) -> str:
 
-    def build_homopolymer(self) -> str:
+        instance = cls.from_json(work_dir, json_file)
 
-        return PEMDModel.homopolymer(
-            work_dir=self.work_dir,
-            poly_name=self.poly_name,
-            smiles=self.repeating_unit,
-            length=self.length_long,
-            poly_resname=self.poly_resname
+        pdb_file = cls.homopolymer(
+            work_dir=instance.work_dir,
+            name=instance.name,
+            smiles=instance.repeating_unit,
+            length=instance.length_long,
+            resname=instance.resname
         )
+
+        return pdb_file
 
 
     def gen_amorphous_structure(
@@ -147,7 +195,7 @@ class PEMDModel:
         packpdb_name: str,
     ) -> None:
 
-        MD_dir = os.path.join(self.work_dir, 'MD_dir')
+        MD_dir = self.work_dir / "MD_dir"
         run = PEMDPackmol(
             MD_dir,
             self.molecule_list,
