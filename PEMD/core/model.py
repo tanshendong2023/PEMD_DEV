@@ -72,8 +72,22 @@ class PEMDModel:
                 if compound is not None and numbers is not None:
                     molecule_list[compound] = numbers
 
-        return cls(work_dir, name, resname, repeating_unit, leftcap, rightcap, length_short,
-                   length_long, smiles_A, smiles_B, mode, block_sizes, frac_A, molecule_list)
+        return cls(
+            work_dir,
+            name,
+            resname,
+            repeating_unit,
+            leftcap,
+            rightcap,
+            length_short,
+            length_long,
+            smiles_A,
+            smiles_B,
+            mode,
+            block_sizes,
+            frac_A,
+            molecule_list
+        )
 
 
     @staticmethod
@@ -186,19 +200,49 @@ class PEMDModel:
 
         return pdb_file
 
-
-    def gen_amorphous_structure(
-        self,
+    @staticmethod
+    def amorphous_cell(
+        work_dir: Path,
+        molecule_list: dict,
         density: float,
         add_length: int,
         packinp_name: str,
         packpdb_name: str,
     ) -> None:
 
-        MD_dir = self.work_dir / "MD_dir"
+        work_dir = Path(work_dir)
+        MD_dir = work_dir / "MD_dir"
         run = PEMDPackmol(
             MD_dir,
-            self.molecule_list,
+            molecule_list,
+            density,
+            add_length,
+            packinp_name,
+            packpdb_name
+        )
+
+        run.generate_input_file()
+        run.run_local()
+
+        print("Amorphous structure generated.")
+
+    @classmethod
+    def amorphous_cell_from_json(
+        cls,
+        work_dir: Path,
+        json_file: str,
+        density: float,
+        add_length: int,
+        packinp_name: str,
+        packpdb_name: str,
+    ) -> None:
+
+        work_dir = Path(work_dir)
+        instance = cls.from_json(work_dir, json_file)
+        MD_dir = work_dir / "MD_dir"
+        run = PEMDPackmol(
+            MD_dir,
+            instance.molecule_list,
             density,
             add_length,
             packinp_name,

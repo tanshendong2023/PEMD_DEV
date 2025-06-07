@@ -17,10 +17,13 @@ import PEMD.constants as const
 from rdkit import Chem
 from rdkit import RDLogger
 from rdkit.Chem import AllChem
+from rdkit.Chem import Descriptors
 from rdkit.Geometry import Point3D
+from collections import defaultdict
 from openbabel import openbabel as ob
 from rdkit.Chem.rdchem import BondType
 from scipy.spatial.transform import Rotation as R
+
 
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.ERROR)
@@ -619,3 +622,66 @@ def check_molecule_structure(mol, energy_threshold=50.0):
 
     # 如果以上检查都通过，视为结构“合理”
     return True
+
+
+def calculate_box_size(numbers, pdb_files, density):
+    total_mass = 0
+    for num, file in zip(numbers, pdb_files):
+
+        molecular_weight = calc_mol_weight(file)  # in g/mol
+        total_mass += molecular_weight * num / 6.022e23  # accumulate mass of each molecule in grams
+
+    total_volume = total_mass / density  # volume in cm^3
+    length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
+    return length
+
+
+def calc_mol_weight(pdb_file):
+    try:
+        mol = Chem.MolFromPDBFile(pdb_file, removeHs=False, sanitize=False)
+        if mol:
+            Chem.SanitizeMol(mol)
+            return Descriptors.MolWt(mol)
+        else:
+            raise ValueError(f"RDKit 无法解析 PDB 文件: {pdb_file}")
+    except (Chem.rdchem.AtomValenceException, Chem.rdchem.KekulizeException, ValueError):
+        # 如果 RDKit 解析失败，尝试手动计算分子量
+        try:
+            atom_counts = defaultdict(int)
+            with open(pdb_file, 'r') as f:
+                for line in f:
+                    if line.startswith(("ATOM", "HETATM")):
+                        element = line[76:78].strip()
+                        if not element:
+                            # 从原子名称推断元素符号
+                            atom_name = line[12:16].strip()
+                            element = ''.join([char for char in atom_name if char.isalpha()]).upper()[:2]
+                        atom_counts[element] += 1
+
+            # 常见元素的原子质量（g/mol）
+            atomic_weights = {
+                'H': 1.008,
+                'C': 12.011,
+                'N': 14.007,
+                'O': 15.999,
+                'F': 18.998,
+                'P': 30.974,
+                'S': 32.06,
+                'CL': 35.45,
+                'BR': 79.904,
+                'I': 126.904,
+                'FE': 55.845,
+                'ZN': 65.38,
+                # 根据需要添加更多元素
+            }
+
+            mol_weight = 0.0
+            for atom, count in atom_counts.items():
+                weight = atomic_weights.get(atom.upper())
+                if weight is None:
+                    raise ValueError(f"未知的原子类型 '{atom}' 在 PDB 文件: {pdb_file}")
+                mol_weight += weight * count
+            return mol_weight
+        except Exception as e:
+            raise ValueError(f"无法计算分子量，PDB 文件: {pdb_file}，错误: {e}")
+

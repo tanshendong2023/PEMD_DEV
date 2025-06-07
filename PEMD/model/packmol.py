@@ -2,7 +2,7 @@ import os
 import random
 import subprocess
 from shutil import which
-from PEMD.model import model_lib
+from PEMD.model import polymer
 
 class PEMDPackmol:
     def __init__(
@@ -37,7 +37,7 @@ class PEMDPackmol:
             pdb_filenames.append(filename)
             pdb_filepaths.append(filepath)
 
-        box_length = model_lib.calculate_box_size(numbers, pdb_filepaths, self.density) + self.add_length
+        box_length = polymer.calculate_box_size(numbers, pdb_filepaths, self.density) + self.add_length
 
         file_contents = "tolerance 2.0\n"
         file_contents += f"add_box_sides 1.2\n"
