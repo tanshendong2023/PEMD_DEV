@@ -5,9 +5,14 @@ import math
 
 
 class XMLGenerator:
-    def __init__(self, itp_filename, smiles, xml_filename):
+    def __init__(self, itp_filename, mol_or_smiles, xml_filename):
         self.itp_filename = itp_filename
-        self.smiles = smiles
+        if isinstance(mol_or_smiles, Chem.Mol):
+            self.mol = mol_or_smiles
+            self.smiles = None
+        else:
+            self.smiles = mol_or_smiles
+            self.mol = None
         self.xml_filename = xml_filename
         self.atoms_df = None
         self.atomtypes_df = None
@@ -141,12 +146,15 @@ class XMLGenerator:
             return None
 
     def generate_first_coordination_smarts_with_details(self, include_h=True):
-        # 解析SMILES
-        mol = Chem.MolFromSmiles(self.smiles)
-        if mol is None:
-            print("无效的SMILES字符串。")
-            return None
-        mol = Chem.AddHs(mol)
+
+        if self.mol is not None:
+            mol = self.mol
+        else:
+            mol = Chem.MolFromSmiles(self.smiles)
+            if mol is None:
+                print("无效的SMILES字符串。")
+                return None
+            mol = Chem.AddHs(mol)
 
         data = []
         # 遍历分子中的每个原子（包括氢原子）

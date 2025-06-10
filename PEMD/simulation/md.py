@@ -10,7 +10,6 @@ import os
 from PEMD.model import model_lib
 from PEMD.simulation.gromacs import PEMDGROMACS
 
-
 def relax_poly_chain(
         work_dir,
         name,
@@ -70,7 +69,8 @@ def relax_poly_chain(
 
     print(f'The polymer chain has been relaxed and the {name}.pdb were saved successful.')
 
-def anneal_amorph_poly(
+
+def annealing(
         work_dir,
         molecules,
         temperature,

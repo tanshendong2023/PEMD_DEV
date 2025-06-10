@@ -1,3 +1,5 @@
+
+
 import os
 import shutil
 import pandas as pd
@@ -5,101 +7,98 @@ import parmed as pmd
 import importlib.resources as pkg_resources
 
 from rdkit import Chem
+from pathlib import Path
 from foyer import Forcefield
 from collections import defaultdict
 
-from PEMD.model import model_lib
-from PEMD.model.build import gen_poly_smiles
+from PEMD import io
 from PEMD.forcefields.xml import XMLGenerator
 from PEMD.forcefields.ligpargen import PEMDLigpargen
 
-from PEMD.model.build import (
-    gen_poly_smiles,
-    gen_copoly_smiles,
-    gen_poly_3D,
-)
 
+def get_xml_ligpargen(
+        work_dir: Path | str,
+        name: str,
+        resname: str,
+        *,
+        pdb_file: str | None = None,
+        charge: float = 0,
+        charge_model: str = 'CM1A-LBCC',
+):
 
-def get_xml_ligpargen(work_dir, name, resname, repeating_unit, length, chg, chg_model, ):
+    work_path = Path(work_dir)
+    ligpargen_dir = work_path / f'ligpargen_{name}'
+    ligpargen_dir.mkdir(parents=True, exist_ok=True)
 
-    smiles = gen_poly_smiles(
-        name,
-        repeating_unit,
-        length,
-        leftcap='',
-        rightcap='',
-    )
-
-    ligpargen_dir = os.path.join(work_dir, f'ligpargen_{name}')
-    os.makedirs(ligpargen_dir, exist_ok=True)
-
-    pdb_filename = f'{name}.pdb'
-    pdb_filepath = os.path.join(work_dir, pdb_filename)
-    model_lib.smiles_to_pdb(smiles, pdb_filepath, name, resname)
+    pdb_path = work_path / pdb_file
 
     PEMDLigpargen(
         ligpargen_dir,
         name,
         resname,
-        chg,
-        chg_model,
-        filename = pdb_filepath,
+        charge,
+        charge_model,
+        filename = pdb_path,
     ).run_local()
 
-    gmx_itp_file = os.path.join(ligpargen_dir, f"{name}.gmx.itp")
-    xml_filename = os.path.join(work_dir, f"{name}.xml")
+    mol = Chem.MolFromPDBFile(str(pdb_path), removeHs=False)
+
+    itp_path = ligpargen_dir / f"{name}.gmx.itp"
+    xml_path = work_path / f"{name}.xml"
     generator = XMLGenerator(
-        gmx_itp_file,
-        smiles,
-        xml_filename
+        itp_path,
+        mol,
+        xml_path
     )
     generator.run()
 
-    os.remove(f'{work_dir}/temp.sdf')
-    os.remove(pdb_filepath)
+    temp_sdf = work_path / "temp.sdf"
+    temp_sdf.unlink(missing_ok=True)
+    pdb_path.unlink(missing_ok=True)
 
-    chg_file = os.path.join(ligpargen_dir, f'{name}.csv')
-    resp_chg_df = pd.read_csv(chg_file)
-    return resp_chg_df
+    csv_path = ligpargen_dir / f"{name}.csv"
+    chg_df = pd.read_csv(csv_path)
+
+    return chg_df
+
 
 def get_oplsaa_xml(
-        work_dir,
-        poly_name,
-        pdb_file,
-        xml = 'ligpargen',  # ligpargen or database
-):
+        work_dir: Path | str,
+        name: str,
+        pdb_file: Path | str,
+) -> str:
 
-    MD_dir = os.path.join(work_dir, 'MD_dir')
-    os.makedirs(MD_dir, exist_ok=True)
+    work_path = Path(work_dir)
+    md_dir = work_path / "MD_dir"
+    md_dir.mkdir(parents=True, exist_ok=True)
 
     untyped_str = pmd.load_file(pdb_file, structure=True)
-    if xml == 'database':
-        with pkg_resources.path("PEMD.forcefields", "oplsaa.xml") as oplsaa_path:
-            oplsaa = Forcefield(forcefield_files = str(oplsaa_path))
-        typed_str = oplsaa.apply(untyped_str, verbose=True, use_residue_map=True)
-    else:
-        xml_filename = os.path.join(work_dir, f"{poly_name}.xml")
-        oplsaa = Forcefield(forcefield_files = xml_filename)
-        typed_str = oplsaa.apply(untyped_str, verbose=True, use_residue_map=True)
 
-    top_filename = os.path.join(MD_dir, f"{poly_name}.top")
-    gro_filename = os.path.join(MD_dir, f"{poly_name}.gro")
-    typed_str.save(top_filename, overwrite=True)
-    typed_str.save(gro_filename, overwrite=True)
+    xml_path = work_path / f"{name}.xml"
+    oplsaa = Forcefield(forcefield_files = xml_path)
+    typed_str = oplsaa.apply(untyped_str, verbose=True, use_residue_map=True)
 
-    nonbonditp_filename = os.path.join(MD_dir, f'{poly_name}_nonbonded.itp')
-    bonditp_filename = os.path.join(MD_dir, f'{poly_name}_bonded.itp')
+    top_path = md_dir / f"{name}.top"
+    gro_path = md_dir / f"{name}.gro"
+    typed_str.save(str(top_path), overwrite=True)
+    typed_str.save(str(gro_path), overwrite=True)
 
-    model_lib.extract_from_top(top_filename, nonbonditp_filename, nonbonded=True, bonded=False)
-    model_lib.extract_from_top(top_filename, bonditp_filename, nonbonded=False, bonded=True)
+    nonbonded_itp = md_dir / f"{name}_nonbonded.itp"
+    bonded_itp    = md_dir / f"{name}_bonded.itp"
 
-    os.remove(top_filename)
-    # os.remove(gro_filename)
+    io.extract_from_top(top_path, nonbonded_itp, nonbonded=True, bonded=False)
+    io.extract_from_top(top_path, bonded_itp, nonbonded=False, bonded=True)
 
-    return f'{poly_name}_bonded.itp', f"{poly_name}.gro"
+    pdb_path = os.path.join(md_dir, f'{name}.pdb')
+    io.convert_gro_to_pdb(gro_path, pdb_path, )
+
+    top_path.unlink(missing_ok=True)
+    xml_path.unlink(missing_ok=True)
+
+    return f'{name}_bonded.itp'
 
 
-def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
+def get_oplsaa_ligpargen(work_dir, name, resname, chg, smiles, charge_model, ):
 
     ligpargen_dir = os.path.join(work_dir, f'ligpargen_{name}')
     os.makedirs(ligpargen_dir, exist_ok=True)
@@ -108,14 +107,14 @@ def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
     os.makedirs(MD_dir, exist_ok=True)
 
     xyz_filename = f'{name}.xyz'
-    model_lib.smiles_to_xyz(smiles, os.path.join(work_dir,  xyz_filename))
+    io.smiles_to_xyz(smiles, os.path.join(work_dir,  xyz_filename))
 
     PEMDLigpargen(
         ligpargen_dir,
         name,
         resname,
         chg,
-        chg_model,
+        charge_model,
         filename = xyz_filename,
     ).run_local()
 
@@ -125,9 +124,9 @@ def get_oplsaa_ligpargen(work_dir, name, resname, chg, chg_model, smiles, ):
 
     top_filename = os.path.join(ligpargen_dir, f"{name}.gmx.itp")
     gro_filename = os.path.join(ligpargen_dir, f'{name}.gmx.gro')
-    model_lib.extract_from_top(top_filename, nonbonditp_filename, nonbonded=True, bonded=False)
-    model_lib.extract_from_top(top_filename, bonditp_filename, nonbonded=False, bonded=True)
-    model_lib.convert_gro_to_pdb(gro_filename, pdb_filename,)
+    io.extract_from_top(top_filename, nonbonditp_filename, nonbonded=True, bonded=False)
+    io.extract_from_top(top_filename, bonditp_filename, nonbonded=False, bonded=True)
+    io.convert_gro_to_pdb(gro_filename, pdb_filename,)
 
     return f'{name}_bonded.itp'
 
@@ -186,15 +185,24 @@ def mol_to_charge_df(mol):
     return df
 
 
-def apply_chg_to_poly(work_dir, smiles_short, mol_long, itp_file, resp_chg_df, repeating_unit,
-                          end_repeating, corr_factor, target_sum_chg, ):
+def apply_chg_to_poly(
+        work_dir,
+        mol_short,
+        mol_long,
+        itp_file,
+        resp_chg_df,
+        repeating_unit,
+        end_repeating,
+        scale,
+        charge,
+):
 
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
     left_mol, right_mol, mid_mol = apply_chg2mol(
         resp_chg_df,
-        smiles_short,
+        mol_short,
         repeating_unit,
         end_repeating
     )
@@ -246,16 +254,16 @@ def apply_chg_to_poly(work_dir, smiles_short, mol_long, itp_file, resp_chg_df, r
     charge_update_df = mol_to_charge_df(mol_poly)
 
     # charge neutralize and scale
-    charge_update_df_cor = charge_neutralize_scale(charge_update_df, corr_factor, target_sum_chg, )
+    charge_update_df_cor = charge_neutralize_scale(charge_update_df, scale, charge, )
 
     # update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)
 
 
-def apply_chg2mol(resp_chg_df, poly_smi, repeating_unit, end_repeating):
+def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     # 1. 从多聚物 SMILES 生成分子并加氢
-    mol_poly = Chem.MolFromSmiles(poly_smi)
-    mol_poly = Chem.AddHs(mol_poly)
+    # mol_poly = Chem.MolFromSmiles(poly_smi)
+    # mol_poly = Chem.AddHs(mol_poly)
 
     # 2. 将 RESP 电荷写入到 mol_poly 中
     for _, row in resp_chg_df.iterrows():
@@ -553,12 +561,12 @@ def charge_neutralize_scale(df, correction_factor=1, target_total_charge=0, ):
 
     return df
 
-def apply_chg_to_molecule(work_dir, itp_file, resp_chg_df, corr_factor, target_sum_chg, ):
+def apply_chg_to_molecule(work_dir, itp_file, chg_df, scale, charge, ):
     MD_dir = os.path.join(work_dir, 'MD_dir')
     os.makedirs(MD_dir, exist_ok=True)
 
     # charge neutralize and scale
-    charge_update_df_cor = charge_neutralize_scale(resp_chg_df, corr_factor, target_sum_chg, )
+    charge_update_df_cor = charge_neutralize_scale(chg_df, scale, charge, )
 
     # update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)

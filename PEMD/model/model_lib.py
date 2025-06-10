@@ -382,37 +382,6 @@ def Init_info_Cap(unit_name, smiles_each_ori):
         '',
     )
 
-def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
-    sections_to_extract = []
-    if nonbonded:
-        sections_to_extract = ["[ atomtypes ]"]
-    elif bonded:
-        sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[angles]", "[ dihedrals ]"]
-
-        # 打开 .top 文件进行读取
-    with open(top_file, 'r') as file:
-        lines = file.readlines()
-
-    # 初始化变量以存储提取的信息
-    extracted_lines = []
-    current_section = None
-
-    # 遍历所有行，提取相关部分
-    for line in lines:
-        if line.strip() in sections_to_extract:
-            current_section = line.strip()
-            extracted_lines.append(line)  # 添加部分标题
-        elif current_section and line.strip().startswith(";"):
-            extracted_lines.append(line)  # 添加注释行
-        elif current_section and line.strip():
-            extracted_lines.append(line)  # 添加数据行
-        elif line.strip() == "" and current_section:
-            extracted_lines.append("\n")  # 添加部分之间的空行
-            current_section = None  # 重置当前部分
-
-    # 写入提取的内容到 bonded.itp 文件
-    with open(out_itp_file, 'w') as file:
-        file.writelines(extracted_lines)
 
 def read_energy_from_xtb(filename):
     """从xtb的输出文件中读取能量值"""

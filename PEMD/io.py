@@ -6,11 +6,16 @@ I/O utilities: format conversion and file read/write.
 
 import re
 import os
+from pathlib import Path
+from typing import Union
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from openbabel import openbabel as ob
-from openbabel import pybel
+import MDAnalysis as mda
+
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.coordinates.PDB")
 
 
 # OpenBabel setup
@@ -69,7 +74,7 @@ def log_to_xyz(log_file_path, xyz_file_path):
 
 
 def smiles_to_pdb(smiles: str,
-                  output_file: str,
+                  output_file: Union[str, Path],
                   molecule_name: str,
                   resname: str,
                   max_confs: int = 5,
@@ -249,14 +254,43 @@ def remove_numbers_from_residue_names(mol2_filename, resname):
 
 
 # 4.Convert GRO to PDB
-def convert_gro_to_pdb(input_gro_path, output_pdb_path):
-    try:
-        # Load the GRO file
-        mol = next(pybel.readfile('gro', input_gro_path))
+def convert_gro_to_pdb(input_gro, output_pdb):
+    # 直接把 .gro 当做拓扑和坐标读入
+    u = mda.Universe(input_gro)
+    # 写出时，MDAnalysis 会按原子列表顺序输出
+    with mda.Writer(output_pdb) as W:
+        W.write(u.atoms)
+    # print(f"Converted (MDAnalysis) → {output_pdb}")
 
-        # Save as PDB
-        mol.write('pdb', output_pdb_path, overwrite=True)
-        print(f"Gro converted to pdb successfully {output_pdb_path}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
+def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
+    sections_to_extract = []
+    if nonbonded:
+        sections_to_extract = ["[ atomtypes ]"]
+    elif bonded:
+        sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[angles]", "[ dihedrals ]"]
+
+        # 打开 .top 文件进行读取
+    with open(top_file, 'r') as file:
+        lines = file.readlines()
+
+    # 初始化变量以存储提取的信息
+    extracted_lines = []
+    current_section = None
+
+    # 遍历所有行，提取相关部分
+    for line in lines:
+        if line.strip() in sections_to_extract:
+            current_section = line.strip()
+            extracted_lines.append(line)  # 添加部分标题
+        elif current_section and line.strip().startswith(";"):
+            extracted_lines.append(line)  # 添加注释行
+        elif current_section and line.strip():
+            extracted_lines.append(line)  # 添加数据行
+        elif line.strip() == "" and current_section:
+            extracted_lines.append("\n")  # 添加部分之间的空行
+            current_section = None  # 重置当前部分
+
+    # 写入提取的内容到 bonded.itp 文件
+    with open(out_itp_file, 'w') as file:
+        file.writelines(extracted_lines)

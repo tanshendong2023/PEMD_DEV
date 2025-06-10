@@ -1,7 +1,7 @@
 import os
 import subprocess
-from PEMD.model import model_lib
-from PEMD.simulation.slurm import PEMDSlurm
+from PEMD.model import polymer
+
 
 class PEMDGROMACS:
     def __init__(
@@ -307,7 +307,7 @@ class PEMDGROMACS:
             filepath = os.path.join(self.work_dir, f"{com}.pdb")
             pdb_files.append(filepath)
         if density:
-            box_length = (model_lib.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
+            box_length = (polymer.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
         else:
             box_length = 4
 
@@ -454,23 +454,23 @@ class PEMDGROMACS:
                 print(f"Error executing command: {cmd}\n{e.stderr}")
                 break
 
-    def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
-        slurm_script = PEMDSlurm(
-            self.work_dir,
-            script_name,
-        )
-
-        # Add each command in self.commands to the SLURM script
-        for cmd in self.commands:
-            slurm_script.add_command(cmd)
-
-        # Generate the SLURM script with the accumulated commands
-        script_path = slurm_script.generate_script(
-            job_name=job_name,
-            nodes=nodes,
-            ntasks_per_node=ntasks_per_node,
-            partition=partition,
-        )
-
-        print(f"SLURM script generated successfully: {script_path}")
-        return script_path
+    # def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
+    #     slurm_script = PEMDSlurm(
+    #         self.work_dir,
+    #         script_name,
+    #     )
+    #
+    #     # Add each command in self.commands to the SLURM script
+    #     for cmd in self.commands:
+    #         slurm_script.add_command(cmd)
+    #
+    #     # Generate the SLURM script with the accumulated commands
+    #     script_path = slurm_script.generate_script(
+    #         job_name=job_name,
+    #         nodes=nodes,
+    #         ntasks_per_node=ntasks_per_node,
+    #         partition=partition,
+    #     )
+    #
+    #     print(f"SLURM script generated successfully: {script_path}")
+    #     return script_path
