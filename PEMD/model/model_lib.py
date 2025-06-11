@@ -13,8 +13,6 @@ import networkx as nx
 from PEMD import io
 from rdkit import Chem
 from PEMD.model import polymer
-from rdkit.Chem import Descriptors
-from collections import defaultdict
 from openbabel import openbabel as ob
 from networkx.algorithms import isomorphism
 from scipy.spatial.transform import Rotation as R

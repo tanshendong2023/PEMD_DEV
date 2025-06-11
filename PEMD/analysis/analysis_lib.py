@@ -1,16 +1,18 @@
 
 import os
 import re
+import logging
 import warnings
-
 import numpy as np
 
 from rdkit import Chem
 from collections import deque
-from PEMD.model import model_lib
+from PEMD.model import polymer, model_lib
 from rdkit.Geometry import Point3D
 
 warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
+logging.getLogger('MDAnalysis').setLevel(logging.WARNING)
+
 
 def num_of_neighbor(
         work_dir,
@@ -80,8 +82,11 @@ def num_of_neighbor(
                     break  # Check the flag and break if needed
         if max_reached:
             break  # Check the flag and break if needed
+    else:
+        print(f"Target of {max_number} structures not reached; only {written_structures} were written to {write_path}!!!.")
 
     return cn_values
+
 
 def write_out(center_pos, neighbors, path):
     # 计算相对坐标，处理周期性边界条件
@@ -126,6 +131,7 @@ def pdb2mol(work_dir, pdb_filename):
         'F': 'F',
         'CL': 'Cl',
         'BR': 'Br',
+        'LI': 'Li',
     }
 
     # PDB 文件的路径
@@ -228,6 +234,7 @@ def pdb2mol(work_dir, pdb_filename):
 
     return mol
 
+
 def parse_selection_string(selection_str):
 
     # 使用正则表达式分割 'and'，并提取键值对
@@ -242,11 +249,49 @@ def parse_selection_string(selection_str):
             raise ValueError(f"无法解析的选择条件: '{condition}'")
     return criteria
 
-def get_cluster_index(mol,
-                      center_atom_name,
-                      poly_atom_name,
-                      repeating_unit,
-                      length):
+
+def bfs_traverse(mol, start_idx, max_steps=None, ignore_H=False):
+    """
+    从 start_idx 出发做广度优先遍历，返回访问到的原子索引集合。
+    - max_steps: 最大深度（None 表示不限制）
+    - ignore_H: 是否跳过氢原子
+    """
+    visited = {start_idx}
+    queue = deque([(start_idx, 0)])
+    while queue:
+        idx, depth = queue.popleft()
+        if max_steps is not None and depth >= max_steps:
+            continue
+        atom = mol.GetAtomWithIdx(idx)
+        for nbr in atom.GetNeighbors():
+            nid = nbr.GetIdx()
+            if ignore_H and nbr.GetSymbol() == 'H':
+                continue
+            if nid not in visited:
+                visited.add(nid)
+                queue.append((nid, depth + 1))
+    return visited
+
+
+def select_atoms_by_criteria(mol, criteria):
+    """
+    根据给定的属性字典 criteria（如 {'atom_name': 'C1', 'resname': 'PEO'}）
+    从 mol 中选出所有满足的 Atom.
+    """
+    return [
+        atom for atom in mol.GetAtoms()
+        if all(atom.HasProp(k) and atom.GetProp(k) == v for k, v in criteria.items())
+    ]
+
+
+def get_cluster_index(
+    mol,
+    center_atom_name,
+    select_dict,
+    poly_name,
+    repeating_unit,
+    length
+):
 
     # 将重复单元中的 '*' 替换为 '[H]'，并创建相应的 RDKit 分子
     unit_smi_with_h1 = repeating_unit.replace('*', '[H]')
@@ -259,111 +304,77 @@ def get_cluster_index(mol,
 
     # 获取分子的构象
     conf = mol.GetConformer()
-
-    # 解析选择字符串
     center_criteria = parse_selection_string(center_atom_name)
-    select_criteria = parse_selection_string(poly_atom_name)
+    select_criteria = parse_selection_string(select_dict[poly_name])
 
     # Step 1: 根据选择条件选择中心原子（假设只有一个）
-    center_atoms_list = [
-        atom for atom in mol.GetAtoms()
-        if all(
-            atom.HasProp(key) and atom.GetProp(key) == value
-            for key, value in center_criteria.items()
-        )
-    ]
-
+    center_atoms_list = select_atoms_by_criteria(mol, center_criteria)
     if not center_atoms_list:
         raise ValueError(f"No center atoms found with criteria '{center_atom_name}'.")
     if len(center_atoms_list) > 1:
         print(f"Warning: Multiple center atoms found with criteria '{center_atom_name}'. Using the first one.")
-
     center_atom = center_atoms_list[0]
     n_idx = center_atom.GetIdx()
 
     # 获取选定原子的列表和坐标，基于选择条件
-    select_atoms_list = [
-        atom for atom in mol.GetAtoms()
-        if all(
-            atom.HasProp(key) and atom.GetProp(key) == value
-            for key, value in select_criteria.items()
-        )
-    ]
-
+    select_atoms_list = select_atoms_by_criteria(mol, select_criteria)
     if not select_atoms_list:
-        raise ValueError(f"No select atoms found with criteria '{poly_atom_name}'.")
-
+        raise ValueError(f"No select atoms found with criteria '{poly_name}'.")
     select_positions = np.array([conf.GetAtomPosition(atom.GetIdx()) for atom in select_atoms_list])
 
-    # Step 2: 从中心原子开始，找到其所在的连通组分
-    center_atom_indices = set()
-    queue = deque()
-
-    center_atom_indices.add(n_idx)
-    queue.append(n_idx)
-    while queue:
-        current_idx = queue.popleft()
-        current_atom = mol.GetAtomWithIdx(current_idx)
-        for neighbor in current_atom.GetNeighbors():
-            neighbor_idx = neighbor.GetIdx()
-            if neighbor_idx not in center_atom_indices:
-                center_atom_indices.add(neighbor_idx)
-                queue.append(neighbor_idx)
+    # 5. BFS 找整条 TFSI 片段（无限深度，不忽略 H）
+    center_atom_indices = bfs_traverse(mol, n_idx, max_steps=None, ignore_H=False)
 
     # Step 3: 找到与中心原子最近的选定原子，并确认键连接
     n_pos = np.array([conf.GetAtomPosition(n_idx).x,
                       conf.GetAtomPosition(n_idx).y,
                       conf.GetAtomPosition(n_idx).z])
     distances = np.linalg.norm(select_positions - n_pos, axis=1)
-    min_dist_idx = np.argmin(distances)
-    closest_select_atom = select_atoms_list[min_dist_idx]
 
-    # 获取与最近的选定原子相连的特定原子
-    bonded_c_atoms = [nbr for nbr in closest_select_atom.GetNeighbors() if nbr.GetSymbol() != 'H']
-    if not bonded_c_atoms:
-        raise ValueError(
-            f"No non-hydrogen neighbors found for the closest select atom (index {closest_select_atom.GetIdx()}).")
+    if center_atom.GetSymbol() != 'Li':
+        min_dist_idx = np.argmin(distances)
+        closest_select_atom = select_atoms_list[min_dist_idx]
 
-    c_atom = bonded_c_atoms[0]
-    c_idx = c_atom.GetIdx()
+        # 获取与最近的选定原子相连的特定原子
+        bonded_c = [nbr for nbr in closest_select_atom.GetNeighbors() if nbr.GetSymbol() != 'H']
+        c_idx_list = [bonded_c[0].GetIdx()]
+    else:
+        threshold = 3.0
+        mask = distances < threshold
+        idxs = np.where(mask)[0]
+        c_idx_list = [select_atoms_list[i].GetIdx() for i in idxs]
 
+    # 6. BFS 限定步数找聚合物片段（忽略 H）
     selected_atom_indices = set()
-    selected_atom_indices.add(c_idx)
+    for start_idx in c_idx_list:
+        selected_atom_indices |= bfs_traverse(
+            mol,
+            start_idx,
+            max_steps=max_steps,
+            ignore_H=True
+        )
+    selected_atom_indices = sorted(selected_atom_indices)
 
-    # Step 4: 从该原子开始，限定步数的广度优先搜索
-    visited = set()
-    queue = deque()
-    queue.append((c_idx, 0))
-    visited.add(c_idx)
-
-    while queue:
-        current_idx, step = queue.popleft()
-        if step >= max_steps:
+    # —— 新增：收集其他分子的所有原子索引 ——
+    other_atom_indices = {}
+    for name, sel_str in select_dict.items():
+        if name == poly_name:
             continue
+        crit = parse_selection_string(sel_str)
+        atoms = select_atoms_by_criteria(mol, crit)
+        other_atom_indices[name] = sorted(atom.GetIdx() for atom in atoms)
 
-        current_atom = mol.GetAtomWithIdx(current_idx)
-        for neighbor in current_atom.GetNeighbors():
-            neighbor_idx = neighbor.GetIdx()
-            neighbor_symbol = neighbor.GetSymbol()
+    return sorted(c_idx_list), sorted(center_atom_indices), sorted(selected_atom_indices), other_atom_indices
 
-            if neighbor_symbol == 'H':
-                continue
 
-            if neighbor_idx not in visited:
-                visited.add(neighbor_idx)
-                selected_atom_indices.add(neighbor_idx)
-                queue.append((neighbor_idx, step + 1))
-
-    return c_idx, sorted(center_atom_indices), sorted(selected_atom_indices)
-
-def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_atom_idx, center_atom_idx, ):
+def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_atom_idxs, c_idx_list, ):
 
     (
         dum1,
         dum2,
         atom1,
         atom2,
-    ) = model_lib.Init_info(
+    ) = polymer.Init_info(
         poly_name,
         repeating_unit,
     )
@@ -400,11 +411,25 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
     matches = mol.GetSubstructMatches(pattern, uniquify=True)
 
     for match in matches:
-        if center_atom_idx in match:
-            if all(idx in selected_atom_idx for idx in match):
-                return list(match), start_atom, end_atom
+        if any(c in match for c in c_idx_list) and all(idx in selected_atom_idxs for idx in match):
+            return list(match), start_atom, end_atom
 
-def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, end_atom, out_xyz_filename):
+
+def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_indices, start_atom, end_atom, out_xyz_filename):
+
+    # 1. 先把 center_atom_idx 规范成列表
+    if isinstance(center_atom_idx, int):
+        center_idxs = [center_atom_idx]
+    else:
+        center_idxs = list(center_atom_idx)
+
+    # 2. 如果 other_atom_indices 是 dict，就 flatten
+    if isinstance(other_atom_indices, dict):
+        other_idxs = []
+        for lst in other_atom_indices.values():
+            other_idxs.extend(lst)
+    else:
+        other_idxs = list(other_atom_indices)
 
     h_atom_idx = set()
     for idx in match_list:
@@ -413,7 +438,10 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
             if neighbor.GetAtomicNum() == 1:  # H atom
                 h_atom_idx.add(neighbor.GetIdx())
 
-    select_atom_idx_with_h = sorted(set(match_list + list(h_atom_idx) + center_atom_idx))
+    all_idxs = set(match_list) | h_atom_idx | set(center_idxs) | set(other_idxs)
+    select_atom_idx_with_h = sorted(all_idxs)
+
+    # select_atom_idx_with_h = sorted(set(match_list + list(h_atom_idx) + center_atom_idx + other_atom_indices))
 
     new_mol = Chem.RWMol()
     index_map = {}
@@ -425,7 +453,8 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
         index_map[old_idx] = new_idx
 
     # 创建一个反向索引映射（新分子索引到原始原子索引）
-    reverse_index_map = {v: k for k, v in index_map.items()}
+    # reverse_index_map = {v: k for k, v in index_map.items()}
+    reverse_index_map = {new_idx: old_idx for old_idx, new_idx in index_map.items()}
 
     # 添加原子间的键（如果两个原子都在要提取的列表中）
     for bond in mol.GetBonds():
@@ -609,6 +638,7 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, start_atom, 
     out_xyz_filepath = os.path.join(work_dir, out_xyz_filename)
     Chem.MolToXYZFile(new_mol, out_xyz_filepath)
 
+
 def rotate_vector_around_axis(v, axis, theta):
     """
     使用Rodrigues旋转公式将向量v围绕单位向量axis旋转theta弧度。
@@ -619,149 +649,3 @@ def rotate_vector_around_axis(v, axis, theta):
     w = np.cross(axis, v)
     return v_parallel + v_perp * np.cos(theta) + w * np.sin(theta)
 
-# def xyz2mol(work_dir, xyz_filename):
-#
-#     label_to_element = {
-#         'NBT': 'N',
-#         'SBT': 'S',
-#         'OBT': 'O',
-#         'CBT': 'C',
-#         'F1': 'F',
-#     }
-#
-#     # read the xyz file
-#     xyz_filepath = os.path.join(work_dir, xyz_filename)
-#     with open(xyz_filepath, 'r') as f:
-#         lines = f.readlines()
-#
-#     num_atoms = int(lines[0].strip())
-#
-#     # create a new RDKit molecule
-#     mol = Chem.RWMol()
-#     # add atoms to the molecule
-#     for i in range(2, 2 + num_atoms):
-#         parts = lines[i].strip().split()
-#         if len(parts) < 4:
-#             print(f"Invalid line: {lines[i]}")
-#             continue
-#         label, x, y, z = parts[:4]
-#
-#         element = label_to_element.get(label, label)
-#         atomic_num = Chem.GetPeriodicTable().GetAtomicNumber(element)
-#         if atomic_num == 0:
-#             print(f"Unrecognized element symbols '{element}'。")
-#             continue
-#         atom = Chem.Atom(atomic_num)
-#         mol.AddAtom(atom)
-#
-#     # generate a 3D conformer
-#     conf = Chem.Conformer(num_atoms)
-#     for i in range(num_atoms):
-#         parts = lines[2 + i].strip().split()
-#         if len(parts) < 4:
-#             continue
-#         x, y, z = map(float, parts[1:4])
-#         conf.SetAtomPosition(i, Chem.rdGeometry.Point3D(x, y, z))
-#     mol.AddConformer(conf)
-#
-#     # add bonds
-#     tolerance = 0.4  # Å
-#     pt = Chem.GetPeriodicTable()
-#     for i in range(num_atoms):
-#         atom_i = mol.GetAtomWithIdx(i)
-#         for j in range(i + 1, num_atoms):
-#             atom_j = mol.GetAtomWithIdx(j)
-#             # calculate the distance between atoms
-#             pos_i = np.array(conf.GetAtomPosition(i))
-#             pos_j = np.array(conf.GetAtomPosition(j))
-#             distance = np.linalg.norm(pos_i - pos_j)
-#             # get the covalent radii of the atoms
-#             radius_i = pt.GetRcovalent(atom_i.GetSymbol())
-#             radius_j = pt.GetRcovalent(atom_j.GetSymbol())
-#             if radius_i == 0 or radius_j == 0:
-#                 continue  # skip if the radius is not available
-#             # check if the distance is within the sum of the covalent radii
-#             if distance <= (radius_i + radius_j + tolerance):
-#                 try:
-#                     mol.AddBond(i, j, order=Chem.rdchem.BondType.SINGLE)
-#                 except Exception as e:
-#                     print(f"Adding key failed：{e}")
-#
-#     # convert to Mol object and clean up
-#     mol = mol.GetMol()
-#     Chem.SanitizeMol(mol)
-#
-#     return mol
-
-# def get_cluster_index(mol, center_atom_symbol, select_atom_symbol, repeating_unit, length,):
-#
-#     unit_smi_with_h1 = repeating_unit.replace('*', '[H]')
-#     unit_mol_with_h1 = Chem.MolFromSmiles(unit_smi_with_h1)
-#     unit_mol = Chem.RemoveHs(unit_mol_with_h1)
-#     num_unit = unit_mol.GetNumAtoms()
-#     max_steps = num_unit * (length - 1)
-#
-#     conf = mol.GetConformer()
-#     # Step 1: 找到中心原子（假设只有一个）
-#     center_atoms = [atom for atom in mol.GetAtoms() if atom.GetSymbol() == center_atom_symbol]
-#     center_atom = center_atoms[0]
-#     n_idx = center_atom.GetIdx()
-#
-#     # 获取选定原子的列表和坐标
-#     select_atoms = [atom for atom in mol.GetAtoms() if atom.GetSymbol() == select_atom_symbol]
-#     select_positions = np.array([conf.GetAtomPosition(atom.GetIdx()) for atom in select_atoms])
-#
-#     # Step 2: 从中心原子开始，找到其所在的连通组分
-#     center_atom_indices = set()
-#     queue = deque()
-#
-#     center_atom_indices.add(n_idx)
-#     queue.append(n_idx)
-#     while queue:
-#         current_idx = queue.popleft()
-#         current_atom = mol.GetAtomWithIdx(current_idx)
-#         for neighbor in current_atom.GetNeighbors():
-#             neighbor_idx = neighbor.GetIdx()
-#             if neighbor_idx not in center_atom_indices:
-#                 center_atom_indices.add(neighbor_idx)
-#                 queue.append(neighbor_idx)
-#
-#     # Step 3: 找到与中心原子最近的选定原子，并确认键连接
-#     n_pos = np.array(conf.GetAtomPosition(n_idx))
-#     distances = np.linalg.norm(select_positions - n_pos, axis=1)
-#     min_dist_idx = np.argmin(distances)
-#     closest_select_atom = select_atoms[min_dist_idx]
-#
-#     # 获取与最近的选定原子相连的特定原子
-#     bonded_c_atoms = [nbr for nbr in closest_select_atom.GetNeighbors()]
-#     c_atom = bonded_c_atoms[0]
-#     c_idx = c_atom.GetIdx()
-#
-#     selected_atom_indices = set()
-#     selected_atom_indices.add(c_idx)
-#
-#     # Step 4: 从该原子开始，限定步数的广度优先搜索
-#     visited = set()
-#     queue = deque()
-#     queue.append((c_idx, 0))
-#     visited.add(c_idx)
-#
-#     while queue:
-#         current_idx, step = queue.popleft()
-#         if step >= max_steps:
-#             continue
-#
-#         current_atom = mol.GetAtomWithIdx(current_idx)
-#         for neighbor in current_atom.GetNeighbors():
-#             neighbor_idx = neighbor.GetIdx()
-#             neighbor_symbol = neighbor.GetSymbol()
-#
-#             if neighbor_symbol == 'H':
-#                 continue
-#
-#             if neighbor_idx not in visited:
-#                 visited.add(neighbor_idx)
-#                 selected_atom_indices.add(neighbor_idx)
-#                 queue.append((neighbor_idx, step + 1))
-#
-#     return c_idx, sorted(center_atom_indices), sorted(selected_atom_indices)

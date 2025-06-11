@@ -7,6 +7,7 @@ import os
 import numpy as np
 import MDAnalysis as mda
 from tqdm.auto import tqdm
+import matplotlib.pyplot as plt
 from MDAnalysis.analysis import rdf
 
 def calc_rdf_coord(group1, group2, v, nbins=200, range_rdf=(0.0, 10.0)):
@@ -73,5 +74,62 @@ def analyze_coordination(universe, li_atoms, molecule_groups, cutoff_radii, run_
             coordination[ts_index, li_index] = encoded_coordination
 
     return coordination
+
+def plot_rdf_coordination(
+    bins,
+    rdf,
+    coord_numbers,
+):
+    # 字体和配色
+    font_list = {"label": 18, "ticket": 18, "legend": 16}
+    color_list = ["#DF543F", "#2286A9", "#FBBF7C", "#3C3846"]
+
+    # 创建画布
+    fig, ax1 = plt.subplots()
+    fig.set_size_inches(5.5, 4)
+
+    # 绘制 RDF 曲线
+    ax1.plot(
+        bins,
+        rdf,
+        '-',
+        linewidth=1.5,
+        color=color_list[0],
+        label='g(r)'
+    )
+    ax1.set_xlabel('Distance (Å)', fontsize=font_list["label"])
+    ax1.set_ylabel('g(r)', fontsize=font_list["label"])
+    ax1.tick_params(
+        axis='both',
+        which='both',
+        direction='in',
+        labelsize=font_list["ticket"]
+    )
+
+    # 创建第二个 y 轴，绘制配位数
+    ax2 = ax1.twinx()
+    ax2.plot(
+        bins,
+        coord_numbers,
+        '--',
+        linewidth=2,
+        color="grey",
+        label='Coord. Number'
+    )
+    ax2.set_ylabel('Coordination Number', fontsize=font_list["label"])
+    ax2.tick_params(
+        axis='y',
+        which='both',
+        direction='in',
+        labelsize=font_list["ticket"]
+    )
+
+    # 坐标轴范围 & 网格
+    ax1.set_xlim(0, 10)
+    ax1.grid(True, linestyle='--')
+
+    plt.tight_layout()
+    plt.show()
+
 
 
