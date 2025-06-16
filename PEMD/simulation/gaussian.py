@@ -22,6 +22,7 @@ class PEMDGaussian:
         function='B3LYP',
         basis_set='6-31+g(d,p)',
         epsilon=5.0,
+        optimize=True,
         multi_step=False,  # Decide whether to perform multi-step calculations
         max_attempts=3,    # Maximum number of attempts
     ):
@@ -34,6 +35,7 @@ class PEMDGaussian:
         self.function = function
         self.basis_set = basis_set
         self.epsilon = epsilon
+        self.optimize = optimize
         self.multi_step = multi_step
         self.max_attempts = max_attempts
 
@@ -60,20 +62,23 @@ class PEMDGaussian:
         if chk:
             file_contents += f"%chk={os.path.join(self.work_dir, prefix + '_opt.chk')}\n"
 
-        # Construct the route section with optional cartesian keyword
-        if gaucontinue or use_cartesian:
-            options = []
-            if use_cartesian:
-                options.append("cartesian")
-            if gaucontinue:
-                options += ["maxstep=3", "notrust", "maxcyc=150", "gdiis"]
+        if self.optimize:
+            # Construct the route section with optional cartesian keyword
+            if gaucontinue or use_cartesian:
+                options = []
+                if use_cartesian:
+                    options.append("cartesian")
+                if gaucontinue:
+                    options += ["maxstep=2", "notrust", "maxcyc=100", "gdiis"]
+                else:
+                    options.append("maxcyc=100")
+                route_section = f"# opt(tight, {','.join(options)}) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm"
             else:
-                options.append("maxcyc=100")
-            route_section = f"# opt({','.join(options)}) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)"
+                route_section = (
+                    f"# opt(tight, maxcyc=40) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm"
+                )
         else:
-            route_section = (
-                f"# opt(maxcyc=100) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)"
-            )
+            route_section = f"# {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)"
 
         if additional_options:
             route_section += f" {additional_options}"

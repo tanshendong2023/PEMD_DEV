@@ -26,3 +26,6 @@ PERIODIC_TABLE = [
     'Rg',  'Cn',  'Fl',  'Lv',  'Ts',  'Og'
 ]
 
+FARADAY_CONSTANT = 96485.3329  # C/mol, Faraday constant
+
+

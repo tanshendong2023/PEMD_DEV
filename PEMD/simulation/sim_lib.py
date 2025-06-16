@@ -130,17 +130,33 @@ def submit_job_to_slurm(command, job_name, node, core, mem, gaussian_dir, file, 
         print(f"提交作业失败：{result.stderr}")
         return None
 
-def read_energy_from_gaussian(log_file_path):
-    """
-    从 Gaussian 输出文件中读取能量（自由能）
-    """
-    with open(log_file_path, 'r') as file:
-        lines = file.readlines()
-    energy = None
-    for line in lines:
-        if 'Sum of electronic and thermal Free Energies=' in line:
-            energy = float(line.strip().split()[-1])
-    return energy
+
+def read_energy_from_gaussian(log_file_path: str):
+    # 自由能（优化+freq）行
+    pattern_free = re.compile(
+        r"Sum of electronic and thermal Free Energies\s*=\s*(-?\d+\.\d+)"
+    )
+    # SCF 单点能行
+    pattern_scf = re.compile(
+        r"SCF Done:\s+E\(\w+.*?\)\s+=\s+(-?\d+\.\d+)"
+    )
+
+    energy_free = None
+    energy_scf = None
+
+    with open(log_file_path, 'r') as f:
+        for line in f:
+            m_free = pattern_free.search(line)
+            if m_free:
+                energy_free = float(m_free.group(1))
+            m_scf = pattern_scf.search(line)
+            if m_scf:
+                energy_scf = float(m_scf.group(1))
+
+    # 优先返回自由能，否则返回 SCF 能量
+    if energy_free is not None:
+        return energy_free
+    return energy_scf
 
 
 def read_final_structure_from_gaussian(log_file_path):
@@ -209,10 +225,11 @@ def read_final_structure_from_gaussian(log_file_path):
 
     return atoms
 
-def order_energy_gaussian(work_dir, numconf, output_file):
+def order_energy_gaussian(work_dir, filename, numconf, output_file):
 
     data = []
-    file_pattern = re.compile(r'^conf_\d+\.log$')
+    escaped = re.escape(filename)
+    file_pattern = re.compile(rf'^{escaped}_\d+\.log$')
     # Traverse all files in the specified folder
     for file in os.listdir(work_dir):
         if file_pattern.match(file):

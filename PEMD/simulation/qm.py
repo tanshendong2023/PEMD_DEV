@@ -10,7 +10,6 @@ import pandas as pd
 
 from rdkit import Chem
 from pathlib import Path
-from dataclasses import dataclass
 from rdkit.Chem.AllChem import (
     EmbedMultipleConfs,
     MMFFGetMoleculeProperties,
@@ -30,7 +29,6 @@ from PEMD.simulation.multiwfn import PEMDMultiwfn
 # force field, and saves the optimized conformers to a single XYZ file.
 def gen_conf_rdkit(
     work_dir: Path | str,
-    name: str,
     max_conformers: int = 1000,
     top_n_MMFF: int = 100,
     *,
@@ -60,14 +58,14 @@ def gen_conf_rdkit(
         energy = ff.CalcEnergy()
         minimized_conformers.append((conf_id, energy))
 
-    print(f"Generated {len(minimized_conformers)} conformers for {name}")
+    print(f"Generated {len(minimized_conformers)} conformers for polymer")
 
     # Sort the conformers by energy and select the top N conformers
     minimized_conformers.sort(key=lambda x: x[1])
     top_conformers = minimized_conformers[:top_n_MMFF]
 
     # merge the top conformers to a single xyz file
-    output_file = f"{name}_MMFF_top{top_n_MMFF}.xyz"
+    output_file = f"MMFF_top{top_n_MMFF}.xyz"
     output_path = work_path / output_file
     with open(output_path, 'w') as merged_xyz:
         for idx, (conf_id, energy) in enumerate(top_conformers):
@@ -85,10 +83,9 @@ def gen_conf_rdkit(
 
     return output_file
 
-def opt_conf_xtb(
+def conf_xtb(
     work_dir: Path | str,
     xyz_file: str,
-    name: str,
     top_n_xtb: int = 8,
     charge: float = 0,
     mult: int = 1,
@@ -96,7 +93,7 @@ def opt_conf_xtb(
     optimize: bool = True
 ):
     work_path = Path(work_dir)
-    xtb_dir = work_path / f"XTB_{name}"
+    xtb_dir = work_path / f"XTB_dir"
     xtb_dir.mkdir(parents=True, exist_ok=True)
 
     full_xyz = Path(work_dir) / xyz_file
@@ -163,7 +160,7 @@ def opt_conf_xtb(
     sorted_energies = sorted(energy_list, key=lambda x: x['energy'])
     top_structures = sorted_energies[:top_n_xtb]
 
-    output_path = work_path / f"{name}_xtb_top{top_n_xtb}.xyz"
+    output_path = work_path / f"xtb_top{top_n_xtb}.xyz"
     with open(output_path, 'w') as out:
         for r in top_structures:
             src = xtb_dir / r['filename']
@@ -179,94 +176,37 @@ def opt_conf_xtb(
 # input: a xyz file
 # output: a xyz file
 # description:
-def opt_conf_gaussian(
+def qm_gaussian(
         work_dir: Path | str,
-        name: str,
         xyz_file: str,
-        top_n_qm: int = 4,
+        gjf_filename: str,
+        *,
         charge: float = 0,
         mult: int = 1,
-        function='B3LYP',
-        basis_set='6-31+g(d,p)',
-        epsilon=5.0,
-        core=64,
-        memory='128GB',
-        multi_step=False,
-        max_attempts=1
+        function: str = 'B3LYP',
+        basis_set: str = '6-31+g(d,p)',
+        epsilon: float = 5.0,
+        core: int = 64,
+        memory: str = '128GB',
+        chk: bool = False,
+        optimize: bool = True,
+        multi_step: bool = False,
+        max_attempts: int = 1,
+        toxyz: bool = True,
+        top_n_qm: int = 4,
 ):
-
     work_path = Path(work_dir)
-    conf_dir = work_path / f'QM_{name}'
-    conf_dir.mkdir(parents=True, exist_ok=True)
+    qm_dir = work_path / f'QM_dir'
+    qm_dir.mkdir(parents=True, exist_ok=True)
 
     xyz_path = Path(work_dir) / xyz_file
     structures = sim_lib.read_xyz_file(xyz_path)
 
     for idx, structure in enumerate(structures):
 
-        filename = f'conf_{idx}.gjf'
-        Gau = PEMDGaussian(
-            work_dir=conf_dir,
-            filename=filename,
-            core=core,
-            mem=memory,
-            chg=charge,
-            mult=mult,
-            function=function,
-            basis_set=basis_set,
-            epsilon=epsilon,
-            multi_step=multi_step,  # 根据 gaucontinue 设置 multi_step
-            max_attempts=max_attempts,          # 可根据需要调整最大尝试次数
-        )
-
-        state, log_filename = Gau.run_local(
-            structure=structure,
-            resp=False,
-            chk=False,
-        )
-
-        if state == 'success':
-            Gau.logger.info(f"Optimization succeeded for {filename}.")
-            print(f"Structure {idx}: Optimization SUCCESS.")
-        else:
-            Gau.logger.error(f"Optimization failed for {filename}.")
-            print(f"Structure {idx}: Optimization FAILED.")
-
-    output_file = f"{name}_gaussian_top{top_n_qm}.xyz"
-    sim_lib.order_energy_gaussian(
-        conf_dir,
-        top_n_qm,
-        output_file,
-    )
-    return output_file
-
-
-def qm_gaussian(
-        work_dir,
-        xyz_filename,
-        gjf_filename,
-        charge=0,
-        mult=1,
-        function='B3LYP',
-        basis_set='6-31+g(d,p)',
-        epsilon=5.0,
-        core=64,
-        memory='128GB',
-        chk=False,
-        multi_step=True,
-        max_attempts=2,
-):
-    work_path = Path(work_dir)
-    work_path.mkdir(parents=True, exist_ok=True)
-
-    xyz_path = work_path / xyz_filename
-    structures = sim_lib.read_xyz_file(xyz_path)
-
-    for idx, structure in enumerate(structures):
-
         filename = f'{gjf_filename}_{idx}.gjf'
         Gau = PEMDGaussian(
-            work_dir=work_dir,
+            work_dir=qm_dir,
             filename=filename,
             core=core,
             mem=memory,
@@ -275,8 +215,9 @@ def qm_gaussian(
             function=function,
             basis_set=basis_set,
             epsilon=epsilon,
-            multi_step=multi_step,
-            max_attempts=max_attempts,
+            optimize=optimize,  # 确保优化
+            multi_step=multi_step,  # 根据 gaucontinue 设置 multi_step
+            max_attempts=max_attempts,          # 可根据需要调整最大尝试次数
         )
 
         state, log_filename = Gau.run_local(
@@ -287,15 +228,25 @@ def qm_gaussian(
 
         if state == 'success':
             Gau.logger.info(f"Optimization succeeded for {filename}.")
-            print(f"Structure {idx}: Optimization SUCCESS.")
+            print(f"Structure {idx}: Calculation SUCCESS.")
         else:
             Gau.logger.error(f"Optimization failed for {filename}.")
-            print(f"Structure {idx}: Optimization FAILED.")
+            print(f"Structure {idx}: Calculation FAILED.")
+
+    if toxyz:
+        output_file = f"gaussian_top{top_n_qm}.xyz"
+        output_filepath = Path(work_dir) / output_file
+        sim_lib.order_energy_gaussian(
+            qm_dir,
+            gjf_filename,
+            top_n_qm,
+            output_filepath,
+        )
+        return output_file
 
 
 def calc_resp_gaussian(
         work_dir: Path | str,
-        name: str,
         xyz_file: str,
         charge: float = 0,
         mult: int = 1,
@@ -308,7 +259,7 @@ def calc_resp_gaussian(
     # Build the resp_dir.
     work_path = Path(work_dir)
     work_path.mkdir(parents=True, exist_ok=True)
-    resp_path = work_path / f"resp_{name}"
+    resp_path = work_path / f"resp_dir"
     resp_path.mkdir(exist_ok=True)
 
     # Read xyz file as a list of structures.
@@ -343,13 +294,12 @@ def calc_resp_gaussian(
 
 def RESP_fit_Multiwfn(
     work_dir: Path | str,
-    name: str,
     method: str = 'resp2',
     delta: float = 0.5
 ):
     # Build the resp_dir.
     work_path = Path(work_dir)
-    resp_path = work_path / f"resp_{name}"
+    resp_path = work_path / f"resp_dir"
     resp_path.mkdir(parents=True, exist_ok=True)
 
     # Find chk files and convert them to fchk files.

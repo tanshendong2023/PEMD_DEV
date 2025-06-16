@@ -18,7 +18,6 @@ from multiprocessing import Pool
 
 from PEMD.analysis.conductivity import calc_cond_msd, calc_conductivity
 from PEMD.analysis.transfer_number import calc_transfer_number
-from PEMD.analysis.coordination import calc_rdf_coord, obtain_rdf_coord, plot_rdf_coordination
 from PEMD.analysis.msd import (
     calc_slope_msd,
     create_position_arrays,
@@ -36,13 +35,17 @@ from PEMD.analysis.polymer_ion_dynamics import (
     fit_rouse_model,
     calc_msd_M2
 )
-from PEMD.analysis.analysis_lib import (
+from PEMD.analysis.coordination import (
+    calc_rdf_coord,
+    obtain_rdf_coord,
+    plot_rdf_coordination,
     num_of_neighbor,
     pdb2mol,
     get_cluster_index,
     find_poly_match_subindex,
     get_cluster_withcap
 )
+from PEMD.analysis.esw import esw
 
 
 class PEMDAnalysis:
@@ -464,18 +467,18 @@ class PEMDAnalysis:
 
     @staticmethod
     def write_cluster(
-        work_dir,
-        tpr_file,
-        wrap_xtc_file,
-        center_atom_name,
-        distance_dict,
-        select_dict,
-        run_start,
-        run_end,
-        structure_code,
-        max_number,
-        write=True,
-        write_freq=0.01,
+        work_dir: str,
+        tpr_file: str,
+        wrap_xtc_file: str,
+        center_atom_name: str,
+        distance_dict: dict[str, float],
+        select_dict: dict[str, str],
+        run_start: int = 0,
+        run_end: int = 80000,
+        structure_code: int = 1,
+        max_number: int = 100,
+        write: bool = True,
+        write_freq: float = 0.01,
     ):
 
         tpr_path = os.path.join(work_dir, tpr_file)
@@ -499,58 +502,111 @@ class PEMDAnalysis:
 
     @staticmethod
     def write_cluster_polymer(
-        work_dir,
-        pdb_filename,
-        center_atom_name,
-        poly_atom_name,
-        poly_name,
-        repeating_unit,
-        length,
-        outxyz_filename
+        work_dir: str,
+        tpr_file: str,
+        wrap_xtc_file: str,
+        center_atom_name: str,
+        distance_dict: dict[str, float],
+        select_dict: dict[str, str],
+        poly_name: str,
+        repeating_unit: str,
+        length: int = 3,
+        run_start: int = 0,
+        run_end: int = 80000,
+        structure_code: int = 1,
+        max_number: int = 100,
+        write_freq: float = 0.01,
     ):
 
-        mol = pdb2mol(
+        PEMDAnalysis.write_cluster(
             work_dir,
-            pdb_filename
-        )
-
-        (
-            c_idx,
-            center_atom_idx,
-            selected_atom_idx,
-            other_atom_idx,
-        ) = get_cluster_index(
-            mol,
+            tpr_file,
+            wrap_xtc_file,
             center_atom_name,
-            poly_atom_name,
-            poly_name,
-            repeating_unit,
-            length,
+            distance_dict,
+            select_dict,
+            run_start,
+            run_end,
+            structure_code,
+            max_number,
+            write = True,
+            write_freq = write_freq,
         )
 
-        (
-            match_list,
-            start_atom,
-            end_atom
-        ) = find_poly_match_subindex(
-            poly_name,
-            repeating_unit,
-            length,
-            mol,
-            selected_atom_idx,
-            c_idx,
+        cluster_dir = os.path.join(work_dir, "cluster_dir")
+        pdb_files = sorted([f for f in os.listdir(cluster_dir) if f.endswith(".pdb")])
+
+        for i, pdb_file in enumerate(pdb_files):
+
+            try:
+                mol = pdb2mol(
+                    cluster_dir,
+                    pdb_file
+                )
+
+                (
+                    c_idx,
+                    center_atom_idx,
+                    selected_atom_idx,
+                    other_atom_idx,
+                ) = get_cluster_index(
+                    mol,
+                    center_atom_name,
+                    select_dict,
+                    distance_dict,
+                    poly_name,
+                    repeating_unit,
+                    length,
+                )
+
+                (
+                    match_list,
+                    start_atom,
+                    end_atom
+                ) = find_poly_match_subindex(
+                    poly_name,
+                    repeating_unit,
+                    length,
+                    mol,
+                    selected_atom_idx,
+                    c_idx,
+                )
+
+                outxyz_file = f'num_{i}_frag.xyz'
+                get_cluster_withcap(
+                    cluster_dir,
+                    mol,
+                    match_list,
+                    center_atom_idx,
+                    other_atom_idx,
+                    start_atom,
+                    end_atom,
+                    outxyz_file
+                )
+            except Exception as e:
+                print(f"Error processing file {pdb_file}: {e}")
+                continue
+
+
+    @staticmethod
+    def esw(
+        G_init: float,
+        *,
+        G_oxid: float = None,
+        G_red: float = None,
+        output: str = 'all',
+        unit: str = 'hartree',  # hartree, eV, V, mV to kcal/mol
+    ):
+
+        return esw(
+            G_init,
+            G_oxid=G_oxid,
+            G_red=G_red,
+            output=output,
+            unit=unit
         )
 
-        get_cluster_withcap(
-            work_dir,
-            mol,
-            match_list,
-            center_atom_idx,
-            other_atom_idx,
-            start_atom,
-            end_atom,
-            outxyz_filename
-        )
+
 
 
 

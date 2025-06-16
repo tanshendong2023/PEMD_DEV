@@ -13,11 +13,10 @@ from pathlib import Path
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
 
-
 from PEMD.simulation.qm import (
     gen_conf_rdkit,
-    opt_conf_xtb,
-    opt_conf_gaussian,
+    conf_xtb,
+    qm_gaussian,
     calc_resp_gaussian,
     RESP_fit_Multiwfn,
 )
@@ -35,9 +34,48 @@ class QMRun:
     smiles: str
 
     @staticmethod
+    def qm_gaussian(
+        work_dir: Path | str,
+        xyz_file: str,
+        gjf_filename: str,
+        *,
+        charge: float = 0,
+        mult: int = 1,
+        function: str = 'B3LYP',
+        basis_set: str = '6-31+g(d,p)',
+        epsilon: float = 5.0,
+        core: int = 64,
+        memory: str = '128GB',
+        chk: bool = False,
+        optimize: bool = True,
+        multi_step: bool = False,
+        max_attempts: int = 1,
+        toxyz: bool = True,
+        top_n_qm: int = 4,
+    ):
+        return qm_gaussian(
+            work_dir=work_dir,
+            xyz_file=xyz_file,
+            gjf_filename=gjf_filename,
+            charge=charge,
+            mult=mult,
+            function=function,
+            basis_set=basis_set,
+            epsilon=epsilon,
+            core=core,
+            memory=memory,
+            chk=chk,
+            optimize=optimize,
+            multi_step=multi_step,
+            max_attempts=max_attempts,
+            toxyz=toxyz,
+            top_n_qm=top_n_qm
+        )
+
+
+    @staticmethod
     def conformer_search(
         work_dir: Path,
-        name: str,
         *,
         smiles: str | None = None,
         pdb_file: str | None = None,
@@ -53,14 +91,11 @@ class QMRun:
         epsilon: float = 2.0,
         core: int = 32,
         memory: str = '64GB',
-        multi_step=False,
-        max_attempts=1,
     ):
 
         # Generate conformers using RDKit
         xyz_file_MMFF = gen_conf_rdkit(
             work_dir=work_dir,
-            name=name,
             max_conformers=max_conformers,
             top_n_MMFF=top_n_MMFF,
             smiles=smiles,
@@ -68,10 +103,9 @@ class QMRun:
         )
 
         # Optimize conformers using XTB
-        xyz_file_xtb = opt_conf_xtb(
+        xyz_file_xtb = conf_xtb(
             work_dir,
             xyz_file_MMFF,
-            name=name,
             top_n_xtb=top_n_xtb,
             charge=charge,
             mult=mult,
@@ -80,26 +114,26 @@ class QMRun:
         )
 
         # Optimize conformers using Gaussian
-        return opt_conf_gaussian(
+        return qm_gaussian(
             work_dir,
-            name,
             xyz_file_xtb,
-            top_n_qm,
-            charge,
-            mult,
-            function,
-            basis_set,
-            epsilon,
-            core,
-            memory,
-            multi_step,
-            max_attempts,
+            gjf_filename="conf",
+            charge=charge,
+            mult= mult,
+            function=function,
+            basis_set=basis_set,
+            epsilon=epsilon,
+            core=core,
+            memory=memory,
+            optimize=True,
+            toxyz=True,
+            top_n_qm=top_n_qm,
         )
+
 
     @staticmethod
     def resp_chg_fitting(
         work_dir: Path,
-        name: str,
         xyz_file: str,
         charge: float = 0,
         mult: int = 1,
@@ -113,7 +147,6 @@ class QMRun:
 
         calc_resp_gaussian(
             work_dir,
-            name,
             xyz_file,
             charge,
             mult,
@@ -126,7 +159,6 @@ class QMRun:
 
         return RESP_fit_Multiwfn(
             work_dir,
-            name,
             method,
             delta=0.5
         )
