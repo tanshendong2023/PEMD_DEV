@@ -13,6 +13,7 @@ from PEMD import io
 from rdkit import Chem
 from PEMD.model import polymer
 from rdkit.Chem import Descriptors
+from PEMD.model import model_lib
 
 
 def gen_copolymer_3D(smiles_A,
@@ -102,5 +103,34 @@ def calc_poly_length(total_mass_polymer, smiles_repeating_unit, smiles_leftcap, 
     length = round(mass_polymer_chain / mol_weight_repeating_unit)
 
     return length
+
+
+def gen_poly_smiles(poly_name, repeating_unit, length, leftcap, rightcap,):
+    # Generate the SMILES representation of the polymer.
+    (
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+    ) = polymer.Init_info(
+        poly_name,
+        repeating_unit,
+    )
+
+    smiles_poly = model_lib.gen_oligomer_smiles(
+        poly_name,
+        dum1,
+        dum2,
+        atom1,
+        atom2,
+        repeating_unit,
+        length,
+        leftcap,
+        rightcap,
+    )
+
+    Path(f"{poly_name}.xyz").unlink(missing_ok=True)
+
+    return smiles_poly
 
 

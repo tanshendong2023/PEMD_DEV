@@ -11,6 +11,7 @@ from PEMD.constants import (
     FARADAY_CONSTANT,
 )
 
+
 def esw(
     G_init: float,
     *,

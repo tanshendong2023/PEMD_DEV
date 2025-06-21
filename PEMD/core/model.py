@@ -180,6 +180,7 @@ class PEMDModel:
             resname=resname,
         )
 
+
     @classmethod
     def homopolymer_from_json(
             cls,
@@ -199,6 +200,7 @@ class PEMDModel:
         )
 
         return pdb_file
+
 
     @staticmethod
     def amorphous_cell(
@@ -225,6 +227,7 @@ class PEMDModel:
         run.run_local()
 
         print("Amorphous structure generated.")
+
 
     @classmethod
     def amorphous_cell_from_json(

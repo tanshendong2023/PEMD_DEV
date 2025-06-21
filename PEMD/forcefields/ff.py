@@ -54,7 +54,7 @@ def get_xml_ligpargen(
 
     temp_sdf = work_path / "temp.sdf"
     temp_sdf.unlink(missing_ok=True)
-    pdb_path.unlink(missing_ok=True)
+    # pdb_path.unlink(missing_ok=True)
 
     csv_path = ligpargen_dir / f"{name}.csv"
     chg_df = pd.read_csv(csv_path)
