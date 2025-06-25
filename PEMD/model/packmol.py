@@ -21,23 +21,27 @@ class PEMDPackmol:
         self.packinp_name = packinp_name
         self.packpdb_name = packpdb_name
 
+        self.compounds = [molecule['name'] for molecule in self.molecule_list]
+        self.resnames = [molecule['resname'] for molecule in self.molecule_list]
+        self.numbers = [molecule['number'] for molecule in self.molecule_list]
+
     def generate_input_file(self):
 
         os.makedirs(self.work_dir, exist_ok=True)
         packinp_path = os.path.join(self.work_dir, self.packinp_name)
 
-        compounds = list(self.molecule_list.keys())
-        numbers = list(self.molecule_list.values())
+        # compounds = list(self.molecule_list.keys())
+        # numbers = list(self.molecule_list.values())
 
         pdb_filenames = []
         pdb_filepaths = []
-        for com in compounds:
+        for com in self.compounds:
             filename = f"{com}.pdb"
             filepath = os.path.join(self.work_dir, f"{com}.pdb")
             pdb_filenames.append(filename)
             pdb_filepaths.append(filepath)
 
-        box_length = polymer.calculate_box_size(numbers, pdb_filepaths, self.density) + self.add_length
+        box_length = polymer.calculate_box_size(self.numbers, pdb_filepaths, self.density) + self.add_length
 
         file_contents = "tolerance 2.0\n"
         file_contents += f"add_box_sides 1.2\n"
@@ -45,7 +49,7 @@ class PEMDPackmol:
         file_contents += "filetype pdb\n\n"
         file_contents += f"seed {random.randint(1, 100000)}\n\n"
 
-        for num, file in zip(numbers, pdb_filenames):
+        for num, file in zip(self.numbers, pdb_filenames):
             file_contents += f"structure {file}\n"
             file_contents += f"  number {num}\n"
             file_contents += f"  inside box 0.0 0.0 0.0 {box_length:.2f} {box_length:.2f} {box_length:.2f}\n"

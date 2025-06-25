@@ -111,6 +111,7 @@ class Forcefield:
         *,
         resname: str = "MOL",
         resp_csv: str | None = None,
+        resp_df: pd.DataFrame | None = None,
         polymer: bool = False,
         length_short: int = 3,
         scale: float = 1.0,
@@ -149,6 +150,9 @@ class Forcefield:
                 if resp_csv:
                     chg_df = pd.read_csv(resp_csv)
                     chg_df.insert(0, 'position', chg_df.index)
+                elif resp_df is not None:
+                    chg_df = resp_df.copy()
+                    chg_df.insert(0, 'position', chg_df.index)
 
                 work_path = Path(work_dir)
                 pdb_path = work_path / pdb_file
@@ -183,11 +187,21 @@ class Forcefield:
                 )
 
                 if resp_csv:
+                    chg_df = pd.read_csv(resp_csv)
                     apply_chg_to_molecule(
                         work_dir,
                         itp_file=bonditp_filename,
                         chg_df=chg_df,
                         scale= scale,
+                        charge=charge,
+                    )
+
+                elif resp_df is not None:
+                    apply_chg_to_molecule(
+                        work_dir,
+                        itp_file=bonditp_filename,
+                        chg_df=resp_df,
+                        scale=scale,
                         charge=charge,
                     )
 
@@ -209,6 +223,7 @@ class Forcefield:
             ff_source: str = "ligpargen",
             polymer: bool = False,
             resp_csv: str | None = None,
+            resp_df: pd.DataFrame | None = None,
             pdb_file: str | None = None,
     ):
         instance = cls.from_json(work_dir, json_file)
@@ -219,6 +234,7 @@ class Forcefield:
             ff_source=ff_source,
             resname=instance.resname,
             resp_csv=resp_csv,
+            resp_df=resp_df,
             polymer=polymer,
             length_short=instance.length_short,
             scale=instance.scale,

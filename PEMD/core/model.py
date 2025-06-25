@@ -187,11 +187,19 @@ class PEMDModel:
             work_dir:
             Path,
             json_file: str
-    ) -> str:
+    ):
 
         instance = cls.from_json(work_dir, json_file)
 
-        pdb_file = cls.homopolymer(
+        pdb_file_short = cls.homopolymer(
+            work_dir=instance.work_dir,
+            name=instance.name,
+            smiles=instance.repeating_unit,
+            length=instance.length_short,
+            resname=instance.resname
+        )
+
+        pdb_file_long = cls.homopolymer(
             work_dir=instance.work_dir,
             name=instance.name,
             smiles=instance.repeating_unit,
@@ -199,13 +207,13 @@ class PEMDModel:
             resname=instance.resname
         )
 
-        return pdb_file
+        return pdb_file_short, pdb_file_long
 
 
     @staticmethod
     def amorphous_cell(
         work_dir: Path,
-        molecule_list: dict,
+        molecule_list,
         density: float,
         add_length: int,
         packinp_name: str,

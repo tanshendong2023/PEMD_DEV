@@ -222,6 +222,7 @@ def convert_xyz_to_pdb(xyz_filename, pdb_filename, molecule_name, resname):
     pdb_filename = str(pdb_filename)
     obConversion.WriteFile(mol, pdb_filename)
 
+
 # 3. Convert XYZ to MOL2
 def convert_xyz_to_mol2(xyz_filename, mol2_filename, molecule_name, resname):
     obConversion = ob.OBConversion()
