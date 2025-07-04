@@ -7,7 +7,6 @@ Date: 2024.03.26
 
 
 import os
-import MDAnalysis as mda
 from PEMD.model import model_lib
 from PEMD.simulation.gromacs import PEMDGROMACS
 

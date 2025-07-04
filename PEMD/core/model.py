@@ -50,7 +50,7 @@ class PEMDModel:
 
         polymer_info = model_info.get('polymer', {})
 
-        name = polymer_info.get('compound', '')
+        name = polymer_info.get('name', '')
         resname = polymer_info.get('resname', '')
         repeating_unit = polymer_info.get('repeating_unit', '')
         leftcap = polymer_info.get('left_cap', '')
@@ -67,7 +67,7 @@ class PEMDModel:
         molecule_list = {}
         for category, details in model_info.items():
             if isinstance(details, dict):
-                compound = details.get('compound')
+                compound = details.get('name')
                 numbers = details.get('numbers')
                 if compound is not None and numbers is not None:
                     molecule_list[compound] = numbers
@@ -190,6 +190,7 @@ class PEMDModel:
     ):
 
         instance = cls.from_json(work_dir, json_file)
+        print(instance)
 
         pdb_file_short = cls.homopolymer(
             work_dir=instance.work_dir,

@@ -63,22 +63,31 @@ class PEMDGaussian:
             file_contents += f"%chk={os.path.join(self.work_dir, prefix + '_opt.chk')}\n"
 
         if self.optimize:
-            # Construct the route section with optional cartesian keyword
-            if gaucontinue or use_cartesian:
-                options = []
-                if use_cartesian:
-                    options.append("cartesian")
-                if gaucontinue:
-                    options += ["maxstep=2", "notrust", "maxcyc=100", "gdiis"]
-                else:
-                    options.append("maxcyc=100")
-                route_section = f"# opt(tight, {','.join(options)}) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm"
+
+            tight_flag = "tight" if self.function.upper() == "M062X" else None
+
+            opt_params = []
+            if tight_flag:
+                opt_params.append(tight_flag)
+            if use_cartesian:
+                opt_params.append("cartesian")
+
+            if gaucontinue:
+                opt_params += ["maxstep=2", "notrust", "maxcyc=100", "gdiis"]
             else:
-                route_section = (
-                    f"# opt(tight, maxcyc=40) freq {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read) nosymm"
-                )
+                maxcyc = 40 if tight_flag is None else 100
+                opt_params.append(f"maxcyc={maxcyc}")
+
+            route_section = (
+                f"# opt({','.join(opt_params)}) freq "
+                f"{self.function} {self.basis_set} "
+                f"scrf=(pcm,solvent=generic,read) nosymm"
+            )
         else:
-            route_section = f"# {self.function} {self.basis_set} scrf=(pcm,solvent=generic,read)"
+            route_section = (
+                f"# {self.function} {self.basis_set} "
+                f"scrf=(pcm,solvent=generic,read)"
+            )
 
         if additional_options:
             route_section += f" {additional_options}"

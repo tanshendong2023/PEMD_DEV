@@ -43,7 +43,8 @@ from PEMD.analysis.coordination import (
     pdb2mol,
     get_cluster_index,
     find_poly_match_subindex,
-    get_cluster_withcap
+    get_cluster_withcap,
+    merge_xyz_files
 )
 from PEMD.analysis.esw import esw
 
@@ -587,6 +588,7 @@ class PEMDAnalysis:
                 print(f"Error processing file {pdb_file}: {e}")
                 continue
 
+        return merge_xyz_files(cluster_dir)
 
     @staticmethod
     def esw(

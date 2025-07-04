@@ -126,6 +126,8 @@ class QMRun:
             core=core,
             memory=memory,
             optimize=True,
+            multi_step=True,
+            max_attempts=2,
             toxyz=True,
             top_n_qm=top_n_qm,
         )
@@ -178,7 +180,7 @@ class MDRun:
 
         molecules = []
         for key, value in model_info.items():
-            name = value["compound"]
+            name = value["name"]
             number = value["numbers"]
             resname = value["resname"]
 

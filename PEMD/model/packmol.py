@@ -15,14 +15,21 @@ class PEMDPackmol:
             packpdb_name='pack_cell.pdb'
     ):
         self.work_dir = work_dir
-        self.molecule_list = molecule_list
+
+        if isinstance(molecule_list, dict):
+            self.molecule_list = [
+                {'name': name, 'number': number}
+                for name, number in molecule_list.items()
+            ]
+        else:
+            self.molecule_list = molecule_list
+
         self.density = density
         self.add_length = add_length
         self.packinp_name = packinp_name
         self.packpdb_name = packpdb_name
 
         self.compounds = [molecule['name'] for molecule in self.molecule_list]
-        self.resnames = [molecule['resname'] for molecule in self.molecule_list]
         self.numbers = [molecule['number'] for molecule in self.molecule_list]
 
     def generate_input_file(self):

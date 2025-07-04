@@ -342,7 +342,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/em -ntomp 64",
             ]
         return self
@@ -356,7 +356,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
             ]
         return self
@@ -370,7 +370,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
                 f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
             ]
         return self
@@ -384,7 +384,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
             ]
         return self
@@ -398,7 +398,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/npt_anneal -ntomp 64",
             ]
         return self

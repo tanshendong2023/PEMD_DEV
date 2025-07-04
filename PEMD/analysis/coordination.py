@@ -6,6 +6,7 @@
 
 import os
 import re
+import glob
 import logging
 import warnings
 import numpy as np
@@ -799,3 +800,23 @@ def rotate_vector_around_axis(v, axis, theta):
     w = np.cross(axis, v)
     return v_parallel + v_perp * np.cos(theta) + w * np.sin(theta)
 
+
+def merge_xyz_files(xyz_dir: str,
+                            pattern: str = "num_*_frag.xyz",
+                            out_name: str = "merged.xyz") -> str:
+
+    xyz_paths = sorted(glob.glob(os.path.join(xyz_dir, pattern)))
+    if not xyz_paths:
+        raise FileNotFoundError(f"No files matched pattern {pattern} in {xyz_dir}")
+
+    traj_path = os.path.join(xyz_dir, out_name)
+    with open(traj_path, 'w') as fw:
+        for idx, path in enumerate(xyz_paths, 1):
+            with open(path, 'r') as fr:
+                lines = fr.readlines()
+                # 可选：覆盖注释行，写上帧编号
+                lines[1] = f"Frame {idx}: {os.path.basename(path)}\n"
+                fw.writelines(lines)
+
+    print(f"Merged {len(xyz_paths)} frames into trajectory: {traj_path}")
+    return traj_path

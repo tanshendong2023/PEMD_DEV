@@ -67,7 +67,7 @@ class Forcefield:
                 f"'{mol_type}' section not found in '{json_file}'."
             )
 
-        name = data.get("compound", "")
+        name = data.get("name", "")
         resname = data.get("resname", "")
         scale = data.get("scale")
         charge = data.get("charge")
@@ -219,14 +219,19 @@ class Forcefield:
             cls,
             work_dir: Path,
             json_file: str,
+            mol_type: str,
             *,
             ff_source: str = "ligpargen",
-            polymer: bool = False,
             resp_csv: str | None = None,
             resp_df: pd.DataFrame | None = None,
             pdb_file: str | None = None,
     ):
-        instance = cls.from_json(work_dir, json_file)
+        instance = cls.from_json(work_dir, json_file, mol_type,)
+
+        if mol_type == "polymer":
+            polymer = True
+        else:
+            polymer = False
 
         cls.oplsaa(
             work_dir=instance.work_dir,
