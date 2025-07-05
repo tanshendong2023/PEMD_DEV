@@ -266,9 +266,17 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     # mol_poly = Chem.AddHs(mol_poly)
 
     # 2. 将 RESP 电荷写入到 mol_poly 中
+    resp_chg_df = resp_chg_df.copy()
+    max_idx = resp_chg_df['position'].max()
+    if max_idx == mol_poly.GetNumAtoms():
+        resp_chg_df['position'] = resp_chg_df['position'] - 1
+
     for _, row in resp_chg_df.iterrows():
         pos = int(row['position'])
         charge = float(row['charge'])
+        if pos < 0 or pos >= mol_poly.GetNumAtoms():
+            # Skip invalid index
+            continue
         atom = mol_poly.GetAtomWithIdx(pos)
         atom.SetDoubleProp('partial_charge', charge)  # 使用 SetDoubleProp 存储电荷
 
