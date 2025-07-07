@@ -21,6 +21,10 @@ from MDAnalysis.analysis import rdf
 from PEMD.model import polymer, model_lib
 
 
+warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
+logging.getLogger('MDAnalysis').setLevel(logging.WARNING)
+
+
 def calc_rdf_coord(group1, group2, v, nbins=200, range_rdf=(0.0, 10.0)):
     # Initialize RDF analysis
     rdf_analysis = rdf.InterRDF(group1, group2, nbins=nbins, range=range_rdf)
@@ -143,10 +147,6 @@ def plot_rdf_coordination(
     plt.show()
 
 
-warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
-logging.getLogger('MDAnalysis').setLevel(logging.WARNING)
-
-
 def num_of_neighbor(
         work_dir,
         nvt_run,
@@ -233,6 +233,7 @@ def write_out(center_pos, neighbors, path):
 
     # 写入 PDB 文件
     neighbors.write(path)
+
 
 def select_shell(
         select,
@@ -566,6 +567,7 @@ def pick_most_central_match(matches, c_idx_list, selected_atom_idxs):
 
     return best_match
 
+
 def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_indices, start_atom, end_atom, out_xyz_filename):
 
     # 1. 先把 center_atom_idx 规范成列表
@@ -782,8 +784,8 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
     new_mol.AddConformer(conf)
 
     # 更新属性缓存并进行分子规范化
-    new_mol.UpdatePropertyCache(strict=False)
-    Chem.SanitizeMol(new_mol)
+    # new_mol.UpdatePropertyCache(strict=False)
+    # Chem.SanitizeMol(new_mol)
 
     # save to xyz file
     out_xyz_filepath = os.path.join(work_dir, out_xyz_filename)
