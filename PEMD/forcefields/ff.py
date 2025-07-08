@@ -207,7 +207,9 @@ def apply_chg_to_poly(
         end_repeating
     )
 
-    # print(left_mol.GetNumAtoms())
+    print(left_mol.GetNumAtoms())
+    print(right_mol.GetNumAtoms())
+    print(mid_mol.GetNumAtoms())
 
     # mol_poly = Chem.MolFromSmiles(smiles_long)
     Chem.SanitizeMol(mol_long)
@@ -222,7 +224,7 @@ def apply_chg_to_poly(
             continue  # 跳过有重叠的匹配
         left_matches.append(match)
         used_atoms.update(match)  # 标记已使用的原子
-    # print(f"left_mol 的匹配位置: {left_matches}")
+    print(f"left_mol 的匹配位置: {left_matches}")
 
     # 将right_mol匹配到mol_poly中
     right_matches = []
@@ -232,7 +234,7 @@ def apply_chg_to_poly(
             continue  # 跳过有重叠的匹配
         right_matches.append(match)
         used_atoms.update(match)  # 标记已使用的原子
-    # print(f"right_mol 的匹配位置: {right_matches}")
+    print(f"right_mol 的匹配位置: {right_matches}")
 
     # 赋值部分电荷给mol_poly中的对应原子
     assign_partial_charges(mol_poly, left_mol, left_matches)
@@ -245,7 +247,7 @@ def apply_chg_to_poly(
             continue  # 跳过有重叠的匹配
         mid_matches.append(match)
         used_atoms.update(match)  # 标记已使用的原子
-    # print(f"mid_mol 的匹配位置: {mid_matches}")
+    print(f"mid_mol 的匹配位置: {mid_matches}")
 
     # 赋值部分电荷给 mol_poly 中的 mid_mol 匹配位置
     assign_partial_charges(mol_poly, mid_mol, mid_matches)
