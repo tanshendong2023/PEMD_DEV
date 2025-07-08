@@ -116,11 +116,12 @@ class Forcefield:
         length_short: int = 3,
         scale: float = 1.0,
         smiles: str | None = None,
+        end_repeating: int = 1,
         charge: float = 0,
         pdb_file: str | None = None,
     ):
         if ff_source == "ligpargen":
-            chg_df = None
+            # chg_df = None
             if polymer:
                 mol_short = gen_copolymer_3D(
                     smiles_A=smiles,
@@ -171,7 +172,7 @@ class Forcefield:
                     itp_file=bonditp_filename,
                     resp_chg_df=chg_df,
                     repeating_unit=smiles,
-                    end_repeating=1,
+                    end_repeating=end_repeating,
                     scale=scale,
                     charge=charge,
                 )
@@ -225,6 +226,7 @@ class Forcefield:
             resp_csv: str | None = None,
             resp_df: pd.DataFrame | None = None,
             pdb_file: str | None = None,
+            end_repeating: int = 1,
     ):
         instance = cls.from_json(work_dir, json_file, mol_type,)
 
@@ -245,6 +247,7 @@ class Forcefield:
             scale=instance.scale,
             charge=instance.charge,
             smiles=instance.repeating_unit,
+            end_repeating=end_repeating,
             pdb_file=pdb_file,
         )
 

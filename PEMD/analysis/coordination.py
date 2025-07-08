@@ -616,7 +616,12 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
         if begin in select_atom_idx_with_h and end in select_atom_idx_with_h:
             new_mol.AddBond(index_map[begin], index_map[end], bond.GetBondType())
 
-    terminal_atoms = [start_atom, end_atom]
+    # terminal_atoms = [start_atom, end_atom]
+    start_atom_old = match_list[start_atom]
+    end_atom_old = match_list[end_atom]
+    start_atom_new = index_map[start_atom_old]
+    end_atom_new = index_map[end_atom_old]
+    terminal_atoms = [start_atom_new, end_atom_new]
 
     # 定义要添加的封端基团信息
     capping_info = []
