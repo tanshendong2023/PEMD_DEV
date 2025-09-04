@@ -1,0 +1,11 @@
+[ moleculetype ]
+; molname  nrexcl
+  AGP      1
+
+[ atoms ]
+; id  at_type  resnr  resname  atom  cgnr  charge  mass
+   1   Ag       1      AGP      Ag     1     1.0   107.8682
+
+
+
+

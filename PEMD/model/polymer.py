@@ -10,19 +10,22 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import networkx as nx
 import PEMD.io as io
 import PEMD.constants as const
 
 from rdkit import Chem
 from rdkit import RDLogger
 from rdkit.Chem import AllChem
+from rdkit.Chem import rdmolops, rdMolTransforms
+from PEMD.model import model_lib
 from rdkit.Chem import Descriptors
 from rdkit.Geometry import Point3D
 from collections import defaultdict
 from openbabel import openbabel as ob
 from rdkit.Chem.rdchem import BondType
 from scipy.spatial.transform import Rotation as R
+
+from collections import Counter
 
 
 lg = RDLogger.logger()
@@ -37,7 +40,6 @@ obConversion = ob.OBConversion()
 ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
-
 
 def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.5):
     """
@@ -80,7 +82,7 @@ def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.
         new_unit = align_monomer_unit(new_unit, h, target_pos, ideal_direction)
 
         # 对新单元沿连接键轴进行额外旋转，中心设为 target_pos，旋转角度为 extra_angle
-        if has_overlapping_atoms(connecting_mol):
+        if not check_3d_structure(connecting_mol):
             extra_angle = 0.20
             atom_indices_to_rotate = [j for j in range(new_unit.GetNumAtoms()) if j != h_1]
             rotate_substructure_around_axis(new_unit, atom_indices_to_rotate, ideal_direction, target_pos,
@@ -98,8 +100,8 @@ def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.
         place_h_in_tetrahedral(combined_mol, head_idx, h_indices)
 
         # 进行局部能量优化，帮助调整连接区域几何
-        if has_overlapping_atoms(combined_mol):
-            combined_mol = local_optimize(combined_mol, maxIters=150)
+        if not check_3d_structure(combined_mol):
+            combined_mol = local_optimize(combined_mol, maxIters=450)
         connecting_mol = Chem.RWMol(combined_mol)
 
         tail_idx = num_atom + t
@@ -109,6 +111,7 @@ def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.
     final_poly = gen_3D_withcap(connecting_mol, h_1, tail_idx, length)
 
     return final_poly
+
 
 # Processes a polymer’s SMILES string with dummy atoms to set up connectivity and identify the connecting atoms.
 def Init_info(name, smiles_mid):
@@ -275,62 +278,6 @@ def align_monomer_unit(monomer, connection_atom_idx, target_position, target_dir
         conf.SetAtomPosition(i, pos_i + translation)
     return monomer
 
-def has_overlapping_atoms(mol, connected_distance=1.0, disconnected_distance=1.56):
-    """
-    检查分子中是否存在原子重叠：
-      - 如果两个原子通过化学键相连，则允许的最小距离为 connected_distance
-      - 如果不相连，则默认使用 disconnected_distance，
-        如果任一原子为氧或卤素（F, Cl, Br, I）或两个原子均为碳，
-        则要求最小距离为 1.6 Å（你也可以修改为 2.1 Å，根据需要）。
-    当检测到原子对距离过近时，会输出相关信息，包括原子的名称。
-    """
-    # 获取所有原子的坐标
-    conf = mol.GetConformer()
-    positions = conf.GetPositions()
-
-    # 构建一个无向图来存储化学键连接关系
-    bond_graph = nx.Graph()
-    for i in range(mol.GetNumAtoms()):
-        bond_graph.add_node(i, position=positions[i])
-    for bond in mol.GetBonds():
-        atom1 = bond.GetBeginAtomIdx()
-        atom2 = bond.GetEndAtomIdx()
-        bond_graph.add_edge(atom1, atom2)
-
-    # 创建一个图用于存储重叠关系
-    G = nx.Graph()
-    num_atoms = mol.GetNumAtoms()
-    for i in range(num_atoms):
-        for j in range(i + 1, num_atoms):
-            distance = np.linalg.norm(positions[i] - positions[j])
-            actual_min = get_min_distance(mol, i, j, bond_graph,
-                                          connected_distance,
-                                          disconnected_distance)
-            if distance < actual_min:
-                atom_i = mol.GetAtomWithIdx(i)
-                atom_j = mol.GetAtomWithIdx(j)
-                coord_i = positions[i]
-                coord_j = positions[j]
-                conf_id = mol.GetConformer().GetId()
-                logger.info(
-                    "Overlapping detected in conformer %s: Atom %s (%d) at %s"
-                    " and Atom %s (%d) at %s are too close (distance: %.2f Å, "
-                    "allowed: %.2f Å)",
-                    conf_id,
-                    atom_i.GetSymbol(),
-                    i,
-                    coord_i,
-                    atom_j.GetSymbol(),
-                    j,
-                    coord_j,
-                    distance,
-                    actual_min,
-                )
-                G.add_edge(i, j, weight=distance)
-
-    # 如果图中有边，则表示存在重叠原子
-    return len(G.edges) > 0
-
 def rotate_substructure_around_axis(mol, atom_indices, axis, anchor, angle_rad):
     """
     对分子中给定 atom_indices 列表中的原子，
@@ -415,7 +362,7 @@ def local_optimize(mol, maxIters=100, num_retries=1000, perturbation=0.01):
             _ = Chem.GetSymmSSSR(mol)
 
             # 优化前检查是否有重叠原子
-            if has_overlapping_atoms(mol):
+            if not check_3d_structure(mol):
                 logger.warning("\nMolecule has overlapping atoms, adjusting atomic positions.")
                 conf = mol.GetConformer()
                 for i in range(mol.GetNumAtoms()):
@@ -580,49 +527,47 @@ def gen_3D_withcap(mol, start_atom, end_atom, length):
             capped_mol = rw.GetMol()
 
     # 检查原子间距离是否合理
-    overlap = check_molecule_structure(capped_mol, energy_threshold=50.0)
+    valid_structure = check_3d_structure(capped_mol)
+    print(valid_structure)
     # return capped_mol
-    if length <= 3 or not overlap:
+    if length <= 3 or valid_structure:
         return capped_mol
     else:
         logger.warning("Failed to generate the final PDB file.")
+        return None
 
-def check_molecule_structure(mol, energy_threshold=50.0):
 
-    # 1. 尝试对分子进行基本的 Sanitize 检查
-    try:
-        Chem.SanitizeMol(mol)
-    except ValueError:
-        # 如果在 Sanitize 过程中出现错误，分子不合理
-        return False
 
-    # 2. 检查是否存在 3D 构象
-    if mol.GetNumConformers() == 0:
-        return False
+def check_3d_structure(mol, confId=0, dist_min=0.7, bond_s=2.7, bond_a=1.9, bond_d=1.8, bond_t=1.4):
 
-    # 3. 使用力场进行简要优化并检查能量
-    #    这里使用 UFF 作为示例，也可以使用 MMFF:
-    #    AllChem.MMFFOptimizeMolecule(mol, mmffVariant="MMFF94s")
-    try:
-        status = AllChem.UFFOptimizeMolecule(mol)  # 返回 0 表示正常收敛
-        if status != 0:
-            # 如果优化没有收敛，可能是结构不合理或存在其他问题
-            return False
+    coord = np.array(mol.GetConformer(confId).GetPositions())
 
-        # 获取最终能量
-        ff = AllChem.UFFGetMoleculeForceField(mol)
-        final_energy = ff.CalcEnergy()
+    dist_matrix = model_lib.distance_matrix(coord)
+    dist_matrix = np.where(dist_matrix == 0, dist_min, dist_matrix)
 
-        if final_energy > energy_threshold:
-            # 如果能量过高，可能存在严重扭曲或应变
-            return False
-    except Exception:
-        # 如果力场优化过程出现任何异常，也视为不合理
-        return False
+    # Cheking bond length
+    bond_l_c = True
+    for b in mol.GetBonds():
+        bond_l = dist_matrix[b.GetBeginAtom().GetIdx(), b.GetEndAtom().GetIdx()]
+        if b.GetBondTypeAsDouble() == 1.0 and bond_l > bond_s:
+            bond_l_c = False
+            break
+        elif b.GetBondTypeAsDouble() == 1.5 and bond_l > bond_a:
+            bond_l_c = False
+            break
+        elif b.GetBondTypeAsDouble() == 2.0 and bond_l > bond_d:
+            bond_l_c = False
+            break
+        elif b.GetBondTypeAsDouble() == 3.0 and bond_l > bond_t:
+            bond_l_c = False
+            break
 
-    # 如果以上检查都通过，视为结构“合理”
-    return True
+    if dist_matrix.min() >= dist_min and bond_l_c:
+        check = True
+    else:
+        check = False
 
+    return check
 
 def calculate_box_size(numbers, pdb_files, density):
     total_mass = 0
@@ -684,4 +629,61 @@ def calc_mol_weight(pdb_file):
             return mol_weight
         except Exception as e:
             raise ValueError(f"无法计算分子量，PDB 文件: {pdb_file}，错误: {e}")
+
+
+def count_majority_oriented_matches(
+    mol: Chem.Mol,
+    pattern: str,
+    tie_break: str = "reverse",   # 可选 "forward" / "reverse"
+    use_chirality: bool = False
+) -> int:
+    """
+    仅保留“多数方向”的匹配并返回计数。
+    - pattern 可为 SMARTS 或 SMILES；优先按 SMARTS 解析，失败再按 SMILES。
+    - 方向判定：将匹配元组 m 与其倒序 m[::-1] 做字典序比较；
+      若 m < m[::-1] 记为 forward，否则 reverse。
+    - 若 forward 与 reverse 计数相同，用 tie_break 选择。
+    """
+    # 1) 构造查询分子（优先 SMARTS，其次 SMILES）
+    smi_with_h1 = pattern.replace('*', '[H]')
+    mol_with_h1 = Chem.MolFromSmiles(smi_with_h1)
+    q = Chem.RemoveHs(mol_with_h1)
+    # q = Chem.MolFromSmarts(pattern)
+    # if q is None:
+    #     q = Chem.MolFromSmiles(pattern)
+    # if q is None:
+    #     raise ValueError("给定的 pattern 既不是有效 SMARTS，也不是有效 SMILES。")
+
+    # 2) 取出所有方向的嵌入（必须 uniquify=False 才能同时拿到正/反向）
+    matches = mol.GetSubstructMatches(q, uniquify=False, useChirality=use_chirality)
+    if not matches:
+        return 0
+
+    # 3) 标注方向并统计
+    oriented = []
+    for m in matches:
+        m = tuple(m)
+        label = "forward" if m < m[::-1] else "reverse"
+        oriented.append((label, m))
+
+    counts = Counter(label for label, _ in oriented)
+    if counts["forward"] > counts["reverse"]:
+        majority = "forward"
+    elif counts["forward"] < counts["reverse"]:
+        majority = "reverse"
+    else:
+        majority = "reverse" if tie_break == "reverse" else "forward"
+
+    # 4) 只保留多数方向，并去重（消除完全相同的元组）
+    kept = [m for label, m in oriented if label == majority]
+    seen = set()
+    uniq = []
+    for m in kept:
+        if m not in seen:
+            seen.add(m)
+            uniq.append(m)
+
+    # 5) 返回计数
+    return len(uniq)
+
 

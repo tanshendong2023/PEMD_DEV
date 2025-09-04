@@ -54,7 +54,7 @@ def get_xml_ligpargen(
 
     temp_sdf = work_path / "temp.sdf"
     temp_sdf.unlink(missing_ok=True)
-    # pdb_path.unlink(missing_ok=True)
+    pdb_path.unlink(missing_ok=True)
 
     csv_path = ligpargen_dir / f"{name}.csv"
     chg_df = pd.read_csv(csv_path)
@@ -207,7 +207,6 @@ def apply_chg_to_poly(
         end_repeating
     )
 
-    # mol_poly = Chem.MolFromSmiles(smiles_long)
     Chem.SanitizeMol(mol_long)
     mol_poly = Chem.AddHs(mol_long)
 
@@ -216,6 +215,7 @@ def apply_chg_to_poly(
     rw_mol = Chem.RWMol(mol_poly)
     used_atoms = set()
     all_left = list(rw_mol.GetSubstructMatches(left_mol, uniquify=True, useChirality=False))
+
     if all_left:
         left_match = min(all_left, key=lambda m: sum(m)/len(m))
         left_matches.append(left_match)
@@ -251,6 +251,7 @@ def apply_chg_to_poly(
 
     # 提取电荷为 DataFrame
     charge_update_df = mol_to_charge_df(mol_poly)
+    # print(charge_update_df)
 
     # charge neutralize and scale
     charge_update_df_cor = charge_neutralize_scale(charge_update_df, scale, charge, )
@@ -261,8 +262,11 @@ def apply_chg_to_poly(
 
 def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     # 1. 从多聚物 SMILES 生成分子并加氢
-    # mol_poly = Chem.MolFromSmiles(poly_smi)
+    # mol_poly = Chem.Mol(mol_poly)
+    # Chem.SanitizeMol(mol_poly)
     # mol_poly = Chem.AddHs(mol_poly)
+    # print("mol_poly SMILES:", Chem.MolToSmiles(mol_poly))
+    # Chem.MolToPDBFile(mol_poly, "test.pdb")
 
     # 2. 将 RESP 电荷写入到 mol_poly 中
     resp_chg_df = resp_chg_df.copy()
@@ -278,6 +282,10 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
             continue
         atom = mol_poly.GetAtomWithIdx(pos)
         atom.SetDoubleProp('partial_charge', charge)  # 使用 SetDoubleProp 存储电荷
+        # if not atom.HasProp('partial_charge'):
+        #     print(f"Atom {pos} 没有属性！")
+        # else:
+        #     print(f"Atom {pos} partial_charge = {atom.GetDoubleProp('partial_charge')}")
 
     partial_charges = [
         float(row['charge'])
@@ -538,8 +546,6 @@ def smiles_to_df(smiles):
     df['charge'] = None
     return df
 
-
-
 def gen_molfromindex(mol, idx):
     editable_mol = Chem.EditableMol(Chem.Mol())
 
@@ -638,6 +644,13 @@ def scale_chg_itp(work_dir, filename, corr_factor, target_sum_chg):
     # save the updated itp file
     with open(filename, 'w') as file:
         file.writelines(lines)
+
+
+
+
+
+
+
 
 
 

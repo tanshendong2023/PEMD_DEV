@@ -45,6 +45,11 @@ def relax_poly_chain(
         filename = 'em.mdp'
     )
 
+    gmx.gen_npt_mdp_file(
+        filename = 'npt.mdp',
+        nsteps_npt = 1000000
+    )
+
     gmx.gen_nvt_mdp_file(
         filename = 'nvt.mdp'
     )
@@ -57,8 +62,13 @@ def relax_poly_chain(
         input_gro = 'conf.gro'
     ).run_local()
 
-    gmx.commands_nvt(
+    gmx.commands_npt(
         input_gro = 'em.gro',
+        output_str = 'npt'
+    ).run_local()
+
+    gmx.commands_nvt(
+        input_gro = 'npt.gro',
         output_str = 'nvt'
     ).run_local()
 

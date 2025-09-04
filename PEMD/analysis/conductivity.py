@@ -39,3 +39,7 @@ def calc_conductivity(slope, v, T):
     return cond
 
 
+
+
+
+

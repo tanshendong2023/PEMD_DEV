@@ -89,6 +89,11 @@ class PEMDGaussian:
                 f"scrf=(pcm,solvent=generic,read)"
             )
 
+        # Automatically add D3BJ empirical dispersion when using B3LYP
+        if 'B3LYP' in self.function.upper():
+            if 'EmpiricalDispersion' not in route_section:
+                route_section += ' EmpiricalDispersion=GD3BJ'
+
         if additional_options:
             route_section += f" {additional_options}"
 

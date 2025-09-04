@@ -246,7 +246,7 @@ class Forcefield:
             length_short=instance.length_short,
             scale=instance.scale,
             charge=instance.charge,
-            smiles=instance.repeating_unit,
+            smiles=instance.repeating_unit if polymer else instance.smiles,
             end_repeating=end_repeating,
             pdb_file=pdb_file,
         )

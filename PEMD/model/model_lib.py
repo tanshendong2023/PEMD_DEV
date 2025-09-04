@@ -628,6 +628,10 @@ def reorder_atoms(mol_3D, mapping):
 
     return reordered_mol_3D
 
+def distance_matrix(coord1, coord2=None):
+    coord1 = np.array(coord1)
+    coord2 = np.array(coord2) if coord2 is not None else coord1
+    return np.sqrt(np.sum((coord1[:, np.newaxis, :] - coord2[np.newaxis, :, :])**2, axis=-1))
 
 
 

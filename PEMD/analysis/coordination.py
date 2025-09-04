@@ -266,6 +266,7 @@ def pdb2mol(work_dir, pdb_filename):
         'CL': 'Cl',
         'BR': 'Br',
         'LI': 'Li',
+        'SI':'Si'
     }
 
     pdb_filepath = os.path.join(work_dir, pdb_filename)
@@ -516,8 +517,15 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
         repeating_unit,
         length,
     )
-
     main_smi = Chem.MolToSmiles(inti_mol3, canonical=False)
+    mol_test = Chem.MolFromSmiles(main_smi)
+
+    # 一行把所有 * 原子邻居的索引收集到列表
+    connected_idxs = [
+        nbr.GetIdx()
+        for atom in mol_test.GetAtoms() if atom.GetSymbol() == '*'
+        for nbr in atom.GetNeighbors()
+    ]
     main_smi_with_h1 = main_smi.replace('*', '[H]')
     main_mol_with_h1 = Chem.MolFromSmiles(main_smi_with_h1)
 
@@ -536,7 +544,8 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
 
     best = pick_most_central_match(matches, c_idx_list, selected_atom_idxs)
     if best is not None:
-        return list(best), start_atom, end_atom
+        # return list(best), connected_idxs[0], connected_idxs[1]-1
+        return list(best), start_atom, connected_idxs[1]-1
 
 
 def pick_most_central_match(matches, c_idx_list, selected_atom_idxs):
@@ -728,14 +737,22 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
         elif cap['type'] == 'CH3':
             terminal_old_idx = reverse_index_map[terminal_idx]
             terminal_old_atom = mol.GetAtomWithIdx(terminal_old_idx)
-            neighbor_old_idx = [nbr.GetIdx() for nbr in terminal_old_atom.GetNeighbors()
-                                if nbr.GetIdx() not in match_list]
+            # neighbor_old_idx = [nbr.GetIdx() for nbr in terminal_old_atom.GetNeighbors()
+            #                     if nbr.GetIdx() not in match_list]
+            #
+            # neighbor_old_pos = np.array(orig_conf.GetAtomPosition(neighbor_old_idx[0]))
+            # if neighbor_old_idx[0] > terminal_old_idx:
+            #     bond_vec = neighbor_old_pos - terminal_pos
+            # else:
+            #     bond_vec = - terminal_pos + neighbor_old_pos
+            # direction = bond_vec / np.linalg.norm(bond_vec)
+            neighbor_old_idx = [
+                nbr.GetIdx() for nbr in terminal_old_atom.GetNeighbors()
+                if nbr.GetIdx() not in match_list and nbr.GetAtomicNum() > 1
+            ]
 
             neighbor_old_pos = np.array(orig_conf.GetAtomPosition(neighbor_old_idx[0]))
-            if neighbor_old_idx[0] > terminal_old_idx:
-                bond_vec = neighbor_old_pos - terminal_pos
-            else:
-                bond_vec = - terminal_pos + neighbor_old_pos
+            bond_vec = neighbor_old_pos - terminal_pos
             direction = bond_vec / np.linalg.norm(bond_vec)
             C_pos = terminal_pos + direction * C_C_bond_length
 
