@@ -1,4 +1,4 @@
-name: pemd-test
+name: pemd
 channels:
   - conda-forge
   - defaults
@@ -6,13 +6,11 @@ dependencies:
   - python=3.10
   - jupyter
   - gmso=0.12.0
-  - pip
   - openbabel=3.1.1
-  - simple_slurm=0.2.7
+  - numpy
+  - pandas
   - scipy=1.12.0
-  - py3dmol=2.0.4
   - xtb=6.6.1
   - packmol=20.010
   - pip:
       - requests
-      # 其他需要通过 pip 安装的包

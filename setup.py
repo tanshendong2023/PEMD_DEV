@@ -17,7 +17,6 @@ VERSION = '1.0.0'
 DESCRIPTION = 'a python package for molecular dynamics simulations of polymers electrolytes'
 INSTALL_REQUIRES = [
     "rdkit == 2024.3.6",
-    "lammps == 2024.8.29.1.0",
 ]
 setup(
     name="PEMD",
@@ -31,7 +30,6 @@ setup(
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
     keywords=[
-            "LAMMPS",
             "Gromacs",
             "Molecular dynamics",
             "polymer",
