@@ -844,3 +844,4 @@ def merge_xyz_files(xyz_dir: str,
 
     print(f"Merged {len(xyz_paths)} frames into trajectory: {traj_path}")
     return traj_path
+

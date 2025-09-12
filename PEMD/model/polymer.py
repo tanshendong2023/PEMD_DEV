@@ -16,7 +16,6 @@ import PEMD.constants as const
 from rdkit import Chem
 from rdkit import RDLogger
 from rdkit.Chem import AllChem
-from rdkit.Chem import rdmolops, rdMolTransforms
 from PEMD.model import model_lib
 from rdkit.Chem import Descriptors
 from rdkit.Geometry import Point3D
@@ -24,8 +23,6 @@ from collections import defaultdict
 from openbabel import openbabel as ob
 from rdkit.Chem.rdchem import BondType
 from scipy.spatial.transform import Rotation as R
-
-from collections import Counter
 
 
 lg = RDLogger.logger()
@@ -101,7 +98,7 @@ def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.
 
         # 进行局部能量优化，帮助调整连接区域几何
         if not check_3d_structure(combined_mol):
-            combined_mol = local_optimize(combined_mol, maxIters=450)
+            combined_mol = local_optimize(combined_mol, maxIters=150)
         connecting_mol = Chem.RWMol(combined_mol)
 
         tail_idx = num_atom + t
@@ -256,6 +253,7 @@ def get_vector(mol, index):
         return pos, const.DEFAULT_DIRECTION
     return pos, avg / norm_avg
 
+
 def align_monomer_unit(monomer, connection_atom_idx, target_position, target_direction):
     conf = monomer.GetConformer()
     B = np.array(conf.GetAtomPosition(connection_atom_idx))
@@ -382,7 +380,7 @@ def local_optimize(mol, maxIters=100, num_retries=1000, perturbation=0.01):
                 pos = np.array(conf.GetAtomPosition(i))
                 delta = np.random.uniform(-perturbation, perturbation, size=3)
                 conf.SetAtomPosition(i, pos + delta)
-    logger.error("Local optimization failed after {num_retries} attempts.")
+    logger.error(f"Local optimization failed after {num_retries} attempts.")
     return mol
 
 def rotate_vector_to_align(a, b):
@@ -407,34 +405,6 @@ def rotate_vector_to_align(a, b):
         dot_prod = np.clip(dot_prod, -1.0, 1.0)
         angle_rad = np.arccos(dot_prod)
     return R.from_rotvec(rotation_axis * angle_rad)
-
-def get_min_distance(mol, atom1, atom2, bond_graph, connected_distance=1.0, disconnected_distance=1.55):
-    """
-    根据原子对的连接情况及原子类型返回最小允许距离：
-      - 如果 atom1 和 atom2 之间存在化学键，则返回 connected_distance
-      - 如果不相连，则：
-          * 如果任一原子为氧、卤素（F, Cl, Br, I）、氢原子，
-            或两个原子均为碳，则返回 1.6 Å （你可以根据需要调整该数值，例如改为 2.1 Å）
-          * 如果有氧、卤素与氢原子之间的连接，返回 1.8 Å
-          * 否则返回 disconnected_distance。
-    """
-    if bond_graph.has_edge(atom1, atom2):
-        return connected_distance
-    else:
-        symbol1 = mol.GetAtomWithIdx(atom1).GetSymbol()
-        symbol2 = mol.GetAtomWithIdx(atom2).GetSymbol()
-
-        # 判断条件：氧、卤素和氢原子之间的连接返回 1.8 Å
-        if (symbol1 in ['O', 'F', 'Cl', 'Br', 'I'] and symbol2 in ['H']) or \
-                (symbol1 in ['H'] and symbol2 in ['O', 'F', 'Cl', 'Br', 'I']) or \
-                (symbol1 == 'N' and symbol2 == 'O') or (symbol1 == 'O' and symbol2 == 'N'):
-            return 1.75
-        # 判断条件：氧、卤素、氮和碳之间的连接返回 1.6 Å
-        elif (symbol1 in ['O', 'F', 'Cl', 'Br', 'I'] and symbol2 in ['O', 'F', 'Cl', 'Br', 'I']) or \
-                (symbol1 == 'C' and symbol2 == 'O') or (symbol1 == 'O' and symbol2 == 'C'):
-            return 1.6
-        else:
-            return disconnected_distance
 
 def _get_ideal_tetrahedral_vectors():
     """
@@ -631,59 +601,5 @@ def calc_mol_weight(pdb_file):
             raise ValueError(f"无法计算分子量，PDB 文件: {pdb_file}，错误: {e}")
 
 
-def count_majority_oriented_matches(
-    mol: Chem.Mol,
-    pattern: str,
-    tie_break: str = "reverse",   # 可选 "forward" / "reverse"
-    use_chirality: bool = False
-) -> int:
-    """
-    仅保留“多数方向”的匹配并返回计数。
-    - pattern 可为 SMARTS 或 SMILES；优先按 SMARTS 解析，失败再按 SMILES。
-    - 方向判定：将匹配元组 m 与其倒序 m[::-1] 做字典序比较；
-      若 m < m[::-1] 记为 forward，否则 reverse。
-    - 若 forward 与 reverse 计数相同，用 tie_break 选择。
-    """
-    # 1) 构造查询分子（优先 SMARTS，其次 SMILES）
-    smi_with_h1 = pattern.replace('*', '[H]')
-    mol_with_h1 = Chem.MolFromSmiles(smi_with_h1)
-    q = Chem.RemoveHs(mol_with_h1)
-    # q = Chem.MolFromSmarts(pattern)
-    # if q is None:
-    #     q = Chem.MolFromSmiles(pattern)
-    # if q is None:
-    #     raise ValueError("给定的 pattern 既不是有效 SMARTS，也不是有效 SMILES。")
-
-    # 2) 取出所有方向的嵌入（必须 uniquify=False 才能同时拿到正/反向）
-    matches = mol.GetSubstructMatches(q, uniquify=False, useChirality=use_chirality)
-    if not matches:
-        return 0
-
-    # 3) 标注方向并统计
-    oriented = []
-    for m in matches:
-        m = tuple(m)
-        label = "forward" if m < m[::-1] else "reverse"
-        oriented.append((label, m))
-
-    counts = Counter(label for label, _ in oriented)
-    if counts["forward"] > counts["reverse"]:
-        majority = "forward"
-    elif counts["forward"] < counts["reverse"]:
-        majority = "reverse"
-    else:
-        majority = "reverse" if tie_break == "reverse" else "forward"
-
-    # 4) 只保留多数方向，并去重（消除完全相同的元组）
-    kept = [m for label, m in oriented if label == majority]
-    seen = set()
-    uniq = []
-    for m in kept:
-        if m not in seen:
-            seen.add(m)
-            uniq.append(m)
-
-    # 5) 返回计数
-    return len(uniq)
 
 
