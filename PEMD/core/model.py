@@ -103,6 +103,8 @@ class PEMDModel:
         sequence: list[str] | None = None,
         name: str = "PE",
         resname: str = "MOL",
+        left_cap: str | None = None,
+        right_cap: str | None = None,
     ) -> str:
         """Generate a copolymer PDB file using a unified interface."""
 
@@ -115,6 +117,8 @@ class PEMDModel:
             frac_A=frac_A,
             block_sizes=block_sizes,
             sequence=sequence,
+            left_cap_smiles=left_cap,
+            right_cap_smiles=right_cap,
         )
 
         if sequence is not None:
@@ -156,7 +160,9 @@ class PEMDModel:
             frac_A=instance.frac_A,
             block_sizes=instance.block_sizes,
             name=instance.name,
-            resname=instance.resname
+            resname=instance.resname,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
         )
         return pdb_file
 
@@ -168,6 +174,8 @@ class PEMDModel:
         length: int,
         name: str = "PE",
         resname: str = "MOL",
+        left_cap: str | None = None,
+        right_cap: str | None = None,
     ) -> str:
 
         return PEMDModel.copolymer(
@@ -178,6 +186,8 @@ class PEMDModel:
             mode="homopolymer",
             length=length,
             resname=resname,
+            left_cap=left_cap,
+            right_cap=right_cap,
         )
 
 
@@ -190,14 +200,15 @@ class PEMDModel:
     ):
 
         instance = cls.from_json(work_dir, json_file)
-        print(instance)
 
         pdb_file_short = cls.homopolymer(
             work_dir=instance.work_dir,
             name=instance.name,
             smiles=instance.repeating_unit,
             length=instance.length_short,
-            resname=instance.resname
+            resname=instance.resname,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
         )
 
         pdb_file_long = cls.homopolymer(
@@ -205,7 +216,9 @@ class PEMDModel:
             name=instance.name,
             smiles=instance.repeating_unit,
             length=instance.length_long,
-            resname=instance.resname
+            resname=instance.resname,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
         )
 
         return pdb_file_short, pdb_file_long
@@ -222,9 +235,9 @@ class PEMDModel:
     ) -> None:
 
         work_dir = Path(work_dir)
-        MD_dir = work_dir / "MD_dir"
+        # MD_dir = work_dir / "MD_dir"
         run = PEMDPackmol(
-            MD_dir,
+            work_dir,
             molecule_list,
             density,
             add_length,

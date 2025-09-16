@@ -24,7 +24,9 @@ def gen_copolymer_3D(smiles_A,
                      length: int | None = None,
                      frac_A: float = 0.5,
                      block_sizes: list[int] | None = None,
-                     sequence: list[str] | None = None):
+                     sequence: list[str] | None = None,
+                     left_cap_smiles: str | None = None,
+                     right_cap_smiles: str | None = None):
     """Generate a 3D copolymer model."""
 
     if sequence is None:
@@ -58,6 +60,8 @@ def gen_copolymer_3D(smiles_A,
         smiles_A,
         smiles_B,
         sequence,
+        left_cap_smiles=left_cap_smiles,
+        right_cap_smiles=right_cap_smiles,
     )
 
 
@@ -82,6 +86,7 @@ def calc_poly_chains(num_Li_salt , conc_Li_salt, mass_per_chain):
     num_chains = (total_mass_polymer*avogadro_number) / mass_per_chain  # no unit; mass_per_chain input unit g/mol
 
     return int(num_chains)
+
 
 def calc_poly_length(total_mass_polymer, smiles_repeating_unit, smiles_leftcap, smiles_rightcap, ):
     # remove [*] from the repeating unit SMILES, add hydrogens, and calculate the molecular weight

@@ -38,7 +38,13 @@ ff = ob.OBForceField.FindForceField('UFF')
 mol = ob.OBMol()
 np.set_printoptions(precision=20)
 
-def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.5):
+def gen_sequence_copolymer_3D(name,
+                              smiles_A,
+                              smiles_B,
+                              sequence,
+                              bond_length=1.5,
+                              left_cap_smiles=None,
+                              right_cap_smiles=None):
     """
     通用序列构建：sequence 是一个列表，如 ['A','B','B','A',…]
     """
@@ -105,7 +111,14 @@ def gen_sequence_copolymer_3D(name, smiles_A, smiles_B, sequence, bond_length=1.
         num_atom = num_atom + new_unit.GetNumAtoms()
 
     length = len(sequence)
-    final_poly = gen_3D_withcap(connecting_mol, h_1, tail_idx, length)
+    final_poly = gen_3D_withcap(
+        connecting_mol,
+        h_1,
+        tail_idx,
+        length,
+        left_cap_smiles=left_cap_smiles,
+        right_cap_smiles=right_cap_smiles,
+    )
 
     return final_poly
 
@@ -143,6 +156,7 @@ def Init_info(name, smiles_mid):
 
     return dum1, dum2, atom1, atom2,
 
+
 # Get index of dummy atoms and bond type associated with it
 def FetchDum(smiles):
     m = Chem.MolFromSmiles(smiles)
@@ -161,6 +175,7 @@ def FetchDum(smiles):
                 break
     return dummy_index, str(bond_type)
 
+
 def connec_info(name):
     # Collect valency and connecting information for each atom according to XYZ coordinates
     obConversion = ob.OBConversion()
@@ -178,6 +193,7 @@ def connec_info(name):
         neigh_atoms_info.append([neigh_atoms, bond_orders])
     neigh_atoms_info = pd.DataFrame(neigh_atoms_info, columns=['NeiAtom', 'BO'])
     return neigh_atoms_info
+
 
 def prepare_monomer_nocap(smiles_mid: str,
                           dum1: int,
@@ -227,6 +243,58 @@ def prepare_monomer_nocap(smiles_mid: str,
 
     return monomer, new_head, new_tail
 
+def prepare_cap_monomer(smiles_cap: str) -> tuple[Chem.Mol, int, np.ndarray]:
+    """Prepare a capping fragment defined by a SMILES string containing a single dummy atom."""
+    mol = Chem.MolFromSmiles(smiles_cap)
+    if mol is None:
+        raise ValueError(f"Invalid cap SMILES: {smiles_cap}")
+
+    dummy_indices = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() == 0]
+    if len(dummy_indices) != 1:
+        raise ValueError("Cap SMILES must contain exactly one dummy atom '*' or '[*]'.")
+
+    dummy_idx = dummy_indices[0]
+    dummy_atom = mol.GetAtomWithIdx(dummy_idx)
+    neighbors = list(dummy_atom.GetNeighbors())
+    if len(neighbors) != 1:
+        raise ValueError("Cap dummy atom must be connected to exactly one atom.")
+
+    connection_idx = neighbors[0].GetIdx()
+
+    rw = Chem.RWMol(mol)
+    rw.GetAtomWithIdx(dummy_idx).SetAtomicNum(53)  # Use iodine as a placeholder heavy atom
+
+    rw = Chem.RWMol(Chem.AddHs(rw))
+    params = AllChem.ETKDGv3()
+    params.randomSeed = -1
+    if AllChem.EmbedMolecule(rw, params) != 0:
+        logger.warning("3D embedding failed for cap %s.", smiles_cap)
+    try:
+        AllChem.MMFFOptimizeMolecule(rw)
+    except Exception as exc:  # pragma: no cover - RDKit errors are data dependent
+        logger.warning("MMFF optimization failed for cap %s: %s", smiles_cap, exc)
+
+    conf = rw.GetConformer()
+    attachment_vec = np.array(conf.GetAtomPosition(dummy_idx)) - np.array(conf.GetAtomPosition(connection_idx))
+    if np.linalg.norm(attachment_vec) < const.MIN_DIRECTION_NORM:
+        logger.warning("Attachment direction too small for cap %s; using default.", smiles_cap)
+        attachment_vec = const.DEFAULT_DIRECTION
+    else:
+        attachment_vec = attachment_vec / np.linalg.norm(attachment_vec)
+
+    rw.RemoveAtom(dummy_idx)
+    if connection_idx > dummy_idx:
+        connection_idx -= 1
+
+    cap_mol = rw.GetMol()
+    try:
+        Chem.SanitizeMol(cap_mol)
+    except Exception as exc:  # pragma: no cover - depends on specific SMILES
+        logger.warning("Sanitization failed for cap %s: %s", smiles_cap, exc)
+
+    return cap_mol, connection_idx, attachment_vec
+
+
 def get_vector(mol, index):
     """
     对于指定原子，返回其位置及其与所有邻接原子连线方向的平均单位向量。
@@ -254,13 +322,21 @@ def get_vector(mol, index):
     return pos, avg / norm_avg
 
 
-def align_monomer_unit(monomer, connection_atom_idx, target_position, target_direction):
+def align_monomer_unit(monomer,
+                       connection_atom_idx,
+                       target_position,
+                       target_direction,
+                       local_reference_direction=None):
+
     conf = monomer.GetConformer()
     B = np.array(conf.GetAtomPosition(connection_atom_idx))
     if np.linalg.norm(target_direction) < const.MIN_DIRECTION_NORM:
         logger.warning("Target direction is too small; using default direction.")
         target_direction = const.DEFAULT_DIRECTION
-    _, local_dir = get_vector(monomer, connection_atom_idx)
+    if local_reference_direction is None:
+        _, local_dir = get_vector(monomer, connection_atom_idx)
+    else:
+        local_dir = np.array(local_reference_direction, dtype=float)
     if np.linalg.norm(local_dir) < const.MIN_DIRECTION_NORM:
         logger.warning("Local direction of atom %s is too small; using default.", connection_atom_idx)
         local_dir = const.DEFAULT_DIRECTION
@@ -418,95 +494,144 @@ def _get_ideal_tetrahedral_vectors():
     ]
     return [np.array(v) / np.linalg.norm(v) for v in vs]
 
-def gen_3D_withcap(mol, start_atom, end_atom, length):
 
-    capped_mol = Chem.RWMol(mol)
-    terminal_atoms = [start_atom, end_atom]
+def estimate_bond_length(atom_num1: int, atom_num2: int, fallback: float = 1.5) -> float:
+    """Estimate a bond length based on covalent radii with a safe fallback."""
+    pt = Chem.GetPeriodicTable()
+    try:
+        length = pt.GetRcovalent(atom_num1) + pt.GetRcovalent(atom_num2)
+    except Exception:
+        return fallback
+    if not np.isfinite(length) or length <= 0:
+        return fallback
+    return float(length)
 
-    # 定义要添加的封端基团信息
-    capping_info = []
-    for terminal_idx in terminal_atoms:
-        atom = capped_mol.GetAtomWithIdx(terminal_idx)
-        h_count = sum(1 for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 1)
-        if atom.GetAtomicNum() == 6 and h_count == 2:
-            capping_info.append({'type': 'H', 'atom_idx': terminal_idx})
-        else:
-            capping_info.append({'type': 'CH3', 'atom_idx': terminal_idx})
 
-    for cap in capping_info:
+def attach_fragment(base_mol: Chem.Mol,
+                    fragment: Chem.Mol,
+                    terminal_idx: int,
+                    fragment_connection_idx: int) -> Chem.Mol:
+    n_base = base_mol.GetNumAtoms()
+    combo = Chem.CombineMols(base_mol, fragment)
+    ed = Chem.EditableMol(combo)
+    new_idx = fragment_connection_idx + n_base
+    ed.AddBond(terminal_idx, new_idx, order=Chem.rdchem.BondType.SINGLE)
+    combined = ed.GetMol()
 
-        terminal_idx = cap['atom_idx']
-        if cap['type'] == 'H':
+    rw = Chem.RWMol(combined)
+    h_inds = [
+        nbr.GetIdx()
+        for nbr in rw.GetAtomWithIdx(new_idx).GetNeighbors()
+        if rw.GetAtomWithIdx(nbr.GetIdx()).GetAtomicNum() == 1
+    ]
+    if h_inds:
+        place_h_in_tetrahedral(rw, new_idx, h_inds)
+    return rw.GetMol()
 
-            terminal_pos, v_norm = get_vector(capped_mol, terminal_idx)
 
-            C_H_bond_length = 1.12
-            H_pos = terminal_pos + v_norm * C_H_bond_length
+def attach_hydrogen_cap(base_mol: Chem.Mol, terminal_idx: int) -> Chem.Mol:
+    terminal_pos, v_norm = get_vector(base_mol, terminal_idx)
+    atom_num = base_mol.GetAtomWithIdx(terminal_idx).GetAtomicNum()
+    bond_length = estimate_bond_length(atom_num, 1, fallback=1.1)
+    H_pos = terminal_pos + v_norm * bond_length
 
-            new_atom_positions = {}
+    editable_mol = Chem.EditableMol(base_mol)
+    new_H_idx = editable_mol.AddAtom(Chem.Atom(1))
+    editable_mol.AddBond(
+        terminal_idx,
+        new_H_idx,
+        Chem.BondType.SINGLE,
+    )
+    capped = editable_mol.GetMol()
+    conformer = capped.GetConformer()
+    conformer.SetAtomPosition(new_H_idx, Point3D(*H_pos))
+    return capped
 
-            # 添加新氢原子到分子中
-            new_H = Chem.Atom(1)
-            editable_mol = Chem.EditableMol(capped_mol)
-            new_H_idx = editable_mol.AddAtom(new_H)
-            new_atom_positions[new_H_idx] = H_pos
+def attach_methyl_cap(base_mol: Chem.Mol, terminal_idx: int) -> Chem.Mol:
+    fragment = Chem.AddHs(Chem.MolFromSmiles('C'))
+    params = AllChem.ETKDG()
+    params.randomSeed = -1
+    if AllChem.EmbedMolecule(fragment, params) != 0:
+        logger.warning("3D embedding failed for methyl cap; proceeding without optimization.")
+    h_atoms = [a.GetIdx() for a in fragment.GetAtoms() if a.GetSymbol() == 'H']
+    if not h_atoms:
+        raise ValueError("Failed to construct methyl fragment with hydrogens.")
+    em = Chem.EditableMol(fragment)
+    em.RemoveAtom(h_atoms[0])  # 删除一个 H 以连接主链
+    fragment = em.GetMol()
 
-            editable_mol.AddBond(
-                terminal_idx,
-                new_H_idx,
-                Chem.BondType.SINGLE
-            )
+    connection_idx = [a.GetIdx() for a in fragment.GetAtoms() if a.GetSymbol() == 'C'][0]
+    tail_pos, vec = get_vector(base_mol, terminal_idx)
+    atom_poly = base_mol.GetAtomWithIdx(terminal_idx).GetAtomicNum()
+    atom_cap = fragment.GetAtomWithIdx(connection_idx).GetAtomicNum()
+    bond_length = estimate_bond_length(atom_poly, atom_cap)
+    target_pos = tail_pos + (bond_length + 0.1) * vec
 
-            capped_mol = editable_mol.GetMol()
-            conformer = capped_mol.GetConformer()
-            conformer.SetAtomPosition(new_H_idx, Point3D(*H_pos))
+    aligned_fragment = align_monomer_unit(
+        Chem.Mol(fragment),
+        connection_idx,
+        target_pos,
+        vec,
+    )
+    return attach_fragment(base_mol, aligned_fragment, terminal_idx, connection_idx)
 
-        elif cap['type'] == 'CH3':
-            # 1. 构造 CH3· 片段
-            mol_C = Chem.AddHs(Chem.MolFromSmiles('C'))
-            AllChem.EmbedMolecule(mol_C, AllChem.ETKDG())
-            h_atoms = [a.GetIdx() for a in mol_C.GetAtoms() if a.GetSymbol() == 'H']
-            em = Chem.EditableMol(mol_C)
-            em.RemoveAtom(h_atoms[0])  # 删除一个 H
-            mol_C = em.GetMol()
 
-            # 2. 连接索引
-            tail_index = terminal_idx
-            head_index = [a.GetIdx() for a in mol_C.GetAtoms() if a.GetSymbol() == 'C'][0]
+def attach_custom_cap(base_mol: Chem.Mol, terminal_idx: int, cap_smiles: str) -> Chem.Mol:
+    cap_mol, connection_idx, attachment_vec = prepare_cap_monomer(cap_smiles)
 
-            # 3. 计算目标位置并对齐
-            tail_pos, vec = get_vector(capped_mol, tail_index)
-            bond_length = 1.54
-            target_pos = tail_pos + (bond_length + 0.1) * vec
-            new_unit = align_monomer_unit(Chem.Mol(mol_C), head_index, target_pos, vec)
+    tail_pos, vec = get_vector(base_mol, terminal_idx)
+    atom_poly = base_mol.GetAtomWithIdx(terminal_idx).GetAtomicNum()
+    atom_cap = cap_mol.GetAtomWithIdx(connection_idx).GetAtomicNum()
+    bond_length = estimate_bond_length(atom_poly, atom_cap)
+    target_pos = tail_pos + (bond_length + 0.1) * vec
 
-            # 4. 合并并加键（注意偏移）
-            n1 = capped_mol.GetNumAtoms()
-            combo = Chem.CombineMols(capped_mol, new_unit)
-            ed = Chem.EditableMol(combo)
-            new_idx = head_index + n1
-            ed.AddBond(tail_index, new_idx, order=Chem.rdchem.BondType.SINGLE)
-            combined = ed.GetMol()
+    aligned_fragment = align_monomer_unit(
+        Chem.Mol(cap_mol),
+        connection_idx,
+        target_pos,
+        vec,
+        local_reference_direction=attachment_vec,
+    )
+    return attach_fragment(base_mol, aligned_fragment, terminal_idx, connection_idx)
 
-            # 5. 四面体重排
-            rw = Chem.RWMol(combined)
-            h_inds = [nbr.GetIdx() for nbr in rw.GetAtomWithIdx(new_idx).GetNeighbors()
-                      if rw.GetAtomWithIdx(nbr.GetIdx()).GetAtomicNum() == 1]
-            if h_inds:
-                place_h_in_tetrahedral(rw, new_idx, h_inds)
-            capped_mol = rw.GetMol()
+
+def attach_default_cap(base_mol: Chem.Mol, terminal_idx: int) -> Chem.Mol:
+    atom = base_mol.GetAtomWithIdx(terminal_idx)
+    h_count = sum(1 for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 1)
+    if atom.GetAtomicNum() == 6 and h_count == 2:
+        return attach_hydrogen_cap(base_mol, terminal_idx)
+    return attach_methyl_cap(base_mol, terminal_idx)
+
+
+def gen_3D_withcap(mol, start_atom, end_atom, length, left_cap_smiles=None, right_cap_smiles=None):
+
+    capped_mol = Chem.Mol(mol)
+    terminal_data = [
+        (start_atom, left_cap_smiles),
+        (end_atom, right_cap_smiles),
+    ]
+
+    for terminal_idx, cap_smiles in terminal_data:
+        if cap_smiles:
+            try:
+                capped_mol = attach_custom_cap(capped_mol, terminal_idx, cap_smiles)
+                continue
+            except ValueError as exc:
+                logger.error(
+                    "Failed to apply custom cap %s at atom %s: %s. Using default capping.",
+                    cap_smiles,
+                    terminal_idx,
+                    exc,
+                )
+        capped_mol = attach_default_cap(capped_mol, terminal_idx)
 
     # 检查原子间距离是否合理
     valid_structure = check_3d_structure(capped_mol)
-    print(valid_structure)
-    # return capped_mol
     if length <= 3 or valid_structure:
         return capped_mol
-    else:
-        logger.warning("Failed to generate the final PDB file.")
-        return None
 
-
+    logger.warning("Failed to generate the final PDB file.")
+    return None
 
 def check_3d_structure(mol, confId=0, dist_min=0.7, bond_s=2.7, bond_a=1.9, bond_d=1.8, bond_t=1.4):
 
