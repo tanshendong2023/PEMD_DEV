@@ -6,14 +6,14 @@ Date: 2025.05.23
 """
 
 import logging
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import PEMD.io as io
 import PEMD.constants as const
 
 from rdkit import Chem
+from pathlib import Path
+from tqdm.auto import tqdm
 from rdkit import RDLogger
 from rdkit.Chem import AllChem
 from PEMD.model import model_lib
@@ -29,8 +29,14 @@ lg = RDLogger.logger()
 lg.setLevel(RDLogger.ERROR)
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(levelname)s:%(name)s: %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.ERROR)
+    logger.propagate = False
 
 # OpenBabel setup
 obConversion = ob.OBConversion()
@@ -44,10 +50,12 @@ def gen_sequence_copolymer_3D(name,
                               sequence,
                               bond_length=1.5,
                               left_cap_smiles=None,
-                              right_cap_smiles=None):
+                              right_cap_smiles=None,
+                              show_progress=True):
     """
     通用序列构建：sequence 是一个列表，如 ['A','B','B','A',…]
     """
+
     # 1. 预先初始化 A、B 单体的信息
     dumA1, dumA2, atomA1, atomA2 = Init_info(name, smiles_A)
     dumB1, dumB2, atomB1, atomB2 = Init_info(name, smiles_B)
@@ -65,7 +73,11 @@ def gen_sequence_copolymer_3D(name,
     # 3. 依次添加后续单元
     tail_idx = t_1
     num_atom = connecting_mol.GetNumAtoms()
-    for unit in sequence[1:]:
+
+    # tqdm 包装 sequence[1:]
+    iterator = tqdm(sequence[1:], desc="Building copolymer", unit="unit") if show_progress else sequence[1:]
+
+    for unit in iterator:
         if unit == 'A':
             dum1, dum2, atom1, atom2, smiles_mid = dumA1, dumA2, atomA1, atomA2, smiles_A
         else:
@@ -84,12 +96,12 @@ def gen_sequence_copolymer_3D(name,
         new_unit = Chem.Mol(mon)
         new_unit = align_monomer_unit(new_unit, h, target_pos, ideal_direction)
 
-        # 对新单元沿连接键轴进行额外旋转，中心设为 target_pos，旋转角度为 extra_angle
+        # 对新单元沿连接键轴进行额外旋转
         if not check_3d_structure(connecting_mol):
             extra_angle = 0.20
             atom_indices_to_rotate = [j for j in range(new_unit.GetNumAtoms()) if j != h_1]
-            rotate_substructure_around_axis(new_unit, atom_indices_to_rotate, ideal_direction, target_pos,
-                                            extra_angle)
+            rotate_substructure_around_axis(new_unit, atom_indices_to_rotate,
+                                            ideal_direction, target_pos, extra_angle)
 
         combined = Chem.CombineMols(connecting_mol, new_unit)
         editable = Chem.EditableMol(combined)
@@ -102,7 +114,7 @@ def gen_sequence_copolymer_3D(name,
                      if nbr.GetAtomicNum() == 1]
         place_h_in_tetrahedral(combined_mol, head_idx, h_indices)
 
-        # 进行局部能量优化，帮助调整连接区域几何
+        # 局部能量优化
         if not check_3d_structure(combined_mol):
             combined_mol = local_optimize(combined_mol, maxIters=150)
         connecting_mol = Chem.RWMol(combined_mol)

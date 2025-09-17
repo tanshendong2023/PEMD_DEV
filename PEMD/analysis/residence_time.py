@@ -323,16 +323,16 @@ def calc_neigh_corr(run, distance_dict, select_dict, run_start, run_end):
                     raise ValueError("Invalid species selection")
 
                 # 获取这些原子所属的分子ID
-                mols = set(i.residue for i in shell)
+                # mols = set(i.residue for i in shell)
 
-                for mol in mols:
-                    if str(mol.resid) not in bool_values:
-                        bool_values[str(mol.resid)] = np.zeros(int((run_end - run_start) / 1))
-                    bool_values[str(mol.resid)][time_count] = 1
-                # for atom_ in shell.atoms:
-                #     if str(atom_.id) not in bool_values:
-                #         bool_values[str(atom_.id)] = np.zeros(int((run_end - run_start) / 1))
-                #     bool_values[str(atom_.id)][time_count] = 1
+                # for mol in mols:
+                #     if str(mol.resid) not in bool_values:
+                #         bool_values[str(mol.resid)] = np.zeros(int((run_end - run_start) / 1))
+                #     bool_values[str(mol.resid)][time_count] = 1
+                for atom_ in shell.atoms:
+                    if str(atom_.id) not in bool_values:
+                        bool_values[str(atom_.id)] = np.zeros(int((run_end - run_start) / 1))
+                    bool_values[str(atom_.id)][time_count] = 1
 
             acfs = calc_acf(bool_values)
             acf_all.extend(list(acfs))
