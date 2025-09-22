@@ -88,8 +88,8 @@ def annealing(
         anneal_rate,
         anneal_npoints,
         packmol_pdb,
-        density,
-        add_length,
+        # density,
+        # add_length,
         gpu
 ):
     MD_dir = os.path.join(work_dir, 'MD_dir')
@@ -127,8 +127,8 @@ def annealing(
 
     gmx.commands_pdbtogro(
         packmol_pdb,
-        density,
-        add_length
+        # density,
+        # add_length
     ).run_local()
 
     gmx.commands_em(

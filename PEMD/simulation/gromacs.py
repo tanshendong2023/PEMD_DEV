@@ -59,7 +59,7 @@ class PEMDGROMACS:
 
         with open(top_filepath, 'w') as file:
             file.write(file_contents)
-        print(f"Top file generation successful：{top_filename}")
+        print(f"Top file generation successful：{top_filename}\n")
 
     def gen_em_mdp_file(self, filename = 'em.mdp'):
 
@@ -90,7 +90,7 @@ class PEMDGROMACS:
         # write to file
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"Minimization mdp file generation successful：{filename}")
+        print(f"Minimization mdp file generation successful：{filename}\n")
 
     def gen_nvt_mdp_file(self, nsteps_nvt = 200000, filename = 'nvt.mdp', ):
 
@@ -155,7 +155,7 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NVT mdp file generation successful：{filename}")
+        print(f"NVT mdp file generation successful：{filename}\n")
 
     def gen_npt_mdp_file(self, nsteps_npt = 5000000, filename = 'npt.mdp', ):
 
@@ -220,7 +220,7 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NPT mdp file generation successful：{filename}")
+        print(f"NPT mdp file generation successful：{filename}\n")
 
     def gen_npt_anneal_mdp_file(self, T_high_increase = 500, anneal_rate = 0.05, anneal_npoints = 5, filename='npt_anneal.mdp'):
 
@@ -298,18 +298,20 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NPT anneal mdp file generation successful：{filename}")
+        print(f"NPT anneal mdp file generation successful：{filename}\n")
 
-    def commands_pdbtogro(self, packmol_pdb, density=None, add_length=None):
+    def commands_pdbtogro(self, packmol_pdb,):
 
         pdb_files = []
         for com in self.compounds:
             filepath = os.path.join(self.work_dir, f"{com}.pdb")
             pdb_files.append(filepath)
-        if density:
-            box_length = (polymer.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
-        else:
-            box_length = 4
+
+        packmol_pdbpath = os.path.join(self.work_dir, packmol_pdb)
+        with open(packmol_pdbpath, "r") as f:
+            for line in f:
+                if line.startswith("CRYST1"):
+                    box_length = float(line[6:15]) / 10.0
 
         if self.gpu == True:
             self.commands = [

@@ -7,14 +7,18 @@
 
 
 import os
+import math
 import pandas as pd
 import numpy as np
 import MDAnalysis as mda
+import PEMD.core.output_lib as lib
 
 from tqdm.auto import tqdm
+from cclib.io import ccopen
 from functools import partial
 from functools import lru_cache
 from multiprocessing import Pool
+from typing import Optional, Dict
 
 from PEMD.analysis.conductivity import calc_cond_msd, calc_conductivity
 from PEMD.analysis.transfer_number import calc_transfer_number
@@ -44,25 +48,32 @@ from PEMD.analysis.coordination import (
     get_cluster_index,
     find_poly_match_subindex,
     get_cluster_withcap,
-    merge_xyz_files
+    merge_xyz_files,
+    analyze_coordination_structure,
+    calc_population_parallel
 )
-from PEMD.analysis.esw import esw
+from PEMD.analysis.residence_time import (
+    calc_neigh_corr,
+    fit_residence_time
+)
+from PEMD.analysis.energy import esw, homo_lumo_energy
 
 
 class PEMDAnalysis:
 
     def __init__(
         self,
-        run_wrap,
-        run_unwrap,
-        cation_name,
-        anion_name,
-        polymer_name,
-        run_start,
-        run_end,
-        dt,
-        dt_collection,
-        temperature,
+        run_wrap: mda.Universe,
+        run_unwrap: mda.Universe,
+        run_start: int,
+        run_end: int,
+        dt: float,
+        dt_collection: int,
+        temperature: float,
+        select_dict: Optional[Dict[str, str]] = None,
+        cation_name: str = "cation",
+        anion_name: str = "anion",
+        polymer_name: str = "polymer",
     ):
 
         self.run_wrap = run_wrap
@@ -73,12 +84,13 @@ class PEMDAnalysis:
         self.dt_collection = dt_collection
         self.temp = temperature
         self.times = self.times_range(self.run_end)
+        self.select_dict = select_dict or {}
         self.cation_name = cation_name
         self.anion_name = anion_name
         self.polymer_name = polymer_name
-        self.cations_unwrap = run_unwrap.select_atoms(self.cation_name)
-        self.anions_unwrap = run_unwrap.select_atoms(self.anion_name)
-        self.polymers_unwrap = run_unwrap.select_atoms(self.polymer_name)
+        self.cations_unwrap = run_unwrap.select_atoms(self.select_dict.get(cation_name))
+        self.anions_unwrap = run_unwrap.select_atoms(self.select_dict.get(anion_name))
+        self.polymers_unwrap = run_unwrap.select_atoms(self.select_dict.get(polymer_name))
         self.volume = self.run_unwrap.coord.volume
         self.box_size = self.run_unwrap.dimensions[0]
         self.num_cation = len(self.cations_unwrap)
@@ -90,18 +102,20 @@ class PEMDAnalysis:
     @classmethod
     def from_gromacs(
         cls,
-        work_dir,
-        tpr_file,
-        wrap_xtc_file,
-        unwrap_xtc_file,
-        cation_name,
-        anion_name,
-        polymer_name,
-        run_start,
-        run_end,
-        dt,
-        dt_collection,
-        temperature,
+        work_dir: str,
+        tpr_file: str,
+        wrap_xtc_file: str,
+        unwrap_xtc_file: str,
+        *,
+        select_dict: Optional[Dict[str, str]] = None,
+        cation_name: str = "cation",
+        anion_name: str = "anion",
+        polymer_name: str = "polymer",
+        run_start: int = 0,
+        run_end: int = -1,
+        dt: float = 0.0,
+        dt_collection: int = 1,
+        temperature: float = 300.0,
     ):
 
         tpr_path = os.path.join(work_dir, tpr_file)
@@ -112,16 +126,17 @@ class PEMDAnalysis:
         run_unwrap = mda.Universe(tpr_path, unwrap_xtc_path)
 
         return cls(
-            run_wrap,
-            run_unwrap,
-            cation_name,
-            anion_name,
-            polymer_name,
-            run_start,
-            run_end,
-            dt,
-            dt_collection,
-            temperature,
+            run_wrap=run_wrap,
+            run_unwrap=run_unwrap,
+            run_start=run_start,
+            run_end=run_end,
+            dt=dt,
+            dt_collection=dt_collection,
+            temperature=temperature,
+            select_dict=select_dict,
+            cation_name=cation_name,
+            anion_name=anion_name,
+            polymer_name=polymer_name,
         )
 
 
@@ -132,7 +147,7 @@ class PEMDAnalysis:
             0,
             t_total * self.dt * self.dt_collection,
             self.dt * self.dt_collection,
-            dtype=int
+            dtype=float,
         )
 
 
@@ -465,6 +480,60 @@ class PEMDAnalysis:
             self.num_o_chain
         )
 
+    def calc_neigh_corr(self, distance_dict, center_atom: str = "cation",):
+
+        return calc_neigh_corr(
+            self.run_wrap,
+            distance_dict,
+            self.select_dict,
+            self.run_start,
+            self.run_end,
+            center_atom=center_atom,
+        )
+
+    def fit_residence_time(self, acf_avg, cutoff_time, save_csv=False, plot=False):
+
+        return fit_residence_time(
+            self.times,
+            acf_avg,
+            cutoff_time,
+            self.dt*self.dt_collection,
+            save_csv,
+            plot
+        )
+
+
+    def coordination_type(self, run_start, run_end, distance_dict, center_atom = "cation", counter_atom = "anion", plot = False):
+
+        distance = distance_dict.get(counter_atom)
+
+        return analyze_coordination_structure(
+            self.run_wrap,
+            run_start,
+            run_end,
+            self.select_dict,
+            distance,
+            center_atom,
+            counter_atom,
+            plot
+        )
+
+
+    def ion_cluster_population(self, run_start, run_end, center_atom = "cation", counter_atom = "anion", core = 4, plot = False):
+
+        select_cations = self.select_dict.get(center_atom)
+        select_anions = self.select_dict.get(counter_atom)
+
+        calc_population_parallel(
+            self.run_wrap,
+            run_start,
+            run_end,
+            select_cations,
+            select_anions,
+            core,
+            plot,
+        )
+
 
     @staticmethod
     def write_cluster(
@@ -518,6 +587,7 @@ class PEMDAnalysis:
         max_number: int = 100,
         write_freq: float = 0.01,
     ):
+        lib.print_input("Extract Cluster Structures")
 
         PEMDAnalysis.write_cluster(
             work_dir,
@@ -537,6 +607,7 @@ class PEMDAnalysis:
         cluster_dir = os.path.join(work_dir, "cluster_dir")
         pdb_files = sorted([f for f in os.listdir(cluster_dir) if f.endswith(".pdb")])
 
+        success, failed = 0, 0
         for i, pdb_file in enumerate(pdb_files):
 
             try:
@@ -584,28 +655,75 @@ class PEMDAnalysis:
                     end_atom,
                     outxyz_file
                 )
+                success += 1
+
             except Exception as e:
-                print(f"Error processing file {pdb_file}: {e}")
+                # print(f"Error processing file {pdb_file}: {e}")
                 continue
+
+        lib.print_output(f'Extracted {success} / {max_number} cluster structures')
 
         return merge_xyz_files(cluster_dir)
 
     @staticmethod
     def esw(
-        G_init: float,
+        work_dir: str,
+        logfile_init: str,
         *,
-        G_oxid: float = None,
-        G_red: float = None,
-        output: str = 'all',
-        unit: str = 'hartree',  # hartree, eV, V, mV to kcal/mol
+        logfile_oxid: str | None = None,
+        logfile_red: str | None = None,
+        output: str = 'eox',            # 'eox' | 'ered' | 'all'
+        unit: str = 'hartree',
+        errors: list[str] | None = None # 可选：收集详细错误
     ):
+        HARTREE_PER_EV = 1.0 / 27.211386245988
 
-        return esw(
-            G_init,
-            G_oxid=G_oxid,
-            G_red=G_red,
-            output=output,
-            unit=unit
+        def _safe_read(path: str, label: str):
+            try:
+                data = ccopen(path).parse()
+                G = getattr(data, "freeenergy", None)
+                if G is not None:
+                    return float(G)  # 视为 Hartree
+                scf = getattr(data, "scfenergies", None)  # eV
+                if scf:
+                    return float(scf[-1]) * HARTREE_PER_EV
+                raise ValueError("no freeenergy or scfenergies found")
+            except Exception as e:
+                # 简单提示，不中断
+                print("calculate ESW error:", e)
+                if errors is not None:
+                    errors.append(f"[ESW]{label}: {path} -> {e}")
+                return None
+
+        logfilepath_init = os.path.join(work_dir, logfile_init)
+        G_init = _safe_read(logfilepath_init, "init")
+        if G_init is None:
+            return (math.nan, math.nan, math.nan) if output == 'all' else math.nan
+
+        logfilepath_oxid = os.path.join(work_dir, logfile_oxid) if logfile_oxid else None
+        logfilepath_red  = os.path.join(work_dir, logfile_red)  if logfile_red  else None
+        G_oxid = _safe_read(logfilepath_oxid, "oxid") if logfile_oxid else None
+        G_red  = _safe_read(logfilepath_red,  "red")  if logfile_red  else None
+
+        if output == 'eox':
+            return esw(G_init, G_oxid=G_oxid, G_red=None, output='eox', unit=unit) if G_oxid is not None else math.nan
+        if output == 'ered':
+            return esw(G_init, G_oxid=None, G_red=G_red, output='ered', unit=unit) if G_red is not None else math.nan
+        if output == 'all':
+            eox  = esw(G_init, G_oxid=G_oxid, G_red=None, output='eox', unit=unit) if G_oxid is not None else math.nan
+            ered = esw(G_init, G_oxid=None, G_red=G_red, output='ered', unit=unit) if G_red  is not None else math.nan
+            w    = esw(G_init, G_oxid=G_oxid, G_red=G_red, output='esw', unit=unit)  if (G_oxid is not None and G_red is not None) else math.nan
+            return eox, ered, w
+
+        raise ValueError("output 仅支持 'eox'、'ered' 或 'all'")
+
+
+    @staticmethod
+    def homo_lumo_energy(work_dir, log_filename):
+
+        return homo_lumo_energy(
+            work_dir,
+            log_filename
         )
 
 

@@ -12,6 +12,8 @@ import pandas as pd
 from rdkit import Chem
 from pathlib import Path
 from dataclasses import dataclass
+import PEMD.core.output_lib as lib
+
 
 from PEMD.forcefields.ff import (
     get_oplsaa_xml,
@@ -33,7 +35,7 @@ from PEMD.model.build import (
 
 @dataclass
 class Forcefield:
-    work_dir: Path
+    work_dir: Path | str
     name: str
     resname: str
     scale: float
@@ -114,12 +116,16 @@ class Forcefield:
         resp_df: pd.DataFrame | None = None,
         polymer: bool = False,
         length_short: int = 3,
-        scale: float = 1.0,
         smiles: str | None = None,
+        left_cap: str | None = None,
+        right_cap: str | None = None,
         end_repeating: int = 1,
+        scale: float = 1.0,
         charge: float = 0,
         pdb_file: str | None = None,
     ):
+        lib.print_input('OPLS-AA Force Field Generation')
+
         if ff_source == "ligpargen":
             # chg_df = None
             if polymer:
@@ -129,6 +135,8 @@ class Forcefield:
                     name=name,
                     mode="homopolymer",
                     length=length_short,
+                    left_cap_smiles=left_cap,
+                    right_cap_smiles=right_cap
                 )
 
                 mol_to_pdb(
@@ -207,18 +215,20 @@ class Forcefield:
                     )
 
         elif ff_source == "database":
-            return gen_ff_from_data(
+            gen_ff_from_data(
                 work_dir,
                 name,
                 scale,
                 charge,
             )
 
+        lib.print_output(f'OPLS-AA Force Field Generation')
+
 
     @classmethod
     def oplsaa_from_json(
             cls,
-            work_dir: Path,
+            work_dir: Path | str,
             json_file: str,
             mol_type: str,
             *,
@@ -228,7 +238,7 @@ class Forcefield:
             pdb_file: str | None = None,
             end_repeating: int = 1,
     ):
-        instance = cls.from_json(work_dir, json_file, mol_type,)
+        instance = cls.from_json(work_dir, json_file, mol_type, )
 
         if mol_type == "polymer":
             polymer = True
@@ -236,7 +246,7 @@ class Forcefield:
             polymer = False
 
         cls.oplsaa(
-            work_dir=instance.work_dir,
+            work_dir=work_dir,
             name=instance.name,
             ff_source=ff_source,
             resname=instance.resname,
@@ -244,6 +254,8 @@ class Forcefield:
             resp_df=resp_df,
             polymer=polymer,
             length_short=instance.length_short,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
             scale=instance.scale,
             charge=instance.charge,
             smiles=instance.repeating_unit if polymer else instance.smiles,

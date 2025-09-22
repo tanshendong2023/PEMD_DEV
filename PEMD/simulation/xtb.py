@@ -63,18 +63,18 @@ class PEMDXtb:
         )
 
         logging.info(f"执行命令: {command_str}")
-        print(f"执行命令: {command_str}")
+        # print(f"执行命令: {command_str}")
 
         try:
             result = subprocess.run(command_str, shell=True, check=True, text=True, capture_output=True)
             logging.info(f"XTB 输出: {result.stdout}")
-            print(f"XTB 输出: {result.stdout}")
+            # print(f"XTB 输出: {result.stdout}")
 
             # 提取能量信息
             energy_info = self.extract_energy(result.stdout, optimized=optimize)
             if energy_info:
                 logging.info(f"提取的能量信息: {energy_info}")
-                print(f"提取的能量信息: {energy_info}")
+                # print(f"提取的能量信息: {energy_info}")
                 # 保存能量信息到JSON文件
                 energy_file = os.path.join(self.work_dir, f"{outfile_headname}_energy.json")
                 with open(energy_file, 'w') as ef:

@@ -15,6 +15,9 @@ from PEMD import io
 from PEMD.forcefields.xml import XMLGenerator
 from PEMD.forcefields.ligpargen import PEMDLigpargen
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module=r"foyer\.forcefield")
+
 
 def get_xml_ligpargen(
         work_dir: Path | str,
@@ -95,6 +98,8 @@ def get_oplsaa_xml(
     top_path.unlink(missing_ok=True)
     xml_path.unlink(missing_ok=True)
 
+    print(f'Generate {name}_bonded.itp and {name}_nonbonded.itp in ./{md_dir} path.')
+
     return f'{name}_bonded.itp'
 
 
@@ -152,7 +157,7 @@ def gen_ff_from_data(work_dir, compound_name, corr_factor, target_sum_chg):
 
     filename = f"{compound_name}_bonded.itp"
     scale_chg_itp(MD_dir, filename, corr_factor, target_sum_chg)
-    print(f"scale charge successfully.")
+    # print(f"scale charge successfully.")
 
 
 def assign_partial_charges(mol_poly, sub_mol, matches):

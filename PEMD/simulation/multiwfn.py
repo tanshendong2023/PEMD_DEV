@@ -52,7 +52,7 @@ class PEMDMultiwfn:
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             # Output command execution results.
             if process.returncode == 0:
-                print(f"RESP fitting for the {idx + 1}-th structure has been successfully completed.")
+                print(f"RESP fitting for the {idx + 1}-th structure has been successfully completed.\n")
             else:
-                print(f"RESP fitting for the {idx + 1}-th structure failed : {process.stderr}")
+                print(f"RESP fitting for the {idx + 1}-th structure failed : {process.stderr}\n")
 

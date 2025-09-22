@@ -64,7 +64,7 @@ class PEMDPackmol:
 
         with open(packinp_path, 'w') as file:
             file.write(file_contents)
-        print(f"Packmol input file generation successful: {packinp_path}")
+        # print(f"Packmol input file generation successful: {packinp_path}")
 
         return packinp_path
 
@@ -92,7 +92,7 @@ class PEMDPackmol:
             with open('pack.out', mode="w") as out:
                 out.write(p.stdout)
 
-            print("Packmol executed successfully.")
+            # print("Packmol executed successfully.")
 
         except subprocess.CalledProcessError as exc:
             if exc.returncode not in [172, 173]:

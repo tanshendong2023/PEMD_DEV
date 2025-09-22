@@ -102,34 +102,6 @@ def read_xyz_file(file_path):
             i += 1
     return structures
 
-def submit_job_to_slurm(command, job_name, node, core, mem, gaussian_dir, file, soft):
-
-    file_contents = f"#!/bin/bash"
-    file_contents += f"#SBATCH -J {job_name}\n"
-    file_contents += f"#SBATCH -N {node}\n"
-    file_contents += f"#SBATCH -n {core}\n"
-    file_contents += f"#SBATCH -p {mem}\n\n"
-    file_contents += f"module load {soft}\n\n"
-    file_contents += f"{command} {file}/\n"
-
-    # 将作业脚本写入文件
-    script_path = os.path.join(gaussian_dir, f"sub.sh")
-    with open(script_path, 'w') as f:
-        f.write(file_contents)
-
-    # 提交作业并获取作业 ID
-    submit_command = ['sbatch', script_path]
-    result = subprocess.run(submit_command, capture_output=True, text=True)
-    if result.returncode == 0:
-        # 提取作业 ID
-        output = result.stdout.strip()
-        # 通常，sbatch 的输出格式为 "Submitted batch job <job_id>"
-        job_id = output.split()[-1]
-        return job_id
-    else:
-        print(f"提交作业失败：{result.stderr}")
-        return None
-
 
 def read_energy_from_gaussian(log_file_path: str):
     # 自由能（优化+freq）行
@@ -252,7 +224,7 @@ def order_energy_gaussian(work_dir, filename, numconf, output_file):
                 outfile.write(f"Energy = {item['Energy']}\n")
                 for atom_line in item['Atoms']:
                     outfile.write(f"{atom_line}\n")
-        print(f"The lowest {numconf} energy structures have been saved to {output_file}")
+
     else:
         print(f"No successful Gaussian output files found in {work_dir}")
 

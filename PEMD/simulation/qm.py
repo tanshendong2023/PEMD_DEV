@@ -58,7 +58,7 @@ def gen_conf_rdkit(
         energy = ff.CalcEnergy()
         minimized_conformers.append((conf_id, energy))
 
-    print(f"Generated {len(minimized_conformers)} conformers for polymer")
+    print(f"[1] Generated {len(minimized_conformers)} conformers using RDKit.\n")
 
     # Sort the conformers by energy and select the top N conformers
     minimized_conformers.sort(key=lambda x: x[1])
@@ -79,7 +79,7 @@ def gen_conf_rdkit(
                 element = atom.GetSymbol()
                 merged_xyz.write(f"{element} {pos.x:.6f} {pos.y:.6f} {pos.z:.6f}\n")
 
-    print(f"Top {top_n_MMFF} conformers were saved to {output_file}")
+    print(f"[2] Saved {len(top_conformers)} MMFF-minimized, lowest-energy conformers to '{output_file}'.\n")
 
     return output_file
 
@@ -90,7 +90,7 @@ def conf_xtb(
     charge: float = 0,
     mult: int = 1,
     gfn: str = 'gfn2',
-    optimize: bool = True
+    optimize: bool = True,
 ):
     work_path = Path(work_dir)
     xtb_dir = work_path / f"XTB_dir"
@@ -151,7 +151,7 @@ def conf_xtb(
             else:
                 print(f"结构 conf_{idx}.xyz 优化后的能量提取失败。")
 
-    print("XTB run locally successfully!")
+    # print("XTB run locally successfully!")
 
     if not energy_list:
         print("未成功提取任何能量值。")
@@ -169,7 +169,8 @@ def conf_xtb(
             else:
                 print(f"File {src} not found.")
 
-    print(f"Wrote top {top_n_xtb} xTB structures to {output_path}")
+    print(f"[3] Saved {len(top_structures)} lowest-energy xtb structures to xtb_top{top_n_xtb}.xyz'.\n")
+
     return output_path
 
 
@@ -228,10 +229,10 @@ def qm_gaussian(
 
         if state == 'success':
             Gau.logger.info(f"Optimization succeeded for {filename}.")
-            print(f"Structure {idx}: Calculation SUCCESS.")
+            # print(f"Structure {idx}: Calculation SUCCESS.")
         else:
             Gau.logger.error(f"Optimization failed for {filename}.")
-            print(f"Structure {idx}: Calculation FAILED.")
+            # print(f"Structure {idx}: Calculation FAILED.")
 
     if toxyz:
         output_file = f"gaussian_top{top_n_qm}.xyz"
@@ -242,6 +243,8 @@ def qm_gaussian(
             top_n_qm,
             output_filepath,
         )
+
+        print(f"[4] Saved {top_n_qm} lowest-energy Gaussian structures to gaussian_top{top_n_qm}.xyz.")
         return output_file
 
 

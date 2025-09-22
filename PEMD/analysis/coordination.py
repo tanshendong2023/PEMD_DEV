@@ -10,6 +10,8 @@ import glob
 import logging
 import warnings
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import MDAnalysis as mda
 import matplotlib.pyplot as plt
 
@@ -18,7 +20,11 @@ from tqdm.auto import tqdm
 from collections import deque
 from rdkit.Geometry import Point3D
 from MDAnalysis.analysis import rdf
+from matplotlib.colors import LogNorm
+from matplotlib.patches import Rectangle
 from PEMD.model import polymer, model_lib
+from matplotlib.colors import LinearSegmentedColormap
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
@@ -207,7 +213,7 @@ def num_of_neighbor(
 
                     written_structures += 1
                     if written_structures >= max_number:
-                        print(f"{max_number} structures have been written out in {write_path}!!!.")
+                        # print(f"{max_number} structures have been written out in {write_path}!!!.")
                         max_reached = True  # Set the flag to True
                         break  # Break out of the innermost loop
 
@@ -826,8 +832,8 @@ def rotate_vector_around_axis(v, axis, theta):
 
 
 def merge_xyz_files(xyz_dir: str,
-                            pattern: str = "num_*_frag.xyz",
-                            out_name: str = "merged.xyz") -> str:
+                    pattern: str = "num_*_frag.xyz",
+                    out_name: str = "merged.xyz") -> str:
 
     xyz_paths = sorted(glob.glob(os.path.join(xyz_dir, pattern)))
     if not xyz_paths:
@@ -842,6 +848,265 @@ def merge_xyz_files(xyz_dir: str,
                 lines[1] = f"Frame {idx}: {os.path.basename(path)}\n"
                 fw.writelines(lines)
 
-    print(f"Merged {len(xyz_paths)} frames into trajectory: {traj_path}")
+    # print(f"Merged {len(xyz_paths)} frames into trajectory: {traj_path}")
     return traj_path
+
+
+def analyze_coordination_structure(
+    run: mda.Universe,
+    run_start: int,
+    run_end: int,
+    select_dict: dict[str, str],
+    distance: float,
+    center_atom: str = "cation",
+    counter_atom: str = "anion",
+    plot: bool = False,
+) -> pd.DataFrame:
+    """
+    Analyzes and tabulates the solvation structures (SSIP, CIP, AGG)
+    with respect to a solvation shell center atom over a given trajectory range.
+
+    Args:
+        run: An MDAnalysis ``Universe`` containing the trajectory.
+        distance: The coordination cutoff distance.
+        run_start: Start frame of analysis.
+        run_end: End frame of analysis.
+        select_dict: A dictionary of selection strings for different atom groups.
+        center_atom: Selection key for the solvation shell center atom. Default is "cation".
+        counter_atom: Selection key for the neighbor species. Default is "anion".
+
+    Returns:
+        A DataFrame summarizing the percentage of each solvation structure (SSIP, CIP, AGG).
+    """
+
+    def select_shell(select, distance, center_atom, kw):
+        if isinstance(select, dict):
+            species_selection = select[kw]
+            if species_selection is None:
+                raise ValueError("Species specified does not match entries in the select dict.")
+        else:
+            species_selection = select
+        if isinstance(distance, dict):
+            distance_value = distance[kw]
+            if distance_value is None:
+                raise ValueError("Species specified does not match entries in the distance dict.")
+            distance_str = str(distance_value)
+        else:
+            distance_str = distance
+        return "(" + species_selection + ") and (around " + distance_str + " index " + str(center_atom.index) + ")"
+
+    def num_of_neighbor_simple(nvt_run, center_atom, distance_dict, select_dict, run_start, run_end):
+        trj_analysis = nvt_run.trajectory[run_start:run_end:]
+        species = next(iter(distance_dict.keys()))
+        cn_values = np.zeros(int(len(trj_analysis)))
+        for time_count, _ts in enumerate(trj_analysis):
+            selection = select_shell(select_dict, distance_dict, center_atom, species)
+            shell = nvt_run.select_atoms(selection, periodic=True)
+            shell_molecules = shell.residues
+            shell_len = len(shell_molecules)
+            if shell_len == 0:
+                cn_values[time_count] = 1
+            elif shell_len == 1:
+                coordination_atoms = shell_molecules.atoms.select_atoms("same type as index " + str(shell.atoms[0].index))
+                unique_lithium_indices = set()
+                for atom in coordination_atoms:
+                    selection_species = select_shell("same type as index " + str(center_atom.index), distance_dict, atom, species)
+                    shell_species = nvt_run.select_atoms(selection_species, periodic=True)
+                    for li_atom in shell_species:
+                        unique_lithium_indices.add(li_atom.index)
+                shell_species_len = len(unique_lithium_indices) - 1
+                if shell_species_len == 0:
+                    cn_values[time_count] = 2
+                else:
+                    cn_values[time_count] = 3
+            else:
+                cn_values[time_count] = 3
+        return {"total": cn_values}
+
+    def concat_coord_array(nvt_run, func, center_atoms, distance_dict, select_dict, run_start, run_end):
+        num_array = func(nvt_run, center_atoms[0], distance_dict, select_dict, run_start, run_end)
+        for atom in tqdm(center_atoms[1::]):
+            this_atom = func(nvt_run, atom, distance_dict, select_dict, run_start, run_end)
+            for kw in num_array:
+                num_array[kw] = np.concatenate((num_array.get(kw), this_atom.get(kw)), axis=0)
+        return num_array
+
+    distance_dict = {counter_atom: distance}
+    center_atoms = run.select_atoms(select_dict.get(center_atom))
+    num_array = concat_coord_array(
+        run,
+        num_of_neighbor_simple,
+        center_atoms,
+        distance_dict,
+        select_dict,
+        run_start,
+        run_end,
+    )["total"]
+
+    shell_component, shell_count = np.unique(num_array.flatten(), return_counts=True)
+    combined = np.vstack((shell_component, shell_count)).T
+    item_dict = {"1": "ssip", "2": "cip", "3": "agg"}
+    item_list = []
+    percent_list = []
+    for i in range(len(combined)):
+        item = str(int(combined[i, 0]))
+        item_list.append(item_dict.get(item))
+        percent_list.append(f"{(combined[i, 1] / combined[:, 1].sum() * 100):.4f}%")
+    df_dict = {"Solvation structure": item_list, "Percentage": percent_list}
+
+    if plot:
+        order = ["ssip", "cip", "agg"]
+        perc_map = {k: float(v.strip("%")) for k, v in zip(item_list, percent_list)}
+        plot_vals = [perc_map.get(k, 0.0) for k in order]
+
+        fig, ax = plt.subplots(figsize=(4.2, 3.2))
+        bars = ax.bar(order, plot_vals,  width=0.35, edgecolor="black", linewidth=0.50)
+        ax.set_ylim(0, 100)
+        ax.set_ylabel("Percentage (%)")
+        ax.grid(axis="y", linestyle=":", alpha=0.35)
+
+        # 顶端标注
+        for rect, v in zip(bars, plot_vals):
+            ax.text(
+                rect.get_x() + rect.get_width() / 2.0,
+                rect.get_height() + 0.6,
+                f"{v:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+        plt.tight_layout()
+        plt.show()
+
+    return pd.DataFrame(df_dict)
+
+
+def calc_population_frame(ts, cations, anions, index):
+    all_atoms = cations + anions
+    merged_list = list(range(len(all_atoms)))
+    box_size = ts.dimensions[0]
+    all_clusters = []
+
+    while merged_list:
+        this_cluster = [merged_list[0]]
+        merged_list.remove(merged_list[0])
+
+        for i in this_cluster:
+            for j in merged_list:
+                d_vec = distance(all_atoms.positions[i], all_atoms.positions[j], box_size)
+                d = np.linalg.norm(d_vec)
+                if d <= 3.4:
+                    this_cluster.append(j)
+                    merged_list.remove(j)
+
+        all_clusters.append(this_cluster)
+
+    type_id = 'Li'
+    type_id3 = 'NBT'
+    pop_matrix = np.zeros((50, 50, 1))
+
+    for cluster in all_clusters:
+        cations_count = 0
+        anions_count = 0
+
+        for atom_id in cluster:
+            if all_atoms[atom_id].type == type_id:
+                cations_count += 1
+            if all_atoms[atom_id].type == type_id3:
+                anions_count += 1
+
+        if cations_count < 50 and anions_count < 50:
+            pop_matrix[cations_count][anions_count] += 1
+
+    return pop_matrix, index
+
+
+def calc_population_parallel(run, run_start, run_end, select_cations, select_anions, core, plot):
+    stacked_population = np.array([])
+
+    with ProcessPoolExecutor(max_workers=core) as executor:
+        futures = []
+        for idx, ts in enumerate(run.trajectory[run_start:run_end]):
+            cations = run.select_atoms(select_cations)
+            anions = run.select_atoms(select_anions)
+            futures.append(executor.submit(calc_population_frame, ts, cations, anions, idx))
+
+        results = [future.result() for future in
+                   tqdm(as_completed(futures), total=len(futures), desc='Processing trajectory')]
+
+    # Sort results by index and combine
+    sorted_results = sorted(results, key=lambda x: x[1])
+    for current_population, _ in sorted_results:
+        if stacked_population.size == 0:
+            stacked_population = current_population
+        else:
+            stacked_population = np.dstack((stacked_population, current_population))
+
+    avg_population = np.mean(stacked_population, axis=2)
+    np.savetxt('avg_population.txt', avg_population, fmt='%.6f')
+
+    if plot:
+        plot_population_heatmap(avg_population)
+
+    return 'avg_population.txt'
+
+def plot_population_heatmap(avg_population):
+
+    n = min(21, avg_population.shape[0], avg_population.shape[1])
+    matrix = avg_population[:n, :n].T          # x: cation, y: anion -> 图中 x 轴为阳离子
+    matrix = np.flipud(matrix)                 # 上下翻转，让 y 轴从下到上递增
+
+    mat_plot = matrix.copy()
+    mat_plot[mat_plot <= 0] = 1e-12
+
+    colors = ["white", "yellow", "red"]
+    cmap = LinearSegmentedColormap.from_list("custom_red_yellow_white", colors)
+    norm = LogNorm(vmin=1e-5, vmax=1e2)
+
+    plt.figure(figsize=(10, 8))
+    ax = sns.heatmap(
+        mat_plot,
+        annot=False,
+        fmt=".2f",
+        cmap=cmap,
+        square=True,
+        linewidths=0.5,
+        linecolor='white',
+        norm=norm
+    )
+
+    cbar = ax.collections[0].colorbar
+    cbar.ax.minorticks_off()
+    cbar.set_ticks([10**i for i in range(-3, 3)])
+    cbar.set_ticklabels([r'$\mathrm{10^{-3}}$', r'$\mathrm{10^{-2}}$', r'$\mathrm{10^{-1}}$',
+                         r'$\mathrm{10^{0}}$', r'$\mathrm{10^{1}}$', r'$\mathrm{10^{2}}$'])
+    cbar.ax.tick_params(labelsize=24)
+
+    x_labels = list(range(0, n))
+    y_labels = list(range(n-1, -1, -1))
+    ax.set_xticks(np.arange(0.5, n, 4))
+    ax.set_yticks(np.arange(0.5, n, 4))
+    ax.set_xticklabels(x_labels[0::4])
+    ax.set_yticklabels(y_labels[0::4])
+    ax.tick_params(left=True, bottom=True, length=0)
+
+    for _, spine in ax.spines.items():
+        spine.set_visible(True)
+        spine.set_linewidth(0.5)
+        spine.set_edgecolor("black")
+
+    for i in range(n):
+        for j in range(n):
+            ax.add_patch(Rectangle((j + 0.05, i + 0.05), 0.9, 0.9, fill=False, edgecolor="#BFBFBF", lw=0.5))
+
+    ax.plot([0, n], [n, 0], ls='-', lw=1, color="#172C51")
+
+    plt.xlabel(r'$\mathrm{n_{+}}$')   # 阳离子数
+    plt.ylabel(r'$\mathrm{n_{-}}$')   # 阴离子数
+
+    plt.tight_layout()
+    plt.show()
+
+
 

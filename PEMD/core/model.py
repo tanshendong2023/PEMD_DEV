@@ -9,6 +9,7 @@
 import json
 
 from pathlib import Path
+import PEMD.core.output_lib as lib
 from PEMD.model.packmol import PEMDPackmol
 from dataclasses import dataclass, field
 
@@ -28,6 +29,7 @@ class PEMDModel:
     rightcap: str
     length_short: int
     length_long: int
+    length: int
     smiles_A: str = ""
     smiles_B: str = ""
     mode: str | None = None
@@ -55,9 +57,21 @@ class PEMDModel:
         repeating_unit = polymer_info.get('repeating_unit', '')
         leftcap = polymer_info.get('left_cap', '')
         rightcap = polymer_info.get('right_cap', '')
-        length_list = polymer_info.get('length', [0, 0])
-        length_short = length_list[0] if len(length_list) > 0 else 0
-        length_long = length_list[1] if len(length_list) > 1 else 0
+        length_list = polymer_info.get('length')
+
+        length_short = None
+        length_long = None
+        length = None
+
+        if isinstance(length_list, list):
+            if len(length_list) == 1:
+                length = int(length_list[0])
+            elif len(length_list) >= 2:
+                length_short = int(length_list[0])
+                length_long = int(length_list[1])
+        elif length_list is not None:
+            length = int(length_list)
+
         smiles_A = polymer_info.get("smiles_A", None)
         smiles_B = polymer_info.get("smiles_B", None)
         mode = polymer_info.get("mode", None)
@@ -81,6 +95,7 @@ class PEMDModel:
             rightcap,
             length_short,
             length_long,
+            length,
             smiles_A,
             smiles_B,
             mode,
@@ -107,6 +122,18 @@ class PEMDModel:
         right_cap: str | None = None,
     ) -> str:
         """Generate a copolymer PDB file using a unified interface."""
+        lib.print_input('Polymer Model Construction')
+
+        lib.print_poly_info(
+            name=name,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode=mode,
+            length=length,
+            block_sizes=block_sizes,
+            left_cap=left_cap,
+            right_cap=right_cap,
+        )
 
         mol = gen_copolymer_3D(
             smiles_A,
@@ -139,7 +166,7 @@ class PEMDModel:
             resname=resname,
             pdb_filename=pdb_filename,
         )
-        print(f"\nGenerated the pdb file {pdb_filename} successfully")
+        lib.print_output(f'Polymer Model Construction {pdb_filename}')
         return pdb_filename
 
 
@@ -169,7 +196,7 @@ class PEMDModel:
 
     @staticmethod
     def homopolymer(
-        work_dir: Path,
+        work_dir: Path | str,
         smiles: str,
         length: int,
         name: str = "PE",
@@ -194,77 +221,93 @@ class PEMDModel:
     @classmethod
     def homopolymer_from_json(
             cls,
-            work_dir:
-            Path,
+            work_dir,
             json_file: str
     ):
 
         instance = cls.from_json(work_dir, json_file)
 
-        pdb_file_short = cls.homopolymer(
-            work_dir=instance.work_dir,
-            name=instance.name,
-            smiles=instance.repeating_unit,
-            length=instance.length_short,
-            resname=instance.resname,
-            left_cap=instance.leftcap,
-            right_cap=instance.rightcap,
-        )
-
-        pdb_file_long = cls.homopolymer(
-            work_dir=instance.work_dir,
-            name=instance.name,
-            smiles=instance.repeating_unit,
-            length=instance.length_long,
-            resname=instance.resname,
-            left_cap=instance.leftcap,
-            right_cap=instance.rightcap,
-        )
-
-        return pdb_file_short, pdb_file_long
+        if instance.length:
+            return cls.homopolymer(
+                work_dir=instance.work_dir,
+                smiles=instance.repeating_unit,
+                length=instance.length,
+                name=instance.name,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+        elif instance.length_short and instance.length_long:
+            pdb_file_short = cls.homopolymer(
+                work_dir=instance.work_dir,
+                name=instance.name,
+                smiles=instance.repeating_unit,
+                length=instance.length_short,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+            pdb_file_long = cls.homopolymer(
+                work_dir=instance.work_dir,
+                name=instance.name,
+                smiles=instance.repeating_unit,
+                length=instance.length_long,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+            return pdb_file_short, pdb_file_long
 
 
     @staticmethod
     def amorphous_cell(
-        work_dir: Path,
-        molecule_list,
+        work_dir,
+        molecules,
         density: float,
         add_length: int,
         packinp_name: str,
         packpdb_name: str,
     ) -> None:
 
+        lib.print_input('Amorphous Cell Construction')
+
+        lib.print_box_composition(molecules, title="Box Composition (Input)")
+
         work_dir = Path(work_dir)
         # MD_dir = work_dir / "MD_dir"
         run = PEMDPackmol(
-            work_dir,
-            molecule_list,
-            density,
-            add_length,
-            packinp_name,
-            packpdb_name
+            work_dir=work_dir,
+            molecule_list=molecules,
+            density=density,
+            add_length=add_length,
+            packinp_name=packinp_name,
+            packpdb_name=packpdb_name
         )
 
         run.generate_input_file()
         run.run_local()
 
-        print("Amorphous structure generated.")
+        lib.print_output(f'Amorphous Cell Construction {packpdb_name}')
 
 
     @classmethod
     def amorphous_cell_from_json(
         cls,
-        work_dir: Path,
+        work_dir,
         json_file: str,
         density: float,
         add_length: int,
         packinp_name: str,
         packpdb_name: str,
     ) -> None:
+        lib.print_pemd_info()
+        lib.print_input('Amorphous Cell Construction')
 
         work_dir = Path(work_dir)
         instance = cls.from_json(work_dir, json_file)
         MD_dir = work_dir / "MD_dir"
+
+        lib.print_box_composition(instance.molecule_list, title="Box Composition (Input)")
         run = PEMDPackmol(
             MD_dir,
             instance.molecule_list,
@@ -277,7 +320,7 @@ class PEMDModel:
         run.generate_input_file()
         run.run_local()
 
-        print("Amorphous structure generated.")
+        lib.print_output(f'Amorphous Structure Construction {packpdb_name}')
 
 
 

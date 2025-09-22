@@ -13,7 +13,6 @@ import PEMD.constants as const
 
 from rdkit import Chem
 from pathlib import Path
-from tqdm.auto import tqdm
 from rdkit import RDLogger
 from rdkit.Chem import AllChem
 from PEMD.model import model_lib
@@ -50,8 +49,7 @@ def gen_sequence_copolymer_3D(name,
                               sequence,
                               bond_length=1.5,
                               left_cap_smiles=None,
-                              right_cap_smiles=None,
-                              show_progress=True):
+                              right_cap_smiles=None,):
     """
     通用序列构建：sequence 是一个列表，如 ['A','B','B','A',…]
     """
@@ -74,10 +72,7 @@ def gen_sequence_copolymer_3D(name,
     tail_idx = t_1
     num_atom = connecting_mol.GetNumAtoms()
 
-    # tqdm 包装 sequence[1:]
-    iterator = tqdm(sequence[1:], desc="Building copolymer", unit="unit") if show_progress else sequence[1:]
-
-    for unit in iterator:
+    for unit in sequence[1:]:
         if unit == 'A':
             dum1, dum2, atom1, atom2, smiles_mid = dumA1, dumA2, atomA1, atomA2, smiles_A
         else:
@@ -114,7 +109,7 @@ def gen_sequence_copolymer_3D(name,
                      if nbr.GetAtomicNum() == 1]
         place_h_in_tetrahedral(combined_mol, head_idx, h_indices)
 
-        # 局部能量优化
+        # local optimize
         if not check_3d_structure(combined_mol):
             combined_mol = local_optimize(combined_mol, maxIters=150)
         connecting_mol = Chem.RWMol(combined_mol)

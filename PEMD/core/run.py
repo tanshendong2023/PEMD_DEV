@@ -11,6 +11,7 @@ import json
 
 from pathlib import Path
 from typing import List, Dict, Any
+import PEMD.core.output_lib as lib
 from dataclasses import dataclass, field
 
 from PEMD.simulation.qm import (
@@ -53,6 +54,7 @@ class QMRun:
         toxyz: bool = True,
         top_n_qm: int = 4,
     ):
+        lib.print_input('Quantum Chemistry Calculations')
         return qm_gaussian(
             work_dir=work_dir,
             xyz_file=xyz_file,
@@ -75,7 +77,7 @@ class QMRun:
 
     @staticmethod
     def conformer_search(
-        work_dir: Path,
+        work_dir: Path | str,
         *,
         smiles: str | None = None,
         pdb_file: str | None = None,
@@ -92,6 +94,7 @@ class QMRun:
         core: int = 32,
         memory: str = '64GB',
     ):
+        lib.print_input('Conformer Search')
 
         # Generate conformers using RDKit
         xyz_file_MMFF = gen_conf_rdkit(
@@ -114,7 +117,7 @@ class QMRun:
         )
 
         # Optimize conformers using Gaussian
-        return qm_gaussian(
+        xyz_file_gaussian = qm_gaussian(
             work_dir,
             xyz_file_xtb,
             gjf_filename="conf",
@@ -132,10 +135,14 @@ class QMRun:
             top_n_qm=top_n_qm,
         )
 
+        lib.print_output(f'Conformer Search Done')
+
+        return xyz_file_gaussian
+
 
     @staticmethod
     def resp_chg_fitting(
-        work_dir: Path,
+        work_dir: Path | str,
         xyz_file: str,
         charge: float = 0,
         mult: int = 1,
@@ -146,6 +153,7 @@ class QMRun:
         memory: str = '64GB',
         method: str = 'resp2',
     ):
+        lib.print_input('RESP Charge Fitting')
 
         calc_resp_gaussian(
             work_dir,
@@ -159,16 +167,20 @@ class QMRun:
             memory,
         )
 
-        return RESP_fit_Multiwfn(
+        df_chg = RESP_fit_Multiwfn(
             work_dir,
             method,
             delta=0.5
         )
 
+        lib.print_output(f'RESP Charge Fitting Done')
+
+        return df_chg
+
 
 @dataclass
 class MDRun:
-    work_dir: Path
+    work_dir: Path | str
     molecules: List[Dict[str, Any]] = field(default_factory=list)
 
     @classmethod
@@ -196,7 +208,7 @@ class MDRun:
 
     @staticmethod
     def relax_poly_chain(
-        work_dir: Path,
+        work_dir: Path | str,
         name: str,
         resname: str,
         pdb_file: str,
@@ -216,17 +228,16 @@ class MDRun:
 
     @staticmethod
     def annealing(
-        work_dir: Path,
+        work_dir: Path | str,
         molecules: List[Dict[str, Any]],
         temperature: int = 298,
         T_high_increase: int = 300,
         anneal_rate: float = 0.05,
         anneal_npoints: int = 5,
         packmol_pdb: str = "pack_cell.pdb",
-        density: float = 0.8,
-        add_length: int = 10,
         gpu: bool = False,
     ):
+        lib.print_input('Molecular Dynamics Simulation')
 
         annealing(
             work_dir,
@@ -236,8 +247,6 @@ class MDRun:
             anneal_rate,
             anneal_npoints,
             packmol_pdb,
-            density,
-            add_length,
             gpu,
         )
 
@@ -245,15 +254,13 @@ class MDRun:
     @classmethod
     def annealing_from_json(
         cls,
-        work_dir: Path,
+        work_dir: Path | str,
         json_file: str,
         temperature: int = 298,
         T_high_increase: int = 300,
         anneal_rate: float = 0.05,
         anneal_npoints: int = 5,
         packmol_pdb: str = "pack_cell.pdb",
-        density: float = 0.8,
-        add_length: int = 10,
         gpu: bool = False,
     ):
 
@@ -268,15 +275,15 @@ class MDRun:
             anneal_rate,
             anneal_npoints,
             packmol_pdb,
-            density,
-            add_length,
+            # density,
+            # add_length,
             gpu,
         )
 
 
     @staticmethod
     def production(
-        work_dir: Path,
+        work_dir: Path | str,
         molecules: List[Dict[str, Any]],
         temperature: int = 298,
         nstep_ns: int = 200,   # 200 ns
@@ -295,7 +302,7 @@ class MDRun:
     @classmethod
     def production_from_json(
         cls,
-        work_dir: Path,
+        work_dir: Path | str,
         json_file: str,
         temperature: int = 298,
         nstep_ns: int = 200,   # 200 ns
@@ -312,6 +319,8 @@ class MDRun:
             nstep_ns,
             gpu
         )
+
+        lib.print_output(f'Molecular Dynamics Simulation Done')
 
 
 
