@@ -5,7 +5,7 @@
 from PEMD.core.run import QMRun
 from PEMD.core.model import PEMDModel
 
-work_dir = './'
+work_dir = '/'
 
 pdb_filename = PEMDModel.homopolymer(
     work_dir,
