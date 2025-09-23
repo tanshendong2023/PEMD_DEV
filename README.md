@@ -2,6 +2,11 @@
 
 Polymer electrolyte modeling and discovery (PEMD) is a Python package for High-Throughput Simulation and Analysis of Polymer Electrolytes. 
 
+## Contributors
+- Shendong Tan
+- Chaoyuan Ji
+- Tingzheng Hou
+
 ## Features
 - Molecular dynamics simulations of polymers with charged end groups
 - Analysis of polymer properties
