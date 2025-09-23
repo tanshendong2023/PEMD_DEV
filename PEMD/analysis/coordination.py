@@ -25,6 +25,7 @@ from matplotlib.patches import Rectangle
 from PEMD.model import polymer, model_lib
 from matplotlib.colors import LinearSegmentedColormap
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from PEMD.analysis.utils import minimum_image_displacement
 
 
 warnings.filterwarnings("ignore", category=UserWarning, module='MDAnalysis.coordinates.PDB')
@@ -68,13 +69,6 @@ def load_md_trajectory(work_dir, tpr_filename='nvt_prod.tpr', xtc_filename='nvt_
     u = mda.Universe(data_tpr_file, data_xtc_file)
     return u
 
-def distance(x0, x1, box_length):
-    """Calculate minimum image distance accounting for periodic boundary conditions."""
-    delta = x1 - x0
-    delta = np.where(delta > 0.5 * box_length, delta - box_length, delta)
-    delta = np.where(delta < -0.5 * box_length, delta + box_length, delta)
-    return delta
-
 def analyze_coordination(universe, li_atoms, molecule_groups, cutoff_radii, run_start, run_end):
     num_timesteps = run_end - run_start
     num_li_atoms = len(li_atoms)
@@ -86,7 +80,7 @@ def analyze_coordination(universe, li_atoms, molecule_groups, cutoff_radii, run_
             encoded_coordination = 0
             factor = 10**(len(molecule_groups) - 1)  # Factor for encoding counts at different decimal places
             for group_name, group_atoms in molecule_groups.items():
-                d_vec = distance(group_atoms.positions, li.position, box_size)
+                d_vec = minimum_image_displacement(group_atoms.positions, li.position, box_size)
                 d = np.linalg.norm(d_vec, axis=1)
                 close_atoms_index = np.where(d < cutoff_radii[group_name])[0]
                 unique_resids = len(np.unique(group_atoms[close_atoms_index].resids))
@@ -978,7 +972,11 @@ def calc_population_frame(ts, cations, anions, index):
 
         for i in this_cluster:
             for j in merged_list:
-                d_vec = distance(all_atoms.positions[i], all_atoms.positions[j], box_size)
+                d_vec = minimum_image_displacement(
+                    all_atoms.positions[i],
+                    all_atoms.positions[j],
+                    box_size,
+                )
                 d = np.linalg.norm(d_vec)
                 if d <= 3.4:
                     this_cluster.append(j)

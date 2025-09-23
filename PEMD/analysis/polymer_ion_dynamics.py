@@ -5,12 +5,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from scipy.optimize import curve_fit
 
-
-def distance(x0, x1, box_length):
-    delta = x1 - x0
-    delta = np.where(delta > 0.5 * box_length, delta - box_length, delta)
-    delta = np.where(delta < -0.5 * box_length, delta + box_length, delta)
-    return delta
+from PEMD.analysis.utils import minimum_image_displacement
 
 def process_traj(
     run,
@@ -35,7 +30,11 @@ def process_traj(
     for ts in tqdm(run.trajectory[run_start: run_end], desc='Processing trajectory'):
 
         for n, li in enumerate(cations):
-            distances_oe_vec = distance(polymers.positions, li.position, box_size)
+            distances_oe_vec = minimum_image_displacement(
+                polymers.positions,
+                li.position,
+                box_size,
+            )
             distances_oe = np.linalg.norm(distances_oe_vec, axis=1)
             close_oe_index = np.where(distances_oe <= cutoff_radius)[0]
 
@@ -52,7 +51,10 @@ def process_traj(
             oe_in_onechain = run.select_atoms(f'resid {i + 1}')  # 选择当前链中的原子
             start_idx = num_o_chain * i
             end_idx = num_o_chain * (i + 1)
-            poly_o_positions[ts.frame, start_idx:end_idx, :] = polymers.positions[start_idx:end_idx,:] - oe_in_onechain.center_of_mass()
+            poly_o_positions[ts.frame, start_idx:end_idx, :] = (
+                    polymers.positions[start_idx:end_idx, :]
+                    - oe_in_onechain.center_of_mass()
+            )
 
     return poly_o_n, poly_n, bound_o_n, poly_o_positions
 
@@ -147,7 +149,11 @@ def ms_endtoend_distance(run, num_chain, polymers_unwrap, box_size, run_start, r
                 chain_coor = polymers_unwrap.positions[chain_indices]  # 获得每条聚合物链醚氧的坐标
                 chain1_coor = chain_coor[1:]
                 chain2_coor = chain_coor[:-1]
-                b0_array = distance(chain1_coor, chain2_coor, box_size)  # 生成每个间隔醚氧的向量
+                b0_array = minimum_image_displacement(
+                    chain1_coor,
+                    chain2_coor,
+                    box_size,
+                )  # 生成每个间隔醚氧的向量
                 re_vector = np.sum(b0_array, axis=0)  # 所有向量加和
                 re = np.linalg.norm(re_vector)  # 对向量进行模长的计算
                 ts_vectors.append(re)
