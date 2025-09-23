@@ -674,7 +674,7 @@ class PEMDAnalysis:
         logfile_red: str | None = None,
         output: str = 'eox',            # 'eox' | 'ered' | 'all'
         unit: str = 'hartree',
-        errors: list[str] | None = None # 可选：收集详细错误
+        errors: list[str] | None = None
     ):
         HARTREE_PER_EV = 1.0 / 27.211386245988
 
@@ -683,13 +683,12 @@ class PEMDAnalysis:
                 data = ccopen(path).parse()
                 G = getattr(data, "freeenergy", None)
                 if G is not None:
-                    return float(G)  # 视为 Hartree
-                scf = getattr(data, "scfenergies", None)  # eV
+                    return float(G)
+                scf = getattr(data, "scfenergies", None)
                 if scf:
                     return float(scf[-1]) * HARTREE_PER_EV
                 raise ValueError("no freeenergy or scfenergies found")
             except Exception as e:
-                # 简单提示，不中断
                 print("calculate ESW error:", e)
                 if errors is not None:
                     errors.append(f"[ESW]{label}: {path} -> {e}")

@@ -862,22 +862,6 @@ def analyze_coordination_structure(
     counter_atom: str = "anion",
     plot: bool = False,
 ) -> pd.DataFrame:
-    """
-    Analyzes and tabulates the solvation structures (SSIP, CIP, AGG)
-    with respect to a solvation shell center atom over a given trajectory range.
-
-    Args:
-        run: An MDAnalysis ``Universe`` containing the trajectory.
-        distance: The coordination cutoff distance.
-        run_start: Start frame of analysis.
-        run_end: End frame of analysis.
-        select_dict: A dictionary of selection strings for different atom groups.
-        center_atom: Selection key for the solvation shell center atom. Default is "cation".
-        counter_atom: Selection key for the neighbor species. Default is "anion".
-
-    Returns:
-        A DataFrame summarizing the percentage of each solvation structure (SSIP, CIP, AGG).
-    """
 
     def select_shell(select, distance, center_atom, kw):
         if isinstance(select, dict):
