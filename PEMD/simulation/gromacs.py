@@ -1,6 +1,5 @@
 import os
 import subprocess
-from PEMD.model import polymer
 
 
 class PEMDGROMACS:

@@ -12,6 +12,7 @@ import networkx as nx
 
 from PEMD import io
 from rdkit import Chem
+from PEMD import constants as const
 from PEMD.model import polymer
 from openbabel import openbabel as ob
 from networkx.algorithms import isomorphism
@@ -505,22 +506,6 @@ def extract_structure(partition, module_soft, tpr_file, xtc_file, save_gro_file,
         print(f"Error executing command: {e.stderr}")
         return None
 
-# 定义原子序数到元素符号的映射表
-periodic_table = [
-    'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
-    'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
-    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
-    'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr',
-    'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn',
-    'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd',
-    'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',
-    'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
-    'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',
-    'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',
-    'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',
-    'Rg', 'Cn', 'Fl', 'Lv', 'Ts', 'Og'
-]
-
 
 # RDKit mol 转换为 NetworkX 图
 def mol_to_networkx_rdkit(mol, include_h=True):
@@ -547,10 +532,10 @@ def mol_to_networkx_ob(mol, include_h=True):
     # 添加原子节点，调整索引从1开始到0开始
     for atom in ob.OBMolAtomIter(mol):
         atomic_num = atom.GetAtomicNum()  # 获取原子序数
-        if atomic_num < 1 or atomic_num > len(periodic_table):
-            element = 'Unknown'
+        if 1 <= atomic_num <= len(const.PERIODIC_TABLE):
+            element = const.PERIODIC_TABLE[atomic_num - 1]
         else:
-            element = periodic_table[atomic_num - 1]  # 获取标准元素符号
+            element = 'Unknown'
         if not include_h and element == 'H':
             continue
         # 添加节点，索引减1
