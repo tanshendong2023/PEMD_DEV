@@ -7,7 +7,7 @@ from PEMD.core.model import PEMDModel
 from PEMD.core.run import MDRun
 from PEMD.core.forcefields import Forcefield
 
-work_dir = './'
+work_dir = '/'
 json_file = 'md.json'
 
 pdb_file_short, pdb_file_long = PEMDModel.homopolymer_from_json(

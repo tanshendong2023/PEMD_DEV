@@ -6,7 +6,7 @@ from PEMD.core.analysis import PEMDAnalysis
 from PEMD.core.run import QMRun
 
 
-work_dir = './'
+work_dir = '/'
 poly_name = 'PEO'
 
 center_atom_name = 'resname NSC and name NBT'
@@ -20,7 +20,7 @@ select_dict = {
 }
 
 xyzfile = PEMDAnalysis.write_cluster_polymer(
-    work_dir = './',
+    work_dir ='/',
     tpr_file = 'nvt_prod.tpr',
     wrap_xtc_file = 'nvt_prod.xtc',
     center_atom_name = center_atom_name,
@@ -37,7 +37,7 @@ xyzfile = PEMDAnalysis.write_cluster_polymer(
 )
 
 QMRun.qm_gaussian(
-   work_dir = './',
+   work_dir ='/',
    xyz_file = xyzfile,
    gjf_filename = 'conf',
    charge = -1,
@@ -53,7 +53,7 @@ QMRun.qm_gaussian(
 )
 
 QMRun.qm_gaussian(
-    work_dir = './',
+    work_dir ='/',
     xyz_file = 'gaussian_top5.xyz',
     gjf_filename = f'{poly_name}_init',
     charge = -1,
