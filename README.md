@@ -1,6 +1,6 @@
-# PolyElecMD
+# Polymer Electrolyte Modeling and Discovery (PEMD)
 
-PolyElecMD is a Python package for molecular dynamics simulations of polymers with charged end groups.
+Polymer electrolyte modeling and discovery (PEMD) is a Python package for High-Throughput Simulation and Analysis of Polymer Electrolytes. 
 
 ## Features
 - Molecular dynamics simulations of polymers with charged end groups
