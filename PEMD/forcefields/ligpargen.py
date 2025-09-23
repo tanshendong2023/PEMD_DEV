@@ -5,7 +5,6 @@
 # Module Docstring
 # ******************************************************************************
 
-
 import subprocess
 
 
@@ -62,7 +61,7 @@ class PEMDLigpargen:
             result = subprocess.run(
                 command, shell=True, check=True, text=True, capture_output=True
             )
-            print("LigParGen ran successfully.")
+            # print("LigParGen ran successfully.")
             return result.stdout  # Return the standard output
         except subprocess.CalledProcessError as e:
             print(f"Error executing LigParGen: {e.stderr}")

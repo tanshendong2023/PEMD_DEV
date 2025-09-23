@@ -94,23 +94,41 @@ def compute_all_Lij(cation_positions, anion_positions, times):
     msds_all = [msd_cation, msd_self_cation, msd_anion, msd_self_anion, msd_distinct_catAn]
     return msds_all
 
-def create_position_arrays(run, cations, anions, times, run_start,):
+# def create_position_arrays(run, cations, anions, times, run_start,):
+#     time = 0
+#     # Split atoms into lists by residue for cations and anions
+#     cations_list = cations.atoms.split("residue")
+#     anions_list = anions.atoms.split("residue")
+#     cation_positions = np.zeros((len(times), len(cations_list), 3))
+#     anion_positions = np.zeros((len(times), len(anions_list), 3))
+#
+#     for ts in enumerate(tqdm(run.trajectory[int(run_start):])):
+#         system_com = run.atoms.center_of_mass(wrap=True)
+#         for index, ion in enumerate(cations_list):
+#             cation_positions[time, index, :] = ion.center_of_mass() - system_com
+#         for index, ion in enumerate(anions_list):
+#             anion_positions[time, index, :] = ion.center_of_mass() - system_com
+#         time += 1
+#
+#     return cation_positions, anion_positions
+
+def create_position_arrays(run, mols, times, run_start,):
     time = 0
     # Split atoms into lists by residue for cations and anions
-    cations_list = cations.atoms.split("residue")
-    anions_list = anions.atoms.split("residue")
-    cation_positions = np.zeros((len(times), len(cations_list), 3))
-    anion_positions = np.zeros((len(times), len(anions_list), 3))
+    mols_list = mols.atoms.split("residue")
+    # anions_list = anions.atoms.split("residue")
+    mols_positions = np.zeros((len(times), len(mols_list), 3))
+    # anion_positions = np.zeros((len(times), len(anions_list), 3))
 
     for ts in enumerate(tqdm(run.trajectory[int(run_start):])):
         system_com = run.atoms.center_of_mass(wrap=True)
-        for index, ion in enumerate(cations_list):
-            cation_positions[time, index, :] = ion.center_of_mass() - system_com
-        for index, ion in enumerate(anions_list):
-            anion_positions[time, index, :] = ion.center_of_mass() - system_com
+        for index, ion in enumerate(mols_list):
+            mols_positions[time, index, :] = ion.center_of_mass() - system_com
+        # for index, ion in enumerate(anions_list):
+        #     anion_positions[time, index, :] = ion.center_of_mass() - system_com
         time += 1
 
-    return cation_positions, anion_positions
+    return mols_positions
 
 def calc_slope_msd(times_array, msd_array, dt_collection, dt, interval_time=10000, step_size=10):
     # Log transformation
@@ -152,52 +170,42 @@ def calc_self_diffusion_coeff(slope,):
 
     return D
 
-def plot_msd(msd_data, times, time_ranges, dt_collection, dt, labels, save_file):
+def plot_msd(
+    msd_data,
+    times,
+    dt_collection,
+    dt,
+    *,
+    time_ranges=None,    # ← make it optional
+):
     font_list = {"title": 20, "label": 18, "legend": 16, "ticket": 18, "data": 14}
     color_list = ["#DF543F", "#2286A9", "#FBBF7C", "#3C3846"]
 
     dt_ = dt_collection * dt
     fig, ax = plt.subplots()
 
-    # 判断是单个MSD还是双MSD
-    if isinstance(msd_data, list):  # 假设msd_data是列表，包含两个MSD数组
-        for i, msd_ in enumerate(msd_data):
-            mid_time = (time_ranges[i][1] + time_ranges[i][0]) / 2
-            start = int(10 ** (np.log10(mid_time) - 0.15) / dt_)
-            end = int(10 ** (np.log10(mid_time) + 0.15) / dt_)
-            scale = (msd_[int(mid_time / dt_)] + 40) / mid_time
-
-            x_log = times[start:end]
-            y_log = x_log * scale
-
-            ax.plot(times[1:], msd_[1:], '-', linewidth=1.5, color=color_list[i], label=labels[i])
-            ax.plot(x_log, y_log, '--', linewidth=2, color=color_list[i])
-    else:  # 单个MSD
+    # only compute and plot the power-law fit if time_ranges was passed
+    if time_ranges is not None:
         mid_time = (time_ranges[1] + time_ranges[0]) / 2
         start = int(10 ** (np.log10(mid_time) - 0.15) / dt_)
-        end = int(10 ** (np.log10(mid_time) + 0.15) / dt_)
+        end   = int(10 ** (np.log10(mid_time) + 0.15) / dt_)
         scale = (msd_data[int(mid_time / dt_)] + 40) / mid_time
 
         x_log = times[start:end]
         y_log = x_log * scale
 
-        ax.plot(times[1:], msd_data[1:], '-', linewidth=1.5, color=color_list[0], label=labels)
         ax.plot(x_log, y_log, '--', linewidth=2, color="grey")
 
-    ax.legend(fontsize=font_list["legend"], frameon=False)
-    ax.set_xlabel(r'$t$ (ps)', fontsize=font_list["label"])
-    ax.set_ylabel(r'MSD ($\AA^2$)', fontsize=font_list["label"])
-    ax.tick_params(axis='both', which='both', direction='in', labelsize=font_list["ticket"])
+    # always plot the raw MSD
+    ax.plot(times[1:], msd_data[1:], '-', linewidth=1.5, color=color_list[0])
 
+    ax.set_xlabel(r'$t$ (ps)', fontsize=font_list["label"])
+    ax.set_ylabel(r'MSD ($\mathrm{\AA}^2$)', fontsize=font_list["label"])
+    ax.tick_params(axis='both', which='both', direction='in', labelsize=font_list["ticket"])
     ax.set_xscale('log')
     ax.set_yscale('log')
-
     ax.set_xlim(1e2,)
-
     ax.grid(True, linestyle='--')
     fig.set_size_inches(5.5, 4)
     plt.tight_layout()
-
-    # Save the plot
-    plt.savefig(f'{save_file}', bbox_inches='tight', dpi=300)
     plt.show()

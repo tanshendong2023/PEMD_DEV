@@ -6,222 +6,321 @@
 # ******************************************************************************
 
 
-import os
 import json
-from PEMD.model.build import (
-    gen_poly_smiles,
-    gen_copoly_smiles,
-    gen_poly_3D,
-)
-from PEMD.simulation.md import (
-    relax_poly_chain
-)
+
+from pathlib import Path
+import PEMD.core.output_lib as lib
 from PEMD.model.packmol import PEMDPackmol
+from dataclasses import dataclass, field
+
+from PEMD.model.build import (
+    gen_copolymer_3D,
+    mol_to_pdb,
+)
 
 
+@dataclass
 class PEMDModel:
-    def __init__(self, work_dir, poly_name, poly_resname, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list):
-        """
-        Initialize a PEMDModel instance.
+    work_dir: Path
+    name: str
+    resname: str
+    repeating_unit: str
+    leftcap: str
+    rightcap: str
+    length_short: int
+    length_long: int
+    length: int
+    smiles_A: str = ""
+    smiles_B: str = ""
+    mode: str | None = None
+    block_sizes: list[int] | None = None
+    frac_A: float = 0.5
+    molecule_list: dict = field(default_factory=dict)
 
-        Parameters:
-        poly_name (str): The name of the polymer.
-        repeating_unit (str): The structure of the polymer's repeating unit.
-        leftcap (str): The left cap structure of the polymer.
-        rightcap (str): The right cap structure of the polymer.
-        length_short (int): The length of the short polymer.
-        length_poly (int): The length of the long polymer.
-        """
-
-        self.work_dir = work_dir
-        self.poly_name = poly_name
-        self.poly_resname = poly_resname
-        self.repeating_unit = repeating_unit
-        self.leftcap = leftcap
-        self.rightcap = rightcap
-        self.length_short = length_short
-        self.length_long = length_long
-        self.molecule_list = molecule_list
 
     @classmethod
     def from_json(cls, work_dir, json_file):
-        """
-        Create a PEMDModel instance from a JSON file.
+        work_dir = Path(work_dir)
+        json_path = work_dir / json_file
+        try:
+            with open(json_path, "r", encoding="utf-8") as file:
+                model_info = json.load(file)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"JSON file '{json_file}' not found in '{work_dir}'.") from exc
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"JSON file '{json_file}' is not valid JSON: {exc}") from exc
 
-        Parameters:
-        work_dir (str): The working directory where the JSON file is located.
-        json_file (str): The name of the JSON file.
+        polymer_info = model_info.get('polymer', {})
 
-        Returns:
-        PEMDModel: The created PEMDModel instance.
-        """
+        name = polymer_info.get('name', '')
+        resname = polymer_info.get('resname', '')
+        repeating_unit = polymer_info.get('repeating_unit', '')
+        leftcap = polymer_info.get('left_cap', '')
+        rightcap = polymer_info.get('right_cap', '')
+        length_list = polymer_info.get('length')
 
-        json_path = os.path.join(work_dir, json_file)
-        with open(json_path, 'r', encoding='utf-8') as file:
-            model_info = json.load(file)
+        length_short = None
+        length_long = None
+        length = None
 
-        poly_name = model_info['polymer']['compound']
-        poly_resname = model_info['polymer']['resname']
-        repeating_unit = model_info['polymer']['repeating_unit']
-        leftcap = model_info['polymer']['left_cap']
-        rightcap = model_info['polymer']['right_cap']
-        length_short = model_info['polymer']['length'][0]
-        length_long = model_info['polymer']['length'][1]
+        if isinstance(length_list, list):
+            if len(length_list) == 1:
+                length = int(length_list[0])
+            elif len(length_list) >= 2:
+                length_short = int(length_list[0])
+                length_long = int(length_list[1])
+        elif length_list is not None:
+            length = int(length_list)
+
+        smiles_A = polymer_info.get("smiles_A", None)
+        smiles_B = polymer_info.get("smiles_B", None)
+        mode = polymer_info.get("mode", None)
+        block_sizes = polymer_info.get("block_sizes", None)
+        frac_A = polymer_info.get("frac_A", 0.5)
 
         molecule_list = {}
         for category, details in model_info.items():
-            compound = details.get('compound')
-            numbers = details.get('numbers')
-            molecule_list[compound] = numbers
+            if isinstance(details, dict):
+                compound = details.get('name')
+                numbers = details.get('numbers')
+                if compound is not None and numbers is not None:
+                    molecule_list[compound] = numbers
 
-        return cls(work_dir, poly_name, poly_resname, repeating_unit, leftcap, rightcap, length_short, length_long, molecule_list)
-
-    def gen_oligomer_smiles(self,):
-        """
-        Generate the SMILES representation of the polymer.
-        Returns:
-        str: The generated SMILES string.
-        """
-
-        return gen_poly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            self.length_short,
-            self.leftcap,
-            self.rightcap,
+        return cls(
+            work_dir,
+            name,
+            resname,
+            repeating_unit,
+            leftcap,
+            rightcap,
+            length_short,
+            length_long,
+            length,
+            smiles_A,
+            smiles_B,
+            mode,
+            block_sizes,
+            frac_A,
+            molecule_list
         )
 
-    def gen_flex_poly(self, core, atom_typing = 'pysimm'):
-        """
-        Generate the SMILES representation of the homo polymer.
 
-        Parameters:
-            core: The number of kernels used for segmental relaxation using LAMMPS.
+    @staticmethod
+    def copolymer(
+        work_dir: Path,
+        smiles_A: str,
+        smiles_B: str,
+        *,
+        mode: str | None = None,
+        length: int | None = None,
+        frac_A: float = 0.5,
+        block_sizes: list[int] | None = None,
+        sequence: list[str] | None = None,
+        name: str = "PE",
+        resname: str = "MOL",
+        left_cap: str | None = None,
+        right_cap: str | None = None,
+    ) -> str:
+        """Generate a copolymer PDB file using a unified interface."""
+        lib.print_input('Polymer Model Construction')
 
-        Returns:
-            str: The name of relaxed polymer structure file.
-        """
-
-        smiles = gen_poly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            self.length_long,
-            self.leftcap,
-            self.rightcap,
+        lib.print_poly_info(
+            name=name,
+            smiles_A=smiles_A,
+            smiles_B=smiles_B,
+            mode=mode,
+            length=length,
+            block_sizes=block_sizes,
+            left_cap=left_cap,
+            right_cap=right_cap,
         )
 
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
+        mol = gen_copolymer_3D(
+            smiles_A,
+            smiles_B,
+            name=name,
+            mode=mode,
+            length=length,
+            frac_A=frac_A,
+            block_sizes=block_sizes,
+            sequence=sequence,
+            left_cap_smiles=left_cap,
+            right_cap_smiles=right_cap,
         )
 
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
+        if sequence is not None:
+            seq_len = len(sequence)
+        elif length is not None:
+            seq_len = length
+        elif block_sizes is not None:
+            seq_len = sum(block_sizes)
+        else:
+            raise ValueError("length information missing")
+
+        pdb_filename = f"{name}_N{seq_len}.pdb"
+
+        mol_to_pdb(
+            work_dir=work_dir,
+            mol=mol,
+            name=name,
+            resname=resname,
+            pdb_filename=pdb_filename,
+        )
+        lib.print_output(f'Polymer Model Construction {pdb_filename}')
+        return pdb_filename
+
+
+    @classmethod
+    def copolymer_from_json(
+        cls,
+        work_dir: Path,
+        json_file: str
+    ) -> str:
+        instance = cls.from_json(work_dir, json_file)
+
+        pdb_file = cls.copolymer(
+            work_dir=instance.work_dir,
+            smiles_A=instance.smiles_A,
+            smiles_B=instance.smiles_B,
+            mode=instance.mode,
+            length=instance.length_long,
+            frac_A=instance.frac_A,
+            block_sizes=instance.block_sizes,
+            name=instance.name,
+            resname=instance.resname,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
+        )
+        return pdb_file
+
+
+    @staticmethod
+    def homopolymer(
+        work_dir: Path | str,
+        smiles: str,
+        length: int,
+        name: str = "PE",
+        resname: str = "MOL",
+        left_cap: str | None = None,
+        right_cap: str | None = None,
+    ) -> str:
+
+        return PEMDModel.copolymer(
+            work_dir=work_dir,
+            name=name,
+            smiles_A=smiles,
+            smiles_B=smiles,
+            mode="homopolymer",
+            length=length,
+            resname=resname,
+            left_cap=left_cap,
+            right_cap=right_cap,
         )
 
-    def gen_flex_alter_copoly(self, core, atom_typing='pysimm'):
-        """
-        Generate the SMILES representation of the alternating copolymer.
 
-        Parameters:
-            core: The number of kernels used for segment relaxation using LAMMPS.
+    @classmethod
+    def homopolymer_from_json(
+            cls,
+            work_dir,
+            json_file: str
+    ):
 
-        Returns:
-            str: The name of relaxed polymer structure file.
-        """
+        instance = cls.from_json(work_dir, json_file)
 
-        # Obtain smiles of copolymerized polymer segments.
-        unit_smiles = gen_copoly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            x_length = 1,
-            y_length = 1,
+        if instance.length:
+            return cls.homopolymer(
+                work_dir=instance.work_dir,
+                smiles=instance.repeating_unit,
+                length=instance.length,
+                name=instance.name,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+        elif instance.length_short and instance.length_long:
+            pdb_file_short = cls.homopolymer(
+                work_dir=instance.work_dir,
+                name=instance.name,
+                smiles=instance.repeating_unit,
+                length=instance.length_short,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+            pdb_file_long = cls.homopolymer(
+                work_dir=instance.work_dir,
+                name=instance.name,
+                smiles=instance.repeating_unit,
+                length=instance.length_long,
+                resname=instance.resname,
+                left_cap=instance.leftcap,
+                right_cap=instance.rightcap,
+            )
+            return pdb_file_short, pdb_file_long
+
+
+    @staticmethod
+    def amorphous_cell(
+        work_dir,
+        molecules,
+        density: float,
+        add_length: int,
+        packinp_name: str,
+        packpdb_name: str,
+    ) -> None:
+
+        lib.print_input('Amorphous Cell Construction')
+
+        lib.print_box_composition(molecules, title="Box Composition (Input)")
+
+        work_dir = Path(work_dir)
+        # MD_dir = work_dir / "MD_dir"
+        run = PEMDPackmol(
+            work_dir=work_dir,
+            molecule_list=molecules,
+            density=density,
+            add_length=add_length,
+            packinp_name=packinp_name,
+            packpdb_name=packpdb_name
         )
 
-        smiles = gen_poly_smiles(
-            self.poly_name,
-            unit_smiles,
-            self.length_long,
-            self.leftcap,
-            self.rightcap,
-        )
+        run.generate_input_file()
+        run.run_local()
 
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
-        )
+        lib.print_output(f'Amorphous Cell Construction {packpdb_name}')
 
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
-        )
 
-    def gen_flex_block_copoly(self, core, atom_typing = 'pysimm', x_length=1, y_length=1):
-        """
-        Generate the SMILES representation of the block copolymer.
+    @classmethod
+    def amorphous_cell_from_json(
+        cls,
+        work_dir,
+        json_file: str,
+        density: float,
+        add_length: int,
+        packinp_name: str,
+        packpdb_name: str,
+    ) -> None:
+        lib.print_pemd_info()
+        lib.print_input('Amorphous Cell Construction')
 
-        Parameters:
-            core: The number of kernels used for segment relaxation using LAMMPS.
-            x_length: The length of first type unit in one block.
-            y_length: The length of second type unit in one block.
-        Returns:
-            str: The name of relaxed polymer structure file.
-        """
+        work_dir = Path(work_dir)
+        instance = cls.from_json(work_dir, json_file)
+        MD_dir = work_dir / "MD_dir"
 
-        # Obtain smiles of copolymerized polymer segments.
-        unit_smiles = gen_copoly_smiles(
-            self.poly_name,
-            self.repeating_unit,
-            x_length,
-            y_length,
-        )
-
-        smiles = gen_poly_smiles(
-            self.poly_name,
-            unit_smiles,
-            self.length_long,
-            self.leftcap,
-            self.rightcap,
-        )
-
-        pdb_file = gen_poly_3D(
-            self.work_dir,
-            self.poly_name,
-            self.poly_resname,
-            self.length_long,
-            smiles,
-        )
-
-        return relax_poly_chain(
-            self.work_dir,
-            pdb_file,
-            core,
-            atom_typing
-        )
-
-    def gen_amorphous_structure(self, density, add_length, packinp_name, packpdb_name,):
-        MD_dir = os.path.join(self.work_dir, 'MD_dir')
+        lib.print_box_composition(instance.molecule_list, title="Box Composition (Input)")
         run = PEMDPackmol(
             MD_dir,
-            self.molecule_list,
+            instance.molecule_list,
             density,
             add_length,
             packinp_name,
             packpdb_name
         )
+
         run.generate_input_file()
         run.run_local()
+
+        lib.print_output(f'Amorphous Structure Construction {packpdb_name}')
 
 
 

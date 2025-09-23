@@ -1,0 +1,7 @@
+[ atomtypes ]
+; name  bond_type  atomic_number   mass       charge  ptype   sigma       epsilon
+  Ag    Ag+        47              107.8682   0.0     A       0.2660748   0.139607528
+
+
+
+

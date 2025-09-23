@@ -5,132 +5,183 @@
 # Module Docstring
 # ******************************************************************************
 
+
 import os
 import json
+
+from pathlib import Path
+from typing import List, Dict, Any
+import PEMD.core.output_lib as lib
+from dataclasses import dataclass, field
+
 from PEMD.simulation.qm import (
     gen_conf_rdkit,
-    opt_conf_xtb,
-    opt_conf_gaussian,
+    conf_xtb,
+    qm_gaussian,
     calc_resp_gaussian,
     RESP_fit_Multiwfn,
 )
 from PEMD.simulation.md import (
     relax_poly_chain,
-    anneal_amorph_poly,
+    annealing,
     run_gmx_prod
 )
 
 
+@dataclass
 class QMRun:
+    work_dir: Path
+    name: str
+    smiles: str
 
-    def __init__(self):
-        self.work_dir = None
-        self.name = None
-        self.smiles = None
+    @staticmethod
+    def qm_gaussian(
+        work_dir: Path | str,
+        xyz_file: str,
+        gjf_filename: str,
+        *,
+        charge: float = 0,
+        mult: int = 1,
+        function: str = 'B3LYP',
+        basis_set: str = '6-31+g(d,p)',
+        epsilon: float = 5.0,
+        core: int = 64,
+        memory: str = '128GB',
+        chk: bool = False,
+        optimize: bool = True,
+        multi_step: bool = False,
+        max_attempts: int = 1,
+        toxyz: bool = True,
+        top_n_qm: int = 4,
+    ):
+        lib.print_input('Quantum Chemistry Calculations')
+        return qm_gaussian(
+            work_dir=work_dir,
+            xyz_file=xyz_file,
+            gjf_filename=gjf_filename,
+            charge=charge,
+            mult=mult,
+            function=function,
+            basis_set=basis_set,
+            epsilon=epsilon,
+            core=core,
+            memory=memory,
+            chk=chk,
+            optimize=optimize,
+            multi_step=multi_step,
+            max_attempts=max_attempts,
+            toxyz=toxyz,
+            top_n_qm=top_n_qm
+        )
 
-    @classmethod
-    def from_json(cls, work_dir, json_file, mol_type='polymer', external_smiles=None):
-        instance = cls()
-        instance.work_dir = work_dir
 
-        json_path = os.path.join(work_dir, json_file)
-        try:
-            with open(json_path, 'r', encoding='utf-8') as file:
-                model_info = json.load(file)
-        except FileNotFoundError:
-            print(f"Error: JSON file {json_file} not found in {work_dir}.")
-            return None
-        except json.JSONDecodeError:
-            print(f"Error: JSON file {json_file} is not a valid JSON.")
-            return None
-
-        data = model_info.get(mol_type)
-        if data is None:
-            print(f"Error: '{mol_type}' section not found in JSON file.")
-            return None
-
-        instance.name = data.get('compound')
-
-        if mol_type == 'polymer':
-            # 当 mol_type 是 'polymer'，从外部传入 smiles
-            if external_smiles is not None:
-                instance.smiles = external_smiles
-            else:
-                print(f"No external SMILES provided for polymer type '{mol_type}'.")
-        else:
-            # 当 mol_type 不是 'polymer'，从 JSON 文件中读取 smiles
-            instance.smiles = data.get('smiles', '')
-            if not instance.smiles:
-                print(f"Warning: SMILES not found for molecule type '{mol_type}'.")
-
-        return instance
-
-    def conformer_search(self, max_conformers, top_n_MMFF, top_n_xtb, top_n_qm, chg, mult, gfn, function, basis_set, epsilon,
-                         core, memory, gaucontinue=False):
+    @staticmethod
+    def conformer_search(
+        work_dir: Path | str,
+        *,
+        smiles: str | None = None,
+        pdb_file: str | None = None,
+        max_conformers: int = 1000,
+        top_n_MMFF: int = 100,
+        top_n_xtb: int = 8,
+        top_n_qm: int = 4,
+        charge: float = 0,
+        mult: int = 1,
+        gfn: str = 'gfn2',
+        function: str = 'b3lyp',
+        basis_set: str = '6-31g*',
+        epsilon: float = 2.0,
+        core: int = 32,
+        memory: str = '64GB',
+    ):
+        lib.print_input('Conformer Search')
 
         # Generate conformers using RDKit
         xyz_file_MMFF = gen_conf_rdkit(
-            self.work_dir,
-            self.name,
-            self.smiles,
-            max_conformers,
-            top_n_MMFF,
+            work_dir=work_dir,
+            max_conformers=max_conformers,
+            top_n_MMFF=top_n_MMFF,
+            smiles=smiles,
+            pdb_file=pdb_file,
         )
 
         # Optimize conformers using XTB
-        xyz_file_xtb = opt_conf_xtb(
-            self.work_dir,
+        xyz_file_xtb = conf_xtb(
+            work_dir,
             xyz_file_MMFF,
-            self.name,
-            top_n_xtb,
-            chg,
-            mult,
-            gfn,
+            top_n_xtb=top_n_xtb,
+            charge=charge,
+            mult=mult,
+            gfn=gfn,
+            optimize=True
         )
 
         # Optimize conformers using Gaussian
-        return opt_conf_gaussian(
-            self.work_dir,
-            self.name,
+        xyz_file_gaussian = qm_gaussian(
+            work_dir,
             xyz_file_xtb,
-            top_n_qm,
-            chg,
+            gjf_filename="conf",
+            charge=charge,
+            mult= mult,
+            function=function,
+            basis_set=basis_set,
+            epsilon=epsilon,
+            core=core,
+            memory=memory,
+            optimize=True,
+            multi_step=True,
+            max_attempts=2,
+            toxyz=True,
+            top_n_qm=top_n_qm,
+        )
+
+        lib.print_output(f'Conformer Search Done')
+
+        return xyz_file_gaussian
+
+
+    @staticmethod
+    def resp_chg_fitting(
+        work_dir: Path | str,
+        xyz_file: str,
+        charge: float = 0,
+        mult: int = 1,
+        function: str = 'b3lyp',
+        basis_set: str = '6-311+g(d,p)',
+        epsilon: float = 5.0,
+        core: int = 32,
+        memory: str = '64GB',
+        method: str = 'resp2',
+    ):
+        lib.print_input('RESP Charge Fitting')
+
+        calc_resp_gaussian(
+            work_dir,
+            xyz_file,
+            charge,
             mult,
             function,
             basis_set,
             epsilon,
             core,
             memory,
-            gaucontinue
         )
 
-
-    def resp_chg_fitting(self, xyz_file, chg, mult, function, basis_set, epsilon, core, mem, method):
-        calc_resp_gaussian(
-            self.work_dir,
-            self.name,
-            xyz_file,
-            chg,
-            mult,
-            function,
-            basis_set,
-            epsilon,
-            core,
-            mem,
-        )
-
-        return RESP_fit_Multiwfn(
-            self.work_dir,
-            self.name,
+        df_chg = RESP_fit_Multiwfn(
+            work_dir,
             method,
             delta=0.5
         )
 
+        lib.print_output(f'RESP Charge Fitting Done')
 
+        return df_chg
+
+
+@dataclass
 class MDRun:
-    def __init__(self, work_dir, molecules):
-        self.work_dir = work_dir
-        self.molecules = molecules
+    work_dir: Path | str
+    molecules: List[Dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_json(cls, work_dir, json_file):
@@ -141,7 +192,7 @@ class MDRun:
 
         molecules = []
         for key, value in model_info.items():
-            name = value["compound"]
+            name = value["name"]
             number = value["numbers"]
             resname = value["resname"]
 
@@ -152,43 +203,124 @@ class MDRun:
             }
             molecules.append(molecule)
 
-        return cls(work_dir, molecules)
+        return cls(work_dir, molecules,)
+
 
     @staticmethod
-    def relax_poly_chain(work_dir, pdb_file, core, atom_typing = 'pysimm'):
+    def relax_poly_chain(
+        work_dir: Path | str,
+        name: str,
+        resname: str,
+        pdb_file: str,
+        temperature: int = 1000,
+        gpu: bool = False,
+    ):
+
         return relax_poly_chain(
             work_dir,
+            name,
+            resname,
             pdb_file,
-            core,
-            atom_typing
+            temperature,
+            gpu,
         )
 
-    def anneal_amorph_poly(self, temperature, T_high_increase, anneal_rate, anneal_npoints, packmol_pdb, density, add_length, gpu=False):
 
-        anneal_amorph_poly(
-            self.work_dir,
-            self.molecules,
+    @staticmethod
+    def annealing(
+        work_dir: Path | str,
+        molecules: List[Dict[str, Any]],
+        temperature: int = 298,
+        T_high_increase: int = 300,
+        anneal_rate: float = 0.05,
+        anneal_npoints: int = 5,
+        packmol_pdb: str = "pack_cell.pdb",
+        gpu: bool = False,
+    ):
+        lib.print_input('Molecular Dynamics Simulation')
+
+        annealing(
+            work_dir,
+            molecules,
             temperature,
             T_high_increase,
             anneal_rate,
             anneal_npoints,
             packmol_pdb,
-            density,
-            add_length,
             gpu,
         )
 
-    def run_gmx_prod(self, temperature, nstep_ns, gpu=False):
+
+    @classmethod
+    def annealing_from_json(
+        cls,
+        work_dir: Path | str,
+        json_file: str,
+        temperature: int = 298,
+        T_high_increase: int = 300,
+        anneal_rate: float = 0.05,
+        anneal_npoints: int = 5,
+        packmol_pdb: str = "pack_cell.pdb",
+        gpu: bool = False,
+    ):
+
+        work_dir = Path(work_dir)
+        instance = cls.from_json(work_dir, json_file)
+
+        annealing(
+            work_dir,
+            instance.molecules,
+            temperature,
+            T_high_increase,
+            anneal_rate,
+            anneal_npoints,
+            packmol_pdb,
+            # density,
+            # add_length,
+            gpu,
+        )
+
+
+    @staticmethod
+    def production(
+        work_dir: Path | str,
+        molecules: List[Dict[str, Any]],
+        temperature: int = 298,
+        nstep_ns: int = 200,   # 200 ns
+        gpu=False
+    ):
 
         run_gmx_prod(
-            self.work_dir,
-            self.molecules,
+            work_dir,
+            molecules,
             temperature,
             nstep_ns,
             gpu
         )
 
 
+    @classmethod
+    def production_from_json(
+        cls,
+        work_dir: Path | str,
+        json_file: str,
+        temperature: int = 298,
+        nstep_ns: int = 200,   # 200 ns
+        gpu=False
+    ):
+
+        work_dir = Path(work_dir)
+        instance = cls.from_json(work_dir, json_file)
+
+        run_gmx_prod(
+            instance.work_dir,
+            instance.molecules,
+            temperature,
+            nstep_ns,
+            gpu
+        )
+
+        lib.print_output(f'Molecular Dynamics Simulation Done')
 
 
 

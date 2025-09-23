@@ -37,3 +37,9 @@ def calc_conductivity(slope, v, T):
     cond = slope / 6 / kb / T / v * convert   # "mS/cm"
 
     return cond
+
+
+
+
+
+

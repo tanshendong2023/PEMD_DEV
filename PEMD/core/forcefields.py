@@ -5,46 +5,54 @@
 # core.forcefields Module
 # ******************************************************************************
 
-import os
+
 import json
-from PEMD.forcefields.ff_lib import (
-    get_gaff2,
+import pandas as pd
+
+from rdkit import Chem
+from pathlib import Path
+from dataclasses import dataclass
+import PEMD.core.output_lib as lib
+
+
+from PEMD.forcefields.ff import (
     get_oplsaa_xml,
     get_xml_ligpargen,
     get_oplsaa_ligpargen,
     gen_ff_from_data
 )
-from PEMD.simulation.sim_lib import (
+
+from PEMD.forcefields.ff import (
     apply_chg_to_poly,
     apply_chg_to_molecule
 )
+
 from PEMD.model.build import (
-    gen_poly_smiles,
+    gen_copolymer_3D,
+    mol_to_pdb,
 )
 
 
+@dataclass
 class Forcefield:
-
-    def __init__(self):
-        self.work_dir = None
-        self.name = None
-        self.resname = None
-        self.repeating_unit = None
-        self.leftcap = None
-        self.rightcap = None
-        self.length_short = None
-        self.length_long = None
-        self.scale = None
-        self.charge = None
-        self.smiles = None
-        self.terminal_cap = None
+    work_dir: Path | str
+    name: str
+    resname: str
+    scale: float
+    charge: float
+    repeating_unit: str | None = None
+    leftcap: str | None = None
+    rightcap: str | None = None
+    length_short: int = 0
+    length_long: int = 0
+    smiles: str | None = None
+    terminal_cap: str | None = None
 
     @classmethod
-    def from_json(cls, work_dir, json_file, mol_type='polymer'):
-        instance = cls()
-        instance.work_dir = work_dir
+    def from_json(cls, work_dir, json_file, mol_type="polymer"):
+        work_dir = Path(work_dir)
+        json_path = work_dir / json_file
 
-        json_path = os.path.join(work_dir, json_file)
         try:
             with open(json_path, 'r', encoding='utf-8') as file:
                 model_info = json.load(file)
@@ -57,133 +65,203 @@ class Forcefield:
 
         data = model_info.get(mol_type)
         if data is None:
-            print(f"Error: '{mol_type}' section not found in JSON file.")
-            return None
+            raise ValueError(
+                f"'{mol_type}' section not found in '{json_file}'."
+            )
 
-        instance.name = data.get('compound')
-        instance.resname = data.get('resname')
-        instance.scale = data.get('scale')
-        instance.charge = data.get('charge')
+        name = data.get("name", "")
+        resname = data.get("resname", "")
+        scale = data.get("scale")
+        charge = data.get("charge")
 
-        if mol_type == 'polymer':
-            instance.repeating_unit = data.get('repeating_unit')
-            instance.leftcap = data.get('left_cap')
-            instance.rightcap = data.get('right_cap')
-            length = data.get('length')
-            instance.length_short = length[0]
-            instance.length_long = length[1]
-            # if length is not None:
-            #     if isinstance(length, list):
-            #         instance.length = length[0]
-            #     else:
-            #         instance.length = length
-        else:
-            instance.smiles = data.get('smiles')
+        if mol_type == "polymer":
+            repeating_unit = data.get("repeating_unit", "")
+            leftcap = data.get("left_cap", "")
+            rightcap = data.get("right_cap", "")
+            length = data.get("length", [0, 0])
+            length_short = length[0] if len(length) > 0 else 0
+            length_long = length[1] if len(length) > 1 else 0
+            return cls(
+                work_dir,
+                name,
+                resname,
+                scale,
+                charge,
+                repeating_unit,
+                leftcap,
+                rightcap,
+                length_short,
+                length_long,
+            )
 
-        return instance
+        smiles = data.get("smiles", "")
+        return cls(
+            work_dir,
+            name,
+            resname,
+            scale,
+            charge,
+            smiles=smiles
+        )
+
 
     @staticmethod
-    def get_gaff2(gaff_dir, pdb_file, atom_typing):
-        return get_gaff2(
-            gaff_dir,
-            pdb_file,
-            atom_typing
-        )
+    def oplsaa(
+        work_dir: Path,
+        name: str = "PE",
+        ff_source: str = "ligpargen",
+        *,
+        resname: str = "MOL",
+        resp_csv: str | None = None,
+        resp_df: pd.DataFrame | None = None,
+        polymer: bool = False,
+        length_short: int = 3,
+        smiles: str | None = None,
+        left_cap: str | None = None,
+        right_cap: str | None = None,
+        end_repeating: int = 1,
+        scale: float = 1.0,
+        charge: float = 0,
+        pdb_file: str | None = None,
+    ):
+        lib.print_input('OPLS-AA Force Field Generation')
 
-    def get_oplsaa_xml(self, xml, xyz_file, chg_model = 'CM1A'):
+        if ff_source == "ligpargen":
+            # chg_df = None
+            if polymer:
+                mol_short = gen_copolymer_3D(
+                    smiles_A=smiles,
+                    smiles_B=smiles,
+                    name=name,
+                    mode="homopolymer",
+                    length=length_short,
+                    left_cap_smiles=left_cap,
+                    right_cap_smiles=right_cap
+                )
 
-        if xml == "ligpargen":
-            get_xml_ligpargen(
-                self.work_dir,
-                self.name,
-                self.resname,
-                self.repeating_unit,
-                self.charge,
-                chg_model,
+                mol_to_pdb(
+                    work_dir=work_dir,
+                    mol=mol_short,
+                    name=name,
+                    resname=resname,
+                    pdb_filename=f"{name}.pdb",
+                )
+
+                chg_df = get_xml_ligpargen(
+                    work_dir,
+                    name,
+                    resname,
+                    pdb_file=f"{name}.pdb",
+                    charge=charge,
+                    charge_model='CM1A-LBCC',
+                )
+
+                if resp_csv:
+                    chg_df = pd.read_csv(resp_csv)
+                    chg_df.insert(0, 'position', chg_df.index)
+                elif resp_df is not None:
+                    chg_df = resp_df.copy()
+                    chg_df.insert(0, 'position', chg_df.index)
+
+                work_path = Path(work_dir)
+                pdb_path = work_path / pdb_file
+                mol_long = Chem.MolFromPDBFile(str(pdb_path), removeHs=False)
+
+                bonditp_filename = get_oplsaa_xml(
+                    work_dir,
+                    name,
+                    pdb_file,
+                )
+
+                apply_chg_to_poly(
+                    work_dir,
+                    mol_short,
+                    mol_long,
+                    itp_file=bonditp_filename,
+                    resp_chg_df=chg_df,
+                    repeating_unit=smiles,
+                    end_repeating=end_repeating,
+                    scale=scale,
+                    charge=charge,
+                )
+
+            else:
+                bonditp_filename = get_oplsaa_ligpargen(
+                    work_dir,
+                    name,
+                    resname,
+                    charge,
+                    smiles,
+                    charge_model='CM1A-LBCC',
+                )
+
+                if resp_csv:
+                    chg_df = pd.read_csv(resp_csv)
+                    apply_chg_to_molecule(
+                        work_dir,
+                        itp_file=bonditp_filename,
+                        chg_df=chg_df,
+                        scale= scale,
+                        charge=charge,
+                    )
+
+                elif resp_df is not None:
+                    apply_chg_to_molecule(
+                        work_dir,
+                        itp_file=bonditp_filename,
+                        chg_df=resp_df,
+                        scale=scale,
+                        charge=charge,
+                    )
+
+        elif ff_source == "database":
+            gen_ff_from_data(
+                work_dir,
+                name,
+                scale,
+                charge,
             )
 
-            return get_oplsaa_xml(
-                self.work_dir,
-                self.name,
-                self.resname,
-                self.repeating_unit,
-                self.length_long,
-                self.leftcap,
-                self.rightcap,
-                xyz_file,
-                xml = "ligpargen",
-            )
+        lib.print_output(f'OPLS-AA Force Field Generation')
 
+
+    @classmethod
+    def oplsaa_from_json(
+            cls,
+            work_dir: Path | str,
+            json_file: str,
+            mol_type: str,
+            *,
+            ff_source: str = "ligpargen",
+            resp_csv: str | None = None,
+            resp_df: pd.DataFrame | None = None,
+            pdb_file: str | None = None,
+            end_repeating: int = 1,
+    ):
+        instance = cls.from_json(work_dir, json_file, mol_type, )
+
+        if mol_type == "polymer":
+            polymer = True
         else:
-            get_oplsaa_xml(
-                self.work_dir,
-                self.name,
-                self.resname,
-                self.repeating_unit,
-                self.length_long,
-                self.leftcap,
-                self.rightcap,
-                xyz_file,
-                xml = "database",
-            )
+            polymer = False
 
-    def apply_chg_to_poly(self, itp_file, resp_chg_df, end_repeating, ):
-        poly_smi = gen_poly_smiles(
-            self.name,
-            self.repeating_unit,
-            self.length_short,
-            self.leftcap,
-            self.rightcap,
+        cls.oplsaa(
+            work_dir=work_dir,
+            name=instance.name,
+            ff_source=ff_source,
+            resname=instance.resname,
+            resp_csv=resp_csv,
+            resp_df=resp_df,
+            polymer=polymer,
+            length_short=instance.length_short,
+            left_cap=instance.leftcap,
+            right_cap=instance.rightcap,
+            scale=instance.scale,
+            charge=instance.charge,
+            smiles=instance.repeating_unit if polymer else instance.smiles,
+            end_repeating=end_repeating,
+            pdb_file=pdb_file,
         )
-        return apply_chg_to_poly(
-            self.work_dir,
-            poly_smi,
-            itp_file,
-            resp_chg_df,
-            self.repeating_unit,
-            end_repeating,
-            self.scale,
-            self.charge,
-        )
-
-    def get_ff_from_data(self, ):
-        return gen_ff_from_data(
-            self.work_dir,
-            self.name,
-            self.scale,
-            self.charge,
-        )
-
-    def get_oplsaa_ligpargen(self, chg_model, ):
-        return get_oplsaa_ligpargen(
-            self.work_dir,
-            self.name,
-            self.resname,
-            self.charge,
-            chg_model,
-            self.smiles,
-        )
-
-    def apply_chg_to_molecule(self, itp_file, resp_chg_df,):
-        return apply_chg_to_molecule(
-            self.work_dir,
-            itp_file,
-            resp_chg_df,
-            self.scale,
-            self.charge,
-        )
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -6,126 +6,17 @@ Date: 2024.03.15
 """
 
 
-import re
 import subprocess
 import numpy as np
-import pandas as pd
-from collections import deque
 import networkx as nx
+
+from PEMD import io
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from PEMD.model import polymer
 from openbabel import openbabel as ob
-from openbabel import openbabel
-from openbabel import pybel
-from collections import defaultdict
-from rdkit.Geometry import Point3D
-from rdkit.Chem import Descriptors
 from networkx.algorithms import isomorphism
+from scipy.spatial.transform import Rotation as R
 
-
-# OpenBabel setup
-obConversion = ob.OBConversion()
-ff = ob.OBForceField.FindForceField('UFF')
-mol = ob.OBMol()
-np.set_printoptions(precision=20)
-
-def count_atoms(mol, atom_type, length):
-    # Initialize the counter for the specified atom type
-    atom_count = 0
-    # Iterate through all atoms in the molecule
-    for atom in mol.GetAtoms():
-        # Check if the atom is of the specified type
-        if atom.GetSymbol() == atom_type:
-            atom_count += 1
-    return round(atom_count / length)
-
-def rdkitmol2xyz(unit_name, m, out_dir, IDNum):
-    try:
-        Chem.MolToXYZFile(m, out_dir + '/' + unit_name + '.xyz', confId=IDNum)
-    except Exception:
-        obConversion.SetInAndOutFormats("mol", "xyz")
-        Chem.MolToMolFile(m, out_dir + '/' + unit_name + '.mol', confId=IDNum)
-        mol = ob.OBMol()
-        obConversion.ReadFile(mol, out_dir + '/' + unit_name + '.mol')
-        obConversion.WriteFile(mol, out_dir + '/' + unit_name + '.xyz')
-
-def smile_toxyz(name, SMILES, ):
-    # Generate XYZ file from SMILES
-    m1 = Chem.MolFromSmiles(SMILES)    # Get mol(m1) from smiles
-    m2 = Chem.AddHs(m1)   # Add H
-    AllChem.Compute2DCoords(m2)    # Get 2D coordinates
-    AllChem.EmbedMolecule(m2)    # Make 3D mol
-    m2.SetProp("_Name", name + '   ' + SMILES)    # Change title
-    AllChem.UFFOptimizeMolecule(m2, maxIters=200)    # Optimize 3D str
-    rdkitmol2xyz(name, m2, '.', -1)
-    file_name = name + '.xyz'
-    return file_name
-
-def FetchDum(smiles):
-    # Get index of dummy atoms and bond type associated with it
-    m = Chem.MolFromSmiles(smiles)
-    dummy_index = []
-    bond_type = None
-    if m is not None:
-        for atom in m.GetAtoms():
-            if atom.GetSymbol() == '*':
-                dummy_index.append(atom.GetIdx())
-        for bond in m.GetBonds():
-            if (
-                bond.GetBeginAtom().GetSymbol() == '*'
-                or bond.GetEndAtom().GetSymbol() == '*'
-            ):
-                bond_type = bond.GetBondType()
-                break
-    return dummy_index, str(bond_type)
-
-def connec_info(name):
-    # Collect valency and connecting information for each atom according to XYZ coordinates
-    obConversion = ob.OBConversion()
-    obConversion.SetInFormat("xyz")
-    mol = ob.OBMol()
-    obConversion.ReadFile(mol, name)
-    neigh_atoms_info = []
-
-    for atom in ob.OBMolAtomIter(mol):
-        neigh_atoms = []
-        bond_orders = []
-        for allatom in ob.OBAtomAtomIter(atom):
-            neigh_atoms.append(allatom.GetIndex())
-            bond_orders.append(atom.GetBond(allatom).GetBondOrder())
-        neigh_atoms_info.append([neigh_atoms, bond_orders])
-    neigh_atoms_info = pd.DataFrame(neigh_atoms_info, columns=['NeiAtom', 'BO'])
-    return neigh_atoms_info
-
-def Init_info(poly_name, smiles_mid ):
-    # Get index of dummy atoms and atoms associated with them
-    dum_index, bond_type = FetchDum(smiles_mid)
-    dum1 = dum_index[0]
-    dum2 = dum_index[1]
-
-    # Assign dummy atom according to bond type
-    dum = None
-    if bond_type == 'SINGLE':
-        dum = 'Cl'
-
-    # Replace '*' with dummy atom
-    smiles_each = smiles_mid.replace(r'*', dum)
-
-    # Convert SMILES to XYZ coordinates
-    xyz_filename = smile_toxyz(
-        poly_name,
-        smiles_each,       # Replace '*' with dummy atom
-    )
-
-    # Collect valency and connecting information for each atom according to XYZ coordinates
-    neigh_atoms_info = connec_info(xyz_filename)
-
-    # Find connecting atoms associated with dummy atoms.
-    # Dum1 and dum2 are connected to atom1 and atom2, respectively.
-    atom1 = neigh_atoms_info['NeiAtom'][dum1].copy()[0]
-    atom2 = neigh_atoms_info['NeiAtom'][dum2].copy()[0]
-
-    return dum1, dum2, atom1, atom2,
 
 def gen_oligomer_smiles(poly_name, dum1, dum2, atom1, atom2, smiles_each, length, smiles_LCap_, smiles_RCap_, ):
 
@@ -194,8 +85,9 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     else:
         second_atom = atom2
 
-    if length == 1:
+    inti_mol3 = None
 
+    if length == 1:
         inti_mol3 = input_mol
 
     # Connect the units
@@ -250,6 +142,32 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
 
     return inti_mol3, monomer_mol, first_atom, second_atom + (length-1)*monomer_mol.GetNumAtoms()
 
+def _kabsch_rotation(P, Q):
+    """
+    利用 Kabsch 算法计算最佳旋转矩阵，使得 P 旋转后与 Q 尽可能匹配。
+    P, Q 均为 (n, 3) 数组。
+    """
+    C = np.dot(P.T, Q)
+    V, S, Wt = np.linalg.svd(C)
+    d = (np.linalg.det(V) * np.linalg.det(Wt)) < 0.0
+    if d:
+        V[:, -1] = -V[:, -1]
+    return np.dot(V, Wt)
+
+def rotate_mol_around_axis(mol, axis, anchor, angle_rad):
+    """
+    将整个分子绕给定单位向量 axis，以 anchor 为中心旋转 angle_rad 弧度。
+    """
+    conf = mol.GetConformer()
+    rot = R.from_rotvec(axis * angle_rad)
+    for atom_idx in range(mol.GetNumAtoms()):
+        pos = np.array(conf.GetAtomPosition(atom_idx))
+        pos_shifted = pos - anchor
+        pos_rot = rot.apply(pos_shifted)
+        conf.SetAtomPosition(atom_idx, pos_rot + anchor)
+
+# (symbol1 == 'C' and symbol2 == 'C') or
+#            (symbol1 == 'O' and symbol2 == 'H') or (symbol1 == 'H' and symbol2 == 'O'):
 def gen_smiles_with_cap(poly_name, inti_mol, first_atom, second_atom, smiles_LCap_, smiles_RCap_):
 
     # Add cap to main chain
@@ -407,7 +325,7 @@ def gen_smiles_with_cap(poly_name, inti_mol, first_atom, second_atom, smiles_LCa
 def Init_info_Cap(unit_name, smiles_each_ori):
     # Get index of dummy atoms and bond type associated with it in cap
     try:
-        dum_index, bond_type = FetchDum(smiles_each_ori)
+        dum_index, bond_type = polymer.FetchDum(smiles_each_ori)
         if len(dum_index) == 1:
             dum1 = dum_index[0]
         else:
@@ -428,7 +346,7 @@ def Init_info_Cap(unit_name, smiles_each_ori):
     smiles_each = smiles_each_ori.replace(r'*', 'Cl')
 
     # Convert SMILES to XYZ coordinates
-    convert_smiles2xyz = smile_toxyz(unit_name, smiles_each,)
+    convert_smiles2xyz = io.smile_toxyz(unit_name, smiles_each,)
 
     # if fails to get XYZ coordinates; STOP
     if convert_smiles2xyz == 'NOT_DONE':
@@ -440,7 +358,7 @@ def Init_info_Cap(unit_name, smiles_each_ori):
         return unit_name, 0, 0, 0, 'REJECT'
 
     # Collect valency and connecting information for each atom
-    neigh_atoms_info = connec_info('./' + unit_name + '.xyz')
+    neigh_atoms_info = polymer.connec_info('./' + unit_name + '.xyz')
 
     try:
         # Find connecting atoms associated with dummy atoms.
@@ -462,120 +380,6 @@ def Init_info_Cap(unit_name, smiles_each_ori):
         '',
     )
 
-def mol_to_nx(mol):
-    G = nx.Graph()
-    for atom in mol.GetAtoms():
-        G.add_node(atom.GetIdx(), element=atom.GetSymbol())
-    for bond in mol.GetBonds():
-        G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
-    return G
-
-
-def is_isomorphic(G1, G2):
-    GM = isomorphism.GraphMatcher(G1, G2, node_match=lambda x, y: x['element'] == y['element'])
-    return GM.is_isomorphic()
-
-def convert_pdb_to_xyz(pdb_filename, xyz_filename):
-    obConversion = openbabel.OBConversion()
-    obConversion.SetInAndOutFormats("pdb", "xyz")
-
-    mol = openbabel.OBMol()
-    obConversion.ReadFile(mol, pdb_filename)
-
-    obConversion.WriteFile(mol, xyz_filename)
-
-def convert_xyz_to_pdb(xyz_filename, pdb_filename, molecule_name, resname):
-    obConversion = openbabel.OBConversion()
-    obConversion.SetInAndOutFormats("xyz", "pdb")
-
-    mol = openbabel.OBMol()
-    obConversion.ReadFile(mol, xyz_filename)
-    mol.SetTitle(molecule_name)
-
-    for atom in openbabel.OBMolAtomIter(mol):
-        res = atom.GetResidue()
-        res.SetName(resname)
-    obConversion.WriteFile(mol, pdb_filename)
-
-
-def convert_xyz_to_mol2(xyz_filename, mol2_filename, molecule_name, resname):
-    obConversion = openbabel.OBConversion()
-    obConversion.SetInAndOutFormats("xyz", "mol2")
-
-    mol = openbabel.OBMol()
-    obConversion.ReadFile(mol, xyz_filename)
-
-    mol.SetTitle(molecule_name)
-
-    for atom in openbabel.OBMolAtomIter(mol):
-        res = atom.GetResidue()
-        if res:  # 确保残基信息存在
-            res.SetName(resname)
-
-    obConversion.WriteFile(mol, mol2_filename)
-
-    remove_numbers_from_residue_names(mol2_filename, resname)
-
-
-def convert_gro_to_pdb(input_gro_path, output_pdb_path):
-
-    try:
-        # Load the GRO file
-        mol = next(pybel.readfile('gro', input_gro_path))
-
-        # Save as PDB
-        mol.write('pdb', output_pdb_path, overwrite=True)
-        print(f"Gro converted to pdb successfully {output_pdb_path}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-def remove_numbers_from_residue_names(mol2_filename, resname):
-    with open(mol2_filename, 'r') as file:
-        content = file.read()
-
-    # 使用正则表达式删除特定残基名称后的数字1（确保只删除末尾的数字1）
-    updated_content = re.sub(r'({})1\b'.format(resname), r'\1', content)
-
-    with open(mol2_filename, 'w') as file:
-        file.write(updated_content)
-
-def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
-    sections_to_extract = []
-    if nonbonded:
-        sections_to_extract = ["[ atomtypes ]"]
-    elif bonded:
-        sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[angles]", "[ dihedrals ]"]
-
-        # 打开 .top 文件进行读取
-    with open(top_file, 'r') as file:
-        lines = file.readlines()
-
-    # 初始化变量以存储提取的信息
-    extracted_lines = []
-    current_section = None
-
-    # 遍历所有行，提取相关部分
-    for line in lines:
-        if line.strip() in sections_to_extract:
-            current_section = line.strip()
-            extracted_lines.append(line)  # 添加部分标题
-        elif current_section and line.strip().startswith(";"):
-            extracted_lines.append(line)  # 添加注释行
-        elif current_section and line.strip():
-            extracted_lines.append(line)  # 添加数据行
-        elif line.strip() == "" and current_section:
-            extracted_lines.append("\n")  # 添加部分之间的空行
-            current_section = None  # 重置当前部分
-
-    # 写入提取的内容到 bonded.itp 文件
-    with open(out_itp_file, 'w') as file:
-        file.writelines(extracted_lines)
-
-def mol_to_xyz(mol, conf_id, filename):
-    """将RDKit分子对象的构象保存为XYZ格式文件"""
-    xyz = Chem.MolToXYZBlock(mol, confId=conf_id)
-    with open(filename, 'w') as f:
-        f.write(xyz)
 
 def read_energy_from_xtb(filename):
     """从xtb的输出文件中读取能量值"""
@@ -611,18 +415,6 @@ def std_xyzfile(file_path):
     with open(file_path, 'w') as file:
         file.writelines(modified_lines)
 
-
-def log_to_xyz(log_file_path, xyz_file_path):
-    obConversion = openbabel.OBConversion()
-    obConversion.SetInAndOutFormats("g09", "xyz")
-    mol = openbabel.OBMol()
-
-    try:
-        obConversion.ReadFile(mol, log_file_path)
-        obConversion.WriteFile(mol, xyz_file_path)
-    except Exception as e:
-        print(f"An error occurred during conversion: {e}")
-
 def convert_chk_to_fchk(chk_file_path):
     fchk_file_path = chk_file_path.replace('.chk', '.fchk')
 
@@ -636,117 +428,7 @@ def convert_chk_to_fchk(chk_file_path):
     except subprocess.CalledProcessError as e:
         print(f"Error converting chk to fchk: {e}")
 
-def calc_mol_weight(pdb_file):
-    try:
-        mol = Chem.MolFromPDBFile(pdb_file, removeHs=False, sanitize=False)
-        if mol:
-            Chem.SanitizeMol(mol)
-            return Descriptors.MolWt(mol)
-        else:
-            raise ValueError(f"RDKit 无法解析 PDB 文件: {pdb_file}")
-    except (Chem.rdchem.AtomValenceException, Chem.rdchem.KekulizeException, ValueError):
-        # 如果 RDKit 解析失败，尝试手动计算分子量
-        try:
-            atom_counts = defaultdict(int)
-            with open(pdb_file, 'r') as f:
-                for line in f:
-                    if line.startswith(("ATOM", "HETATM")):
-                        element = line[76:78].strip()
-                        if not element:
-                            # 从原子名称推断元素符号
-                            atom_name = line[12:16].strip()
-                            element = ''.join([char for char in atom_name if char.isalpha()]).upper()[:2]
-                        atom_counts[element] += 1
 
-            # 常见元素的原子质量（g/mol）
-            atomic_weights = {
-                'H': 1.008,
-                'C': 12.011,
-                'N': 14.007,
-                'O': 15.999,
-                'F': 18.998,
-                'P': 30.974,
-                'S': 32.06,
-                'CL': 35.45,
-                'BR': 79.904,
-                'I': 126.904,
-                'FE': 55.845,
-                'ZN': 65.38,
-                # 根据需要添加更多元素
-            }
-
-            mol_weight = 0.0
-            for atom, count in atom_counts.items():
-                weight = atomic_weights.get(atom.upper())
-                if weight is None:
-                    raise ValueError(f"未知的原子类型 '{atom}' 在 PDB 文件: {pdb_file}")
-                mol_weight += weight * count
-            return mol_weight
-        except Exception as e:
-            raise ValueError(f"无法计算分子量，PDB 文件: {pdb_file}，错误: {e}")
-
-def smiles_to_pdb(smiles, output_file, molecule_name, resname):
-    try:
-        # Generate molecule object from SMILES string
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            raise ValueError("Invalid SMILES string. Please check the input string.")
-
-        # Add hydrogens to the molecule
-        mol = Chem.AddHs(mol)
-
-        # Generate 3D coordinates
-        if AllChem.EmbedMolecule(mol, randomSeed=42) == -1:
-            raise ValueError("Cannot embed the molecule into a 3D space.")
-        AllChem.UFFOptimizeMolecule(mol)
-
-        # Write molecule to a temporary SDF file
-        tmp_sdf = "temp.sdf"
-        with Chem.SDWriter(tmp_sdf) as writer:
-            writer.write(mol)
-
-        # Convert SDF to PDB using OpenBabel
-        obConversion = openbabel.OBConversion()
-        obConversion.SetInAndOutFormats("sdf", "pdb")
-        obmol = openbabel.OBMol()
-        if not obConversion.ReadFile(obmol, tmp_sdf):
-            raise IOError("Failed to read from the temporary SDF file.")
-
-        # Set molecule name in OpenBabel
-        obmol.SetTitle(molecule_name)
-
-        # Set residue name for all atoms in the molecule in OpenBabel
-        for atom in openbabel.OBMolAtomIter(obmol):
-            res = atom.GetResidue()
-            res.SetName(resname)
-
-        if not obConversion.WriteFile(obmol, output_file):
-            raise IOError("Failed to write the PDB file.")
-
-        print(f"PDB file successfully created: {output_file}")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-def smiles_to_xyz(smiles, filename, num_confs=1):
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        raise ValueError("无效的 SMILES 字符串。")
-
-    mol = Chem.AddHs(mol)
-    result = AllChem.EmbedMultipleConfs(mol, numConfs=num_confs, randomSeed=42)
-    if not result:
-        raise ValueError("无法生成3D构象。")
-    AllChem.UFFOptimizeMolecule(mol, confId=0)
-    conf = mol.GetConformer(0)
-    atoms = mol.GetAtoms()
-    coords = [conf.GetAtomPosition(atom.GetIdx()) for atom in atoms]
-    with open(filename, 'w') as f:
-        f.write(f"{len(atoms)}\n")
-        f.write(f"SMILES: {smiles}\n")
-        for atom, coord in zip(atoms, coords):
-            f.write(f"{atom.GetSymbol()} {coord.x:.4f} {coord.y:.4f} {coord.z:.4f}\n")
 
 def print_compounds(info_dict, key_name):
     """
@@ -796,9 +478,7 @@ def read_volume_data(volume_file):
 
 
 def analyze_volume(volumes, start, dt_collection):
-    """
-    计算并返回平均体积及最接近平均体积的帧索引。
-    """
+
     start_time = int(start) / dt_collection
     average_volume = np.mean(volumes[int(start_time):])
     closest_index = np.argmin(np.abs(volumes - average_volume))
@@ -825,23 +505,133 @@ def extract_structure(partition, module_soft, tpr_file, xtc_file, save_gro_file,
         print(f"Error executing command: {e.stderr}")
         return None
 
+# 定义原子序数到元素符号的映射表
+periodic_table = [
+    'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
+    'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
+    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr',
+    'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn',
+    'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd',
+    'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',
+    'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',
+    'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',
+    'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',
+    'Rg', 'Cn', 'Fl', 'Lv', 'Ts', 'Og'
+]
 
-def calculate_box_size(numbers, pdb_files, density):
-    total_mass = 0
-    for num, file in zip(numbers, pdb_files):
 
-        molecular_weight = calc_mol_weight(file)  # in g/mol
-        total_mass += molecular_weight * num / 6.022e23  # accumulate mass of each molecule in grams
+# RDKit mol 转换为 NetworkX 图
+def mol_to_networkx_rdkit(mol, include_h=True):
+    """
+    将 RDKit 的 mol 对象转换为 networkx 图
+    """
+    G = nx.Graph()
+    for atom in mol.GetAtoms():
+        if not include_h and atom.GetSymbol() == 'H':
+            continue
+        G.add_node(atom.GetIdx(), element=atom.GetSymbol())
+    for bond in mol.GetBonds():
+        G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), bond_type=str(bond.GetBondType()))
+    return G
 
-    total_volume = total_mass / density  # volume in cm^3
-    length = (total_volume * 1e24) ** (1 / 3)  # convert to Angstroms
-    return length
+
+# Open Babel mol 转换为 NetworkX 图
+def mol_to_networkx_ob(mol, include_h=True):
+    """
+    将 Open Babel 的 mol 对象转换为 networkx 图
+    """
+    G = nx.Graph()
+
+    # 添加原子节点，调整索引从1开始到0开始
+    for atom in ob.OBMolAtomIter(mol):
+        atomic_num = atom.GetAtomicNum()  # 获取原子序数
+        if atomic_num < 1 or atomic_num > len(periodic_table):
+            element = 'Unknown'
+        else:
+            element = periodic_table[atomic_num - 1]  # 获取标准元素符号
+        if not include_h and element == 'H':
+            continue
+        # 添加节点，索引减1
+        G.add_node(atom.GetIdx() - 1, element=element)
+
+    # 添加化学键边，调整原子索引从1开始到0开始
+    for bond in ob.OBMolBondIter(mol):
+        bond_order = bond.GetBondOrder()
+        # 统一键类型
+        if bond_order == 1:
+            bond_type = 'SINGLE'
+        elif bond_order == 2:
+            bond_type = 'DOUBLE'
+        elif bond_order == 3:
+            bond_type = 'TRIPLE'
+        else:
+            bond_type = 'SINGLE'  # 默认处理
+        # Open Babel 的 GetBeginAtomIdx() 和 GetEndAtomIdx() 从1开始，需要减1
+        G.add_edge(bond.GetBeginAtomIdx() - 1, bond.GetEndAtomIdx() - 1, bond_type=str(bond_type))
+
+    return G
 
 
+def get_atom_mapping(mol1, mol2, include_h=True):
+    """
+    获取两个 mol 对象的原子对应关系
+    返回 mapping: dict 从 mol1 节点索引到 mol2 节点索引
+    """
+    # 将 mol1 和 mol2 分别转换为 NetworkX 图
+    G1 = mol_to_networkx_rdkit(mol1, include_h=include_h)  # 对 RDKit mol 对象生成 NetworkX 图
+    G2 = mol_to_networkx_ob(mol2, include_h=include_h)  # 对 Open Babel mol 对象生成 NetworkX 图
 
+    # 打印图的信息（调试输出）
+    print(f"G1 nodes: {G1.nodes(data=True)}")
+    print(f"G2 nodes: {G2.nodes(data=True)}")
+    print(f"G1 edges: {G1.edges(data=True)}")
+    print(f"G2 edges: {G2.edges(data=True)}")
 
+    # 定义节点匹配函数，基于原子元素
+    def node_match(n1, n2):
+        return (n1['element'] == n2['element']) and (n1.get('charge', 0) == n2.get('charge', 0))
 
+    def bond_match(b1, b2):
+        return b1['bond_type'] == b2['bond_type']
 
+    # 创建同构匹配对象
+    gm = isomorphism.GraphMatcher(G1, G2, node_match=node_match, edge_match=bond_match)
+    if gm.is_isomorphic():
+        # 返回一个可能的匹配字典，从 G1 节点到 G2 节点
+        mapping = gm.mapping
+        return mapping
+    else:
+        return None
+
+def reorder_atoms(mol_3D, mapping):
+    """
+    根据 mapping（mol1_idx -> mol2_idx），
+    让 mol1 的原子顺序与 mol2 相同。
+    """
+    # 创建反向映射：mol2_idx -> mol1_idx
+    reverse_mapping = {v: k for k, v in mapping.items()}
+
+    # 确保 mol2 的原子数量不超过 mol1
+    num_atoms = mol_3D.GetNumAtoms()
+    new_order = []
+    for i in range(num_atoms):
+        if i in reverse_mapping:
+            new_order.append(reverse_mapping[i])
+        else:
+            # 如果某个 mol2 的原子在 mol1 中没有对应，则保留原顺序
+            new_order.append(i)
+
+    # 调整 mol_3D 中的原子顺序
+    reordered_mol_3D = Chem.RenumberAtoms(mol_3D, new_order)
+
+    return reordered_mol_3D
+
+def distance_matrix(coord1, coord2=None):
+    coord1 = np.array(coord1)
+    coord2 = np.array(coord2) if coord2 is not None else coord1
+    return np.sqrt(np.sum((coord1[:, np.newaxis, :] - coord2[np.newaxis, :, :])**2, axis=-1))
 
 
 

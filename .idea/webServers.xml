@@ -3,7 +3,7 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="d1b6b6af-9de7-423e-b29b-0feff651f8d5" name="sycamore">
-        <fileTransfer rootFolder="/home/tsd/soft/pycharm/PEMD_DEV" accessType="SFTP" host="10.103.65.21" port="22" sshConfigId="bbd9db9d-3a1d-47a1-aea9-2e2b5327dbf4" sshConfig="tsd@10.103.65.21:22 password">
+        <fileTransfer rootFolder="/home/tsd" accessType="SFTP" host="10.103.65.21" port="22" sshConfigId="e9ef53f3-e821-48e5-b61d-a6cca7b59175" sshConfig="tsd@10.103.65.21:22 agent" authAgent="true">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" isUseRsync="true" />
           </advancedOptions>

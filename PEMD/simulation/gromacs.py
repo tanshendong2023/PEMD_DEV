@@ -1,7 +1,7 @@
 import os
 import subprocess
-from PEMD.model import model_lib
-from PEMD.simulation.slurm import PEMDSlurm
+from PEMD.model import polymer
+
 
 class PEMDGROMACS:
     def __init__(
@@ -59,7 +59,7 @@ class PEMDGROMACS:
 
         with open(top_filepath, 'w') as file:
             file.write(file_contents)
-        print(f"Top file generation successful：{top_filename}")
+        print(f"Top file generation successful：{top_filename}\n")
 
     def gen_em_mdp_file(self, filename = 'em.mdp'):
 
@@ -90,7 +90,7 @@ class PEMDGROMACS:
         # write to file
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"Minimization mdp file generation successful：{filename}")
+        print(f"Minimization mdp file generation successful：{filename}\n")
 
     def gen_nvt_mdp_file(self, nsteps_nvt = 200000, filename = 'nvt.mdp', ):
 
@@ -106,9 +106,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -155,7 +155,7 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NVT mdp file generation successful：{filename}")
+        print(f"NVT mdp file generation successful：{filename}\n")
 
     def gen_npt_mdp_file(self, nsteps_npt = 5000000, filename = 'npt.mdp', ):
 
@@ -171,9 +171,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -220,7 +220,7 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NPT mdp file generation successful：{filename}")
+        print(f"NPT mdp file generation successful：{filename}\n")
 
     def gen_npt_anneal_mdp_file(self, T_high_increase = 500, anneal_rate = 0.05, anneal_npoints = 5, filename='npt_anneal.mdp'):
 
@@ -243,9 +243,9 @@ class PEMDGROMACS:
         file_contents += "comm-mode             = Linear\n\n"
 
         file_contents += "; OUTPUT CONTROL OPTIONS\n"
-        file_contents += "nstxout               = 5000\n"
-        file_contents += "nstvout               = 5000\n"
-        file_contents += "nstfout               = 5000\n"
+        file_contents += "nstxout               = 0\n"
+        file_contents += "nstvout               = 0\n"
+        file_contents += "nstfout               = 0\n"
         file_contents += "nstlog                = 5000\n"
         file_contents += "nstenergy             = 5000\n"
         file_contents += "nstxout-compressed    = 5000\n\n"
@@ -298,15 +298,20 @@ class PEMDGROMACS:
 
         with open(filepath, 'w') as file:
             file.write(file_contents)
-        print(f"NPT anneal mdp file generation successful：{filename}")
+        print(f"NPT anneal mdp file generation successful：{filename}\n")
 
-    def commands_pdbtogro(self, packmol_pdb, density, add_length):
+    def commands_pdbtogro(self, packmol_pdb,):
 
         pdb_files = []
         for com in self.compounds:
             filepath = os.path.join(self.work_dir, f"{com}.pdb")
             pdb_files.append(filepath)
-        box_length = (model_lib.calculate_box_size(self.numbers, pdb_files, density) + add_length) / 10
+
+        packmol_pdbpath = os.path.join(self.work_dir, packmol_pdb)
+        with open(packmol_pdbpath, "r") as f:
+            for line in f:
+                if line.startswith("CRYST1"):
+                    box_length = float(line[6:15]) / 10.0
 
         if self.gpu == True:
             self.commands = [
@@ -315,6 +320,18 @@ class PEMDGROMACS:
         else:
             self.commands = [
                 f"gmx_mpi editconf -f {self.work_dir}/{packmol_pdb} -o {self.work_dir}/conf.gro -box {box_length} {box_length} {box_length}",
+            ]
+        return self
+
+    def commands_grotopdb(self, gro_filename, pdb_filename):
+
+        if self.gpu == True:
+            self.commands = [
+                f"gmx editconf -f {self.work_dir}/{gro_filename} -o {self.work_dir}/{pdb_filename}",
+            ]
+        else:
+            self.commands = [
+                f"gmx_mpi editconf -f {self.work_dir}/{gro_filename} -o {self.work_dir}/{pdb_filename}",
             ]
         return self
 
@@ -327,7 +344,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/em.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/em.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/em -ntomp 64",
             ]
         return self
@@ -341,7 +358,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
             ]
         return self
@@ -355,7 +372,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
                 f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
             ]
         return self
@@ -369,8 +386,8 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr",
-                f"mpirun gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str}",
+                f"gmx_mpi grompp -f {self.work_dir}/{output_str}.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/{output_str}.tpr -maxwarn 1",
+                f"gmx_mpi mdrun -v -deffnm {self.work_dir}/{output_str} -ntomp 64",
             ]
         return self
 
@@ -383,7 +400,7 @@ class PEMDGROMACS:
             ]
         else:
             self.commands = [
-                f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr",
+                f"gmx_mpi grompp -f {self.work_dir}/npt_anneal.mdp -c {self.work_dir}/{input_gro} -p {self.work_dir}/{self.top_filename} -o {self.work_dir}/npt_anneal.tpr -maxwarn 1",
                 f"gmx_mpi mdrun -v -deffnm {self.work_dir}/npt_anneal -ntomp 64",
             ]
         return self
@@ -439,23 +456,23 @@ class PEMDGROMACS:
                 print(f"Error executing command: {cmd}\n{e.stderr}")
                 break
 
-    def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
-        slurm_script = PEMDSlurm(
-            self.work_dir,
-            script_name,
-        )
-
-        # Add each command in self.commands to the SLURM script
-        for cmd in self.commands:
-            slurm_script.add_command(cmd)
-
-        # Generate the SLURM script with the accumulated commands
-        script_path = slurm_script.generate_script(
-            job_name=job_name,
-            nodes=nodes,
-            ntasks_per_node=ntasks_per_node,
-            partition=partition,
-        )
-
-        print(f"SLURM script generated successfully: {script_path}")
-        return script_path
+    # def gen_slurm(self, script_name, job_name, nodes, ntasks_per_node, partition):
+    #     slurm_script = PEMDSlurm(
+    #         self.work_dir,
+    #         script_name,
+    #     )
+    #
+    #     # Add each command in self.commands to the SLURM script
+    #     for cmd in self.commands:
+    #         slurm_script.add_command(cmd)
+    #
+    #     # Generate the SLURM script with the accumulated commands
+    #     script_path = slurm_script.generate_script(
+    #         job_name=job_name,
+    #         nodes=nodes,
+    #         ntasks_per_node=ntasks_per_node,
+    #         partition=partition,
+    #     )
+    #
+    #     print(f"SLURM script generated successfully: {script_path}")
+    #     return script_path

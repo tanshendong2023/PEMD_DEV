@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="sycamore" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="tsd@10.103.65.21:22 agent" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="sycamore">
         <serverdata>
           <mappings>
-            <mapping deploy="/" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/soft/pycharm/PEMD_DEV" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
       <paths name="tsd@10.103.65.21:22 agent">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/pycharm_project_250" local="$PROJECT_DIR$" />
+            <mapping deploy="/soft/pycharm/PEMD_DEV" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

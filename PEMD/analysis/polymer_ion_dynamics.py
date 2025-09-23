@@ -12,8 +12,20 @@ def distance(x0, x1, box_length):
     delta = np.where(delta < -0.5 * box_length, delta + box_length, delta)
     return delta
 
-def process_traj(run, times, run_start, run_end, num_cation, num_o_polymer, cutoff_radius, cations,
-                 polymers, box_size, num_chain, num_o_chain):
+def process_traj(
+    run,
+    times,
+    run_start,
+    run_end,
+    num_cation,
+    num_o_polymer,
+    cutoff_radius,
+    cations,
+    polymers,
+    box_size,
+    num_chain,
+    num_o_chain
+):
 
     poly_o_n = np.zeros((len(times), num_cation))  # Initialize array
     poly_n = np.zeros((len(times), num_cation))  # Initialize array
