@@ -136,9 +136,9 @@ def conf_xtb(
                         'filename': f'conf_{idx}.xyz'
                     })
                 else:
-                    print(f"结构 conf_{idx}.xyz 能量提取失败。")
+                    print(f"Failed to extract energy for structure conf_{idx}.xyz.")
             else:
-                print(f"结构 conf_{idx}.xyz 计算失败。")
+                print(f"Calculation failed for structure conf_{idx}.xyz.")
         else:
             energy_info = result.get('energy_info')
             if energy_info and 'total_energy' in energy_info:
@@ -149,12 +149,12 @@ def conf_xtb(
                     'filename': f'conf_{idx}.xtbopt.xyz'
                 })
             else:
-                print(f"结构 conf_{idx}.xyz 优化后的能量提取失败。")
+                print(f"Failed to extract optimized energy for structure conf_{idx}.xyz.")
 
     # print("XTB run locally successfully!")
 
     if not energy_list:
-        print("未成功提取任何能量值。")
+        print("No energy values were successfully extracted.")
         return None
 
     sorted_energies = sorted(energy_list, key=lambda x: x['energy'])
@@ -216,9 +216,9 @@ def qm_gaussian(
             function=function,
             basis_set=basis_set,
             epsilon=epsilon,
-            optimize=optimize,  # 确保优化
-            multi_step=multi_step,  # 根据 gaucontinue 设置 multi_step
-            max_attempts=max_attempts,          # 可根据需要调整最大尝试次数
+            optimize=optimize,  # Ensure optimization runs
+            multi_step=multi_step,  # Toggle multi-step based on gaucontinue
+            max_attempts=max_attempts,          # Adjust as needed
         )
 
         state, log_filename = Gau.run_local(
@@ -281,8 +281,8 @@ def calc_resp_gaussian(
             function=function,
             basis_set=basis_set,
             epsilon=epsilon,
-            multi_step=False,  # RESP 计算不启用多步计算
-            max_attempts=1,  # 仅尝试一次
+            multi_step=False,  # Disable multi-step for RESP calculations
+            max_attempts=1,  # Only attempt once
         )
 
         state, log_filename = Gau.run_local(

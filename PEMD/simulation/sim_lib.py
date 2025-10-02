@@ -104,11 +104,11 @@ def read_xyz_file(file_path):
 
 
 def read_energy_from_gaussian(log_file_path: str):
-    # 自由能（优化+freq）行
+    # Free energy (optimization + frequency) line
     pattern_free = re.compile(
         r"Sum of electronic and thermal Free Energies\s*=\s*(-?\d+\.\d+)"
     )
-    # SCF 单点能行
+    # SCF single-point energy line
     pattern_scf = re.compile(
         r"SCF Done:\s+E\(\w+.*?\)\s+=\s+(-?\d+\.\d+)"
     )
@@ -125,7 +125,7 @@ def read_energy_from_gaussian(log_file_path: str):
             if m_scf:
                 energy_scf = float(m_scf.group(1))
 
-    # 优先返回自由能，否则返回 SCF 能量
+    # Prefer free energy; fall back to SCF energy otherwise
     if energy_free is not None:
         return energy_free
     return energy_scf
@@ -289,32 +289,32 @@ def parse_masses_from_lammps(data_filename):
 def get_closest_element_by_mass(target_mass, tolerance=0.5):
 
     element_masses = {
-        'H': 1.008,  # 氢
-        'B': 10.81,  # 硼
-        'C': 12.011,  # 碳
-        'N': 14.007,  # 氮
-        'O': 15.999,  # 氧
-        'F': 18.998,  # 氟
-        'Na': 22.990,  # 钠
-        'Mg': 24.305,  # 镁
-        'Al': 26.982,  # 铝
-        'Si': 28.085,  # 硅
-        'P': 30.974,  # 磷
-        'S': 32.06,  # 硫
-        'Cl': 35.45,  # 氯
-        'K': 39.098,  # 钾
-        'Ca': 40.078,  # 钙
-        'Ti': 47.867,  # 钛
-        'Cr': 51.996,  # 铬
-        'Mn': 54.938,  # 锰
-        'Fe': 55.845,  # 铁
-        'Ni': 58.693,  # 镍
-        'Cu': 63.546,  # 铜
-        'Zn': 65.38,  # 锌
-        'Br': 79.904,  # 溴
-        'Ag': 107.87,  # 银
-        'I': 126.90,  # 碘
-        'Au': 196.97,  # 金
+        'H': 1.008,  # hydrogen
+        'B': 10.81,  # boron
+        'C': 12.011,  # carbon
+        'N': 14.007,  # nitrogen
+        'O': 15.999,  # oxygen
+        'F': 18.998,  # fluorine
+        'Na': 22.990,  # sodium
+        'Mg': 24.305,  # magnesium
+        'Al': 26.982,  # aluminum
+        'Si': 28.085,  # silicon
+        'P': 30.974,  # phosphorus
+        'S': 32.06,  # sulfur
+        'Cl': 35.45,  # chlorine
+        'K': 39.098,  # potassium
+        'Ca': 40.078,  # calcium
+        'Ti': 47.867,  # titanium
+        'Cr': 51.996,  # chromium
+        'Mn': 54.938,  # manganese
+        'Fe': 55.845,  # iron
+        'Ni': 58.693,  # nickel
+        'Cu': 63.546,  # copper
+        'Zn': 65.38,  # zinc
+        'Br': 79.904,  # bromine
+        'Ag': 107.87,  # silver
+        'I': 126.90,  # iodine
+        'Au': 196.97,  # gold
     }
 
     min_diff = np.inf

@@ -33,7 +33,7 @@ def esw(
     else:
         raise ValueError("unit must be 'hartree','eV' or 'kcal/mol'")
 
-    # 规范输出 key
+    # Normalize output keys
     if isinstance(output, str):
         keys = [output]
     else:
@@ -80,18 +80,18 @@ def homo_lumo_energy(work_dir, log_filename):
     if not os.path.isfile(log_file_path):
         raise FileNotFoundError(f"Log not found: {log_file_path}")
 
-    # 解析量化日志
+    # Parse quantum chemistry log files
     try:
         data = ccopen(log_file_path).parse()
     except Exception as e:
         raise RuntimeError(f"Failed to parse {log_file_path}: {e}")
 
-    # 轨道能（通常单位 eV）
+    # Orbital energies (typically in eV)
     moenergies = getattr(data, "moenergies", None)
     if not moenergies or len(moenergies) == 0:
         raise RuntimeError(f"{log_file_path}: cclib did not provide 'moenergies'.")
 
-    # HOMO 索引（每自旋一个）；无则兜底
+    # HOMO indices (one per spin); fallback if absent
     homos = getattr(data, "homos", None)
     if not homos:
         ne = getattr(data, "nelectrons", None)
@@ -107,20 +107,20 @@ def homo_lumo_energy(work_dir, log_filename):
         except Exception:
             return None
 
-    # α 通道
+    # Alpha spin channel
     homo_a = lumo_a = None
     homo_idx_a = homos[0]
     homo_a = _safe(moenergies[0], homo_idx_a)
     lumo_a = _safe(moenergies[0], homo_idx_a + 1)
 
-    # β 通道（若存在）
+    # Beta spin channel (if present)
     homo_b = lumo_b = None
     if nspin >= 2:
         homo_idx_b = homos[1] if len(homos) > 1 else homos[0]
         homo_b = _safe(moenergies[1], homo_idx_b)
         lumo_b = _safe(moenergies[1], homo_idx_b + 1)
 
-    # 合并：总体 HOMO 取两自旋 HOMO 的最大，总体 LUMO 取两自旋 LUMO 的最小
+    # Combine results: overall HOMO is the max of the spin HOMOs, overall LUMO is the min
     homo_candidates = [x for x in (homo_a, homo_b) if x is not None]
     lumo_candidates = [x for x in (lumo_a, lumo_b) if x is not None]
     homo_energy = max(homo_candidates) if homo_candidates else None

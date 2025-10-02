@@ -25,33 +25,33 @@ class XMLGenerator:
         self.unique_type_to_class = {}
 
     def parse_itp_section(self, itp_content, section_name):
-        # 使用正则表达式提取指定部分
-        # 注意：确保在文件末尾部分也能正确提取
-        pattern = rf"\[\s*{section_name}\s*\](.*?)\n\["  # 匹配到下一个部分的开始
+        # Use a regular expression to extract the requested section. Ensure that
+        # the final section at the end of the file is also captured correctly.
+        pattern = rf"\[\s*{section_name}\s*\](.*?)\n\["  # Match up to the next section header
         match = re.search(pattern, itp_content, re.DOTALL)
         if not match:
-            # 如果没有找到下一个部分，尝试提取到文件末尾
+            # If the next section header is missing, capture everything to the end
             pattern = rf"\[\s*{section_name}\s*\](.*)"
             match = re.search(pattern, itp_content, re.DOTALL)
             if not match:
-                print(f"无法找到[{section_name}]部分。")
+                print(f"Unable to find section [{section_name}].")
                 return None
 
         section_content = match.group(1).strip()
 
-        # 分割行，忽略注释和空行
+        # Split lines while skipping comments and blanks
         lines = section_content.split('\n')
         lines = [line for line in lines if line.strip() and not line.strip().startswith(';')]
 
-        # 根据部分名称进行解析
+        # Parse according to the section name
         if section_name.lower() == 'atoms':
-            # 定义列名
+            # Define column headers
             columns = ['nr', 'type', 'resnr', 'residue', 'atom', 'cgnr', 'charge', 'mass']
             data = []
             for line in lines:
                 parts = line.split()
                 if len(parts) < 8:
-                    continue  # 跳过不完整的行
+                    continue  # Skip incomplete rows
                 nr = int(parts[0])
                 type_ = parts[1]
                 resnr = int(parts[2])
@@ -65,13 +65,13 @@ class XMLGenerator:
             return self.atoms_df
 
         elif section_name.lower() == 'atomtypes':
-            # 定义列名
+            # Define column headers
             columns = ['name', 'class', 'mass', 'charge', 'ptype', 'sigma', 'epsilon']
             data = []
             for line in lines:
                 parts = line.split()
                 if len(parts) < 7:
-                    continue  # 跳过不完整的行
+                    continue  # Skip incomplete rows
                 name = parts[0]
                 class_ = parts[1]
                 mass = float(parts[2])
@@ -84,13 +84,13 @@ class XMLGenerator:
             return self.atomtypes_df
 
         elif section_name.lower() == 'bonds':
-            # 定义列名
+            # Define column headers
             columns = ['ai', 'aj', 'funct', 'c0', 'c1']
             data = []
             for line in lines:
                 parts = line.split()
                 if len(parts) < 5:
-                    continue  # 跳过不完整的行
+                    continue  # Skip incomplete rows
                 ai = int(parts[0])
                 aj = int(parts[1])
                 funct = int(parts[2])
@@ -101,13 +101,13 @@ class XMLGenerator:
             return self.bonds_df
 
         elif section_name.lower() == 'angles':
-            # 定义列名
+            # Define column headers
             columns = ['ai', 'aj', 'ak', 'funct', 'c0', 'c1']
             data = []
             for line in lines:
                 parts = line.split()
                 if len(parts) < 6:
-                    continue  # 跳过不完整的行
+                    continue  # Skip incomplete rows
                 ai = int(parts[0])
                 aj = int(parts[1])
                 ak = int(parts[2])
@@ -119,13 +119,13 @@ class XMLGenerator:
             return self.angles_df
 
         elif section_name.lower() == 'dihedrals':
-            # 定义列名
+            # Define column headers
             columns = ['ai', 'aj', 'ak', 'al', 'funct', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5']
             data = []
             for line in lines:
                 parts = line.split()
                 if len(parts) < 11:
-                    continue  # 跳过不完整的行
+                    continue  # Skip incomplete rows
                 ai = int(parts[0])
                 aj = int(parts[1])
                 ak = int(parts[2])
@@ -142,7 +142,7 @@ class XMLGenerator:
             return self.dihedrals_df
 
         else:
-            print(f"未知的部分名称: {section_name}")
+            print(f"Unknown section name: {section_name}")
             return None
 
     def generate_first_coordination_smarts_with_details(self, include_h=True):
@@ -152,25 +152,25 @@ class XMLGenerator:
         else:
             mol = Chem.MolFromSmiles(self.smiles)
             if mol is None:
-                print("无效的SMILES字符串。")
+                print("Invalid SMILES string.")
                 return None
             mol = Chem.AddHs(mol)
 
         data = []
-        # 遍历分子中的每个原子（包括氢原子）
+        # Iterate over every atom in the molecule (including hydrogens)
         for atom in mol.GetAtoms():
             atom_idx = atom.GetIdx()
             atom_symbol = atom.GetSymbol()
 
-            # 计算配位数Xn（包括氢原子）
+            # Compute the coordination number Xn (including hydrogens)
             xn = atom.GetDegree()
 
-            # 初始化SMARTS字符串，表示中心原子及其配位数
+            # Initialize the SMARTS string with the central atom and coordination number
             smarts = f"[{atom_symbol};X{xn}]"
 
-            # # 遍历该原子的所有键，构建SMARTS描述
+            # # Iterate over all bonds of the atom to construct the SMARTS description
             # for bond in atom.GetBonds():
-            #     # 确定连接的邻接原子
+            #     # Identify the bonded neighbor
             #     if bond.GetBeginAtomIdx() == atom_idx:
             #         neighbor = bond.GetEndAtom()
             #     else:
@@ -179,21 +179,21 @@ class XMLGenerator:
             #     neighbor_symbol = neighbor.GetSymbol()
             #
             #     if neighbor_symbol == 'H' and not include_h:
-            #         continue  # 如果不包含H，跳过氢原子
+            #         continue  # Skip hydrogens if they are excluded
             #
-            #     # 计算邻接原子的配位数Xn（包括氢原子）
+            #     # Compute the neighbor's coordination number Xn (including hydrogens)
             #     neighbor_xn = neighbor.GetDegree()
             #
-            #     # 构建邻接原子的SMARTS
+            #     # Build the neighbor SMARTS fragment
             #     neighbor_smarts = f"[{neighbor_symbol};X{neighbor_xn}]"
             #
-            #     # 添加到SMARTS字符串，包含键符号（如果需要）
+            #     # Append to the SMARTS string, including bond symbols if needed
             #     smarts += f"({neighbor_smarts})"
-            # 收集所有邻接原子的SMARTS
+            # Collect SMARTS for all neighboring atoms
             neighbors_smarts = []
 
             for bond in atom.GetBonds():
-                # 确定连接的邻接原子
+                # Identify the neighboring atom for the current bond
                 if bond.GetBeginAtomIdx() == atom_idx:
                     neighbor = bond.GetEndAtom()
                 else:
@@ -202,34 +202,34 @@ class XMLGenerator:
                 neighbor_symbol = neighbor.GetSymbol()
 
                 if neighbor_symbol == 'H' and not include_h:
-                    continue  # 如果不包含H，跳过氢原子
+                    continue  # Skip hydrogens if requested
 
-                # 计算邻接原子的配位数Xn（包括氢原子）
+                # Compute the coordination number Xn for the neighbor (including hydrogens)
                 neighbor_xn = neighbor.GetDegree()
 
-                # 构建邻接原子的SMARTS
+                # Build the SMARTS snippet for the neighbor
                 neighbor_smarts = f"[{neighbor_symbol};X{neighbor_xn}]"
 
                 neighbors_smarts.append(neighbor_smarts)
 
-            # 对邻接原子的SMARTS进行排序
+            # Sort the neighbor SMARTS strings
             neighbors_smarts_sorted = sorted(neighbors_smarts)
 
-            # 初始化SMARTS字符串，表示中心原子及其配位数
+            # Re-initialize the SMARTS string for the central atom
             smarts = f"[{atom_symbol};X{xn}]"
 
-            # 添加排序后的邻接原子SMARTS
+            # Append the sorted neighbor SMARTS
             for neighbor_smarts in neighbors_smarts_sorted:
                 smarts += f"({neighbor_smarts})"
 
-            # 将结果添加到数据列表
+            # Add the result to the collection
             data.append({
                 "Atom Index": atom_idx,
                 "Atom Symbol": atom_symbol,
                 "SMARTS": smarts
             })
 
-        # 转换为DataFrame
+        # Convert to a DataFrame
         self.smarts_df = pd.DataFrame(data)
         return self.smarts_df
 
@@ -237,8 +237,8 @@ class XMLGenerator:
         return degrees * (math.pi / 180)
 
     def create_class_element_map(self):
-        # 定义类名到元素的映射
-        # 确保每个类名唯一，并映射到正确的元素
+        # Define the mapping from class names to elements. Ensure each class name
+        # is unique and mapped to the correct element.
         self.class_element_map = {
             'H': 'H',
             'HC': 'H',
@@ -318,49 +318,49 @@ class XMLGenerator:
 
     def generate_xml_blocks(self):
         if self.smarts_df is None:
-            print("SMARTS 描述未生成。")
+            print("SMARTS descriptions have not been generated.")
             return
 
-        # 将 smarts_df 中的 Atom Index 转换为 nr（从1开始）
+        # Convert ``Atom Index`` in ``smarts_df`` to ``nr`` (one-based indexing)
         self.smarts_df['nr'] = self.smarts_df['Atom Index'] + 1
         merged_df = pd.merge(self.atoms_df, self.smarts_df, on='nr', how='left')
 
-        # 检查是否有未匹配的原子
+        # Check for atoms that failed to match a SMARTS description
         if merged_df['SMARTS'].isnull().any():
-            print("警告：某些原子的SMARTS描述未找到。")
+            print("Warning: SMARTS descriptions were not found for some atoms.")
 
-        # 识别唯一的SMARTS
+        # Identify unique SMARTS strings
         unique_smarts = merged_df['SMARTS'].unique()
 
-        # 为每个唯一的SMARTS分配一个顺序命名的类型名称，如 opls_1, opls_2, ...
+        # Assign sequential type names (e.g., opls_1, opls_2, …) to each unique SMARTS
         smarts_to_unique_type = {smarts: f"opls_{i + 1}" for i, smarts in enumerate(unique_smarts)}
 
-        # 创建一个新的列 'unique_type'，基于SMARTS映射
+        # Create a ``unique_type`` column based on the SMARTS mapping
         merged_df['unique_type'] = merged_df['SMARTS'].map(smarts_to_unique_type)
 
-        # 生成 <AtomTypes> 块
+        # Build the <AtomTypes> block
         atomtypes_block = "<AtomTypes>\n"
         missing_types = []
         for smarts, unique_type in smarts_to_unique_type.items():
-            # 找到第一个对应的原子类型
+            # Locate the first matching atom type
             matching_rows = merged_df[merged_df['SMARTS'] == smarts]
             if matching_rows.empty:
-                print(f"警告：SMARTS '{smarts}' 没有对应的原子类型。")
+                print(f"Warning: SMARTS '{smarts}' has no corresponding atom type.")
                 missing_types.append(smarts)
-                continue  # 跳过此SMARTS
+                continue  # Skip this SMARTS entry
 
             corresponding_type = matching_rows['type'].iloc[0]
-            # 获取原子类型信息
+            # Retrieve the atom type information
             atomtype_info = self.atomtypes_df[self.atomtypes_df['name'] == corresponding_type]
             if not atomtype_info.empty:
                 class_ = atomtype_info.iloc[0]['class']
                 mass = atomtype_info.iloc[0]['mass']
-                # 获取元素符号
-                element = self.class_element_map.get(class_, 'C')  # 默认元素为C
+                # Determine the element symbol (default to carbon)
+                element = self.class_element_map.get(class_, 'C')
                 atomtypes_block += f'  <Type name="{unique_type}" class="{class_}" element="{element}" mass="{mass}" def="{smarts}"/>\n'
                 self.unique_type_to_class[unique_type] = class_
             else:
-                print(f"警告：类型 '{corresponding_type}' 在[ atomtypes ]部分未找到。使用默认值。")
+                print(f"Warning: Type '{corresponding_type}' not found in [ atomtypes ]. Using defaults.")
                 class_ = 'C'
                 element = 'C'
                 mass = 12.011
@@ -369,42 +369,42 @@ class XMLGenerator:
         atomtypes_block += "</AtomTypes>\n"
         self.xml_blocks["AtomTypes"] = atomtypes_block
 
-        # 生成 <NonbondedForce> 块
+        # Build the <NonbondedForce> block
         nonbonded_block = '<NonbondedForce coulomb14scale="0.5" lj14scale="0.5">\n'
 
-        # 创建一个 DataFrame 按 unique_type 聚合 charge
+        # Aggregate charges by ``unique_type``
         unique_nonbonded = merged_df.groupby('unique_type').agg({
             'charge': 'first',
-            'type': 'first'  # 原始类型，用于查找 sigma and epsilon
+            'type': 'first'  # Original type used to find sigma and epsilon
         }).reset_index()
 
-        # 提取 opls_x 中的数字部分并转换为整数，以便按数字顺序排序
+        # Extract the numeric suffix from ``opls_x`` for numeric sorting
         unique_nonbonded['type_num'] = unique_nonbonded['unique_type'].str.extract(r'opls_(\d+)').astype(int)
 
-        # 按 type_num 升序排序
+        # Sort by ``type_num`` ascending
         unique_nonbonded = unique_nonbonded.sort_values('type_num')
 
         for _, row in unique_nonbonded.iterrows():
             unique_type = row['unique_type']
             charge = row['charge']
             original_type = row['type']
-            # 从 atomtypes_df 获取 sigma 和 epsilon
+            # Fetch sigma and epsilon from ``atomtypes_df``
             atomtype_info = self.atomtypes_df[self.atomtypes_df['name'] == original_type]
             if not atomtype_info.empty:
                 sigma = atomtype_info.iloc[0]['sigma']
                 epsilon = atomtype_info.iloc[0]['epsilon']
             else:
-                print(f"警告：类型 '{original_type}' 在[ atomtypes ]部分未找到。使用默认值。")
-                sigma = 0.35  # 默认值
-                epsilon = 0.276144  # 默认值
+                print(f"Warning: Type '{original_type}' not found in [ atomtypes ]. Using defaults.")
+                sigma = 0.35  # Default value
+                epsilon = 0.276144  # Default value
 
             nonbonded_block += f'    <Atom type="{unique_type}" charge="{charge}" sigma="{sigma}" epsilon="{epsilon}"/>\n'
         nonbonded_block += "</NonbondedForce>\n"
         self.xml_blocks["NonbondedForce"] = nonbonded_block
 
-        # 生成 <HarmonicBondForce> 块
+        # Build the <HarmonicBondForce> block
         harmonic_bond_block = "<HarmonicBondForce>\n"
-        unique_bonds = set()  # 初始化集合以存储已处理的键
+        unique_bonds = set()  # Track processed bonds
 
         if self.bonds_df is not None:
             for _, bond in self.bonds_df.iterrows():
@@ -413,15 +413,15 @@ class XMLGenerator:
                 c0 = bond['c0']  # bond length
                 c1 = bond['c1']  # force constant
 
-                # 获取 unique_type
+                # Retrieve the ``unique_type`` values
                 type_i = merged_df[merged_df['nr'] == ai]['unique_type'].iloc[0]
                 type_j = merged_df[merged_df['nr'] == aj]['unique_type'].iloc[0]
 
-                # 获取 class
+                # Look up the corresponding classes
                 class_i = self.unique_type_to_class.get(type_i, 'C')
                 class_j = self.unique_type_to_class.get(type_j, 'C')
 
-                # 创建键的唯一标识符（排序后的类名元组，以避免重复）
+                # Create a unique identifier for the bond to avoid duplicates
                 bond_tuple = (class_i, class_j, c0, c1)
 
                 if bond_tuple not in unique_bonds:
@@ -430,9 +430,9 @@ class XMLGenerator:
         harmonic_bond_block += "</HarmonicBondForce>\n"
         self.xml_blocks["HarmonicBondForce"] = harmonic_bond_block
 
-        # 生成 <HarmonicAngleForce> 块
+        # Build the <HarmonicAngleForce> block
         harmonic_angle_block = "<HarmonicAngleForce>\n"
-        unique_angles = set()  # 初始化集合以存储已处理的角
+        unique_angles = set()  # Track processed angles
 
         if self.angles_df is not None:
             for _, angle in self.angles_df.iterrows():
@@ -442,23 +442,23 @@ class XMLGenerator:
                 c0 = angle['c0']  # equilibrium angle in degrees
                 c1 = angle['c1']  # force constant
 
-                # 将角度从度转换为弧度
+                # Convert the equilibrium angle from degrees to radians
                 c0_rad = self.degrees_to_radians(c0)
 
-                # 获取 unique_type
+                # Retrieve ``unique_type`` values
                 type_i = merged_df[merged_df['nr'] == ai]['unique_type'].iloc[0]
                 type_j = merged_df[merged_df['nr'] == aj]['unique_type'].iloc[0]
                 type_k = merged_df[merged_df['nr'] == ak]['unique_type'].iloc[0]
 
-                # 获取 class
+                # Look up the corresponding classes
                 class_i = self.unique_type_to_class.get(type_i, 'C')
                 class_j = self.unique_type_to_class.get(type_j, 'C')
                 class_k = self.unique_type_to_class.get(type_k, 'C')
 
-                # 格式化弧度为小数点后8位
+                # Format the radian value to eight decimal places
                 c0_rad_formatted = f"{c0_rad:.8f}"
 
-                # 创建角的唯一标识符（排序后的类名元组，以避免重复）
+                # Create a unique identifier for the angle to avoid duplicates
                 angle_tuple = (class_i, class_j, class_k, c0_rad_formatted, c1)
 
                 if angle_tuple not in unique_angles:
@@ -467,9 +467,9 @@ class XMLGenerator:
         harmonic_angle_block += "</HarmonicAngleForce>\n"
         self.xml_blocks["HarmonicAngleForce"] = harmonic_angle_block
 
-        # 生成 <RBTorsionForce> 块
+        # Build the <RBTorsionForce> block
         rb_torsion_block = "<RBTorsionForce>\n"
-        unique_propers = set()  # 初始化集合以存储已处理的二面角
+        unique_propers = set()  # Track processed torsions
 
         if self.dihedrals_df is not None:
             for _, dihedral in self.dihedrals_df.iterrows():
@@ -484,19 +484,19 @@ class XMLGenerator:
                 c4 = dihedral['c4']
                 c5 = dihedral['c5']
 
-                # 获取 unique_type
+                # Retrieve ``unique_type`` values
                 type_i = merged_df[merged_df['nr'] == ai]['unique_type'].iloc[0]
                 type_j = merged_df[merged_df['nr'] == aj]['unique_type'].iloc[0]
                 type_k = merged_df[merged_df['nr'] == ak]['unique_type'].iloc[0]
                 type_l = merged_df[merged_df['nr'] == al]['unique_type'].iloc[0]
 
-                # 获取 class
+                # Look up the corresponding classes
                 class_i = self.unique_type_to_class.get(type_i, 'C')
                 class_j = self.unique_type_to_class.get(type_j, 'C')
                 class_k = self.unique_type_to_class.get(type_k, 'C')
                 class_l = self.unique_type_to_class.get(type_l, 'C')
 
-                # 创建二面角的唯一标识符（排序后的类名元组，以避免重复）
+                # Create a unique identifier for the torsion to avoid duplicates
                 proper_tuple = (class_i, class_j, class_k, class_l, c0, c1, c2, c3, c4, c5)
 
                 if proper_tuple not in unique_propers:

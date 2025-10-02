@@ -24,8 +24,8 @@ def process_traj(
 
     poly_o_n = np.zeros((len(times), num_cation))  # Initialize array
     poly_n = np.zeros((len(times), num_cation))  # Initialize array
-    bound_o_n = np.full((len(times), num_cation, 10), -1, dtype=int)  # 初始化bound氧的索引
-    poly_o_positions = np.zeros((len(times), num_o_polymer, 3))  # 初始化氧坐标的数组
+    bound_o_n = np.full((len(times), num_cation, 10), -1, dtype=int)  # Store indices of bound oxygens
+    poly_o_positions = np.zeros((len(times), num_o_polymer, 3))  # Store polymer oxygen coordinates
 
     for ts in tqdm(run.trajectory[run_start: run_end], desc='Processing trajectory'):
 
@@ -43,12 +43,12 @@ def process_traj(
                 if np.all(o_resids == o_resids[0]):
                     poly_o_n[ts.frame, n] = np.mean(close_oe_index)
                     poly_n[ts.frame, n] = o_resids[0]
-                    bound_o_n[ts.frame, n, :len(close_oe_index)] = close_oe_index  # bound氧的索引
+                    bound_o_n[ts.frame, n, :len(close_oe_index)] = close_oe_index  # Record indices of bound oxygens
                 else:
                     poly_n[ts.frame, n] = -1
 
         for i in range(int(num_chain)):
-            oe_in_onechain = run.select_atoms(f'resid {i + 1}')  # 选择当前链中的原子
+            oe_in_onechain = run.select_atoms(f'resid {i + 1}')  # Select atoms belonging to the current chain
             start_idx = num_o_chain * i
             end_idx = num_o_chain * (i + 1)
             poly_o_positions[ts.frame, start_idx:end_idx, :] = (
@@ -144,18 +144,18 @@ def ms_endtoend_distance(run, num_chain, polymers_unwrap, box_size, run_start, r
         ts_vectors = []
 
         for mol_id in range(1, int(num_chain) + 1):  # Assuming 20 molecules
-            chain_indices = np.where(polymers_unwrap.resids == mol_id)[0]  # 获得所有聚合物链醚氧的index，并每一条链单独储存一个index
+            chain_indices = np.where(polymers_unwrap.resids == mol_id)[0]  # Collect ether-oxygen indices for each chain
             if len(chain_indices) > 1:  # Ensure there is more than one oxygen atom
-                chain_coor = polymers_unwrap.positions[chain_indices]  # 获得每条聚合物链醚氧的坐标
+                chain_coor = polymers_unwrap.positions[chain_indices]  # Coordinates of ether oxygens in the chain
                 chain1_coor = chain_coor[1:]
                 chain2_coor = chain_coor[:-1]
                 b0_array = minimum_image_displacement(
                     chain1_coor,
                     chain2_coor,
                     box_size,
-                )  # 生成每个间隔醚氧的向量
-                re_vector = np.sum(b0_array, axis=0)  # 所有向量加和
-                re = np.linalg.norm(re_vector)  # 对向量进行模长的计算
+                )  # Generate vectors between adjacent ether oxygens
+                re_vector = np.sum(b0_array, axis=0)  # Sum all vectors
+                re = np.linalg.norm(re_vector)  # Compute the end-to-end magnitude
                 ts_vectors.append(re)
 
         if ts_vectors:
@@ -179,11 +179,11 @@ def calc_msd_M2(dt, poly_o_positions, poly_o_n, bound_o_n, run_start, run_end,):
         j = np.where((bound_counts / dt) >= 0.85)[0]
         li_intersection = np.intersect1d(i, j)
 
-        all_bound_oe_indices = []  # 创建一个列表来收集所有有效的索引
+        all_bound_oe_indices = []  # Collect all valid indices
         for idx in li_intersection:
             valid_indices = bound_o_n[t, idx][bound_o_n[t, idx] != -1]
             if valid_indices.size > 0:
-                all_bound_oe_indices.extend(valid_indices)  # 收集所有有效的索引
+                all_bound_oe_indices.extend(valid_indices)  # Extend with the valid indices
 
         if all_bound_oe_indices:
             msd_in_t.append(np.mean(delta_n_square[all_bound_oe_indices]))
@@ -191,13 +191,13 @@ def calc_msd_M2(dt, poly_o_positions, poly_o_n, bound_o_n, run_start, run_end,):
     return np.mean(msd_in_t) if msd_in_t else 0
 
 def rouse_model(t, tau, Re_square, num_o_chain):
-    """计算 Rouse 模型的理论值，用于拟合 MSD 数据。"""
+    """Compute the theoretical Rouse model value used to fit MSD data."""
     sum_part = sum([(1 - np.exp(-p ** 2 * t / tau)) / p ** 2 for p in range(1, num_o_chain - 1)])
     return (2 * Re_square / np.pi ** 2) * sum_part
 
 def fit_rouse_model(re_all, times, msd, num_o_chain):
-    """计算 Rouse 时间常数并拟合 MSD 数据。"""
-    Re_square = np.mean(re_all)  # 平均平方端到端距离
+    """Estimate the Rouse time constant and fit the MSD data."""
+    Re_square = np.mean(re_all)  # Mean squared end-to-end distance
     tau,_ = curve_fit(lambda t, tau: rouse_model(t, tau, Re_square, num_o_chain), times, msd)
     return tau[0] / 1000
 

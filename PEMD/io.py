@@ -162,12 +162,12 @@ def smiles_to_pdb(smiles: str,
 def smiles_to_xyz(smiles, filename, num_confs=1):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        raise ValueError("无效的 SMILES 字符串。")
+        raise ValueError("Invalid SMILES string.")
 
     mol = Chem.AddHs(mol)
     result = AllChem.EmbedMultipleConfs(mol, numConfs=num_confs, randomSeed=42)
     if not result:
-        raise ValueError("无法生成3D构象。")
+        raise ValueError("Failed to generate a 3D conformer.")
     AllChem.UFFOptimizeMolecule(mol, confId=0)
     conf = mol.GetConformer(0)
     atoms = mol.GetAtoms()
@@ -179,17 +179,15 @@ def smiles_to_xyz(smiles, filename, num_confs=1):
             f.write(f"{atom.GetSymbol()} {coord.x:.4f} {coord.y:.4f} {coord.z:.4f}\n")
 
 def convert_rdkit_to_openbabel(rdkit_mol):
-    """
-    将 RDKit 的 Mol 对象转换为 Open Babel 的 OBMol 对象
-    """
-    # 创建 Open Babel 的 OBConversion 对象
+    """Convert an RDKit ``Mol`` object into an Open Babel ``OBMol``."""
+    # Create an Open Babel ``OBConversion`` instance
     ob_conversion = ob.OBConversion()
-    ob_conversion.SetOutFormat("mol")  # 使用 MOL 格式
+    ob_conversion.SetOutFormat("mol")  # Use MOL format
 
-    # 将 RDKit 的 Mol 对象转换为 MolBlock 字符串
+    # Convert the RDKit molecule to a MolBlock string
     mol_block = Chem.MolToMolBlock(rdkit_mol)
 
-    # 使用 Open Babel 解析 MolBlock 并生成 OBMol 对象
+    # Parse the MolBlock with Open Babel to produce an ``OBMol``
     ob_mol = ob.OBMol()
     ob_conversion.ReadString(ob_mol, mol_block)
 
@@ -235,7 +233,7 @@ def convert_xyz_to_mol2(xyz_filename, mol2_filename, molecule_name, resname):
 
     for atom in ob.OBMolAtomIter(mol):
         res = atom.GetResidue()
-        if res:  # 确保残基信息存在
+        if res:  # Ensure the residue information exists
             res.SetName(resname)
 
     obConversion.WriteFile(mol, mol2_filename)
@@ -247,7 +245,7 @@ def remove_numbers_from_residue_names(mol2_filename, resname):
     with open(mol2_filename, 'r') as file:
         content = file.read()
 
-    # 使用正则表达式删除特定残基名称后的数字1（确保只删除末尾的数字1）
+    # Use a regex to remove a trailing ``1`` after the residue name (only at the end)
     updated_content = re.sub(r'({})1\b'.format(resname), r'\1', content)
 
     with open(mol2_filename, 'w') as file:
@@ -256,9 +254,9 @@ def remove_numbers_from_residue_names(mol2_filename, resname):
 
 # 4.Convert GRO to PDB
 def convert_gro_to_pdb(input_gro, output_pdb):
-    # 直接把 .gro 当做拓扑和坐标读入
+    # Treat the .gro as both topology and coordinates
     u = mda.Universe(input_gro)
-    # 写出时，MDAnalysis 会按原子列表顺序输出
+    # MDAnalysis writes atoms in their current order
     with mda.Writer(output_pdb) as W:
         W.write(u.atoms)
     # print(f"Converted (MDAnalysis) → {output_pdb}")
@@ -271,27 +269,24 @@ def extract_from_top(top_file, out_itp_file, nonbonded=False, bonded=False):
     elif bonded:
         sections_to_extract = ["[ moleculetype ]", "[ atoms ]", "[ bonds ]", "[ pairs ]", "[ angles ]", "[angles]", "[ dihedrals ]"]
 
-        # 打开 .top 文件进行读取
+        # Open the .top file for reading
     with open(top_file, 'r') as file:
         lines = file.readlines()
 
-    # 初始化变量以存储提取的信息
     extracted_lines = []
     current_section = None
 
-    # 遍历所有行，提取相关部分
     for line in lines:
         if line.strip() in sections_to_extract:
             current_section = line.strip()
-            extracted_lines.append(line)  # 添加部分标题
+            extracted_lines.append(line)  # Section header
         elif current_section and line.strip().startswith(";"):
-            extracted_lines.append(line)  # 添加注释行
+            extracted_lines.append(line)  # Comment line
         elif current_section and line.strip():
-            extracted_lines.append(line)  # 添加数据行
+            extracted_lines.append(line)  # Data line
         elif line.strip() == "" and current_section:
-            extracted_lines.append("\n")  # 添加部分之间的空行
-            current_section = None  # 重置当前部分
+            extracted_lines.append("\n")  # Blank line between sections
+            current_section = None  # Reset the section tracker
 
-    # 写入提取的内容到 bonded.itp 文件
     with open(out_itp_file, 'w') as file:
         file.writelines(extracted_lines)

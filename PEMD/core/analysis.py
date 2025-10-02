@@ -714,7 +714,7 @@ class PEMDAnalysis:
             w    = esw(G_init, G_oxid=G_oxid, G_red=G_red, output='esw', unit=unit)  if (G_oxid is not None and G_red is not None) else math.nan
             return eox, ered, w
 
-        raise ValueError("output 仅支持 'eox'、'ered' 或 'all'")
+        raise ValueError("output only supports 'eox', 'ered', or 'all'")
 
 
     @staticmethod

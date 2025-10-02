@@ -106,7 +106,7 @@ def print_pemd_info(
     *,
     force: bool = False,
     stream = sys.stdout,
-    return_str: bool = False,   # 新增：返回字符串而非直接打印
+    return_str: bool = False,   # New: return the banner string instead of printing
 ) -> bool | str:
     """Print the PEMD start-up banner.
 
@@ -170,7 +170,7 @@ def print_pemd_info(
     try:
         print(banner, file=stream)
     except Exception:
-        # 最后兜底：不带颜色直接打印
+        # Fallback: print without ANSI colors
         print(_strip_ansi(banner), file=sys.stdout)
 
     return True
@@ -186,7 +186,7 @@ def print_input(inp: str, *, stream = sys.stdout) -> None:
 
 def print_output(out: str, *, status: str = "successfully", stream = sys.stdout) -> None:
     """Standardized 'done' message."""
-    print("", file=stream)  # 前面空行
+    print("", file=stream)  # Leading blank line
     ansi = _Ansi(enabled=_supports_color(stream))
     tick = f"{ansi.green}✓{ansi.reset}" if ansi.enabled else "OK"
     print(f"{tick} {out} {status}!!!\n", file=stream)
@@ -211,15 +211,15 @@ def print_poly_info(
     mode: Optional[str] = None,
     length: Optional[int] = None,
     block_sizes: Optional[Iterable[int]] = None,
-    style: str = "unicode",        # 'unicode' 或 'ascii'
+    style: str = "unicode",        # 'unicode' or 'ascii'
     title: str = "Polymer Build Parameters",
-    return_markdown: bool = False, # True 时返回 Markdown 字符串
-    max_value_width: int = 120,    # 防止长 SMILES 撑爆表格
+    return_markdown: bool = False, # Return Markdown instead of printing when True
+    max_value_width: int = 120,    # Prevent wide SMILES from overflowing the table
     stream = sys.stdout,
 ):
     """Pretty-print build parameters as a table (or return Markdown)."""
 
-    def fmt(v):  # 统一空值显示
+    def fmt(v):  # Normalize empty values
         return "—" if v is None or v == "" else str(v)
 
     rows: List[Tuple[str, str]] = [("Polymer Name", fmt(name))]
@@ -248,7 +248,7 @@ def print_poly_info(
     if right_cap is not None:
         rows.append(("Right Cap", fmt(right_cap)))
 
-    # 截断长值（不影响 Markdown 返回）
+    # Truncate long values (Markdown output still uses full values)
     clipped_rows = [(k, _truncate(v, max_value_width)) for k, v in rows]
 
     if return_markdown:
@@ -256,12 +256,12 @@ def print_poly_info(
         md += [f"| {k} | {fmt(v)} |" for k, v in rows]
         return "\n".join(md)
 
-    # 计算列宽
+    # Compute column widths
     header = ("Parameter", "Value")
     w1 = max(len(header[0]), *(len(k) for k, _ in clipped_rows))
     w2 = max(len(header[1]), *(len(v) for _, v in clipped_rows))
 
-    # 选择风格字符
+    # Choose glyphs based on the style
     if style == "ascii":
         H, V = "-", "|"
         TL, TR, BL, BR = "+", "+", "+", "+"
@@ -274,7 +274,7 @@ def print_poly_info(
     def hline(left: str, mid: str, right: str) -> str:
         return f"{left}{H*(w1+2)}{mid}{H*(w2+2)}{right}"
 
-    # 输出表格
+    # Emit the formatted table
     print(title, file=stream)
     print(hline(TL, T, TR), file=stream)
     print(f"{V} {header[0]:<{w1}} {V} {header[1]:<{w2}} {V}", file=stream)
@@ -282,29 +282,31 @@ def print_poly_info(
     for k, v in clipped_rows:
         print(f"{V} {k:<{w1}} {V} {v:<{w2}} {V}", file=stream)
     print(hline(BL, B, BR), file=stream)
-    print("", file=stream)  # 末尾空行
+    print("", file=stream)  # Trailing blank line
 
 
 def print_box_composition(
     molecule_list,
     *,
     title: str = "Box Composition",
-    style: str = "unicode",         # 'unicode' 或 'ascii'
-    return_markdown: bool = False,  # True 时返回 Markdown 字符串
-    aliases: Optional[dict] = None, # 可选：把键名映射为更友好的展示名
+    style: str = "unicode",         # 'unicode' or 'ascii'
+    return_markdown: bool = False,  # Return Markdown instead of printing when True
+    aliases: Optional[dict] = None, # Optional mapping from keys to user-friendly names
     stream = sys.stdout,
 ):
     """
-    打印盒子组分信息（仅显示 Species 与 Count；不含 Fraction 列与 Total 行）。
-    - molecule_list: dict[str,int] 或可迭代 [(name, count), ...]
-    """
-    # 规范化输入
-    if isinstance(molecule_list, dict):
-        items = list(molecule_list.items())   # Py3.7+ 字典保持插入顺序
-    else:
-        items = list(molecule_list)           # 假设 (name, count) 可迭代
+    Print box composition (showing only Species and Count; omits Fraction and
+    Total rows).
 
-    # 组装行（仅名称与数量）
+    - ``molecule_list``: ``dict[str, int]`` or an iterable of ``(name, count)``
+    """
+    # Normalize the input structure
+    if isinstance(molecule_list, dict):
+        items = list(molecule_list.items())   # Dicts preserve insertion order in Py3.7+
+    else:
+        items = list(molecule_list)           # Assume an iterable of (name, count)
+
+    # Assemble rows containing just the name and count
     rows = []
     for name, count in items:
         c = int(count)
@@ -316,12 +318,12 @@ def print_box_composition(
         md += [f"| {k} | {v} |" for (k, v) in rows]
         return "\n".join(md)
 
-    # 计算列宽
+    # Compute column widths
     header = ("Species", "Count")
     w1 = max(len(header[0]), *(len(k) for k, _ in rows)) if rows else len(header[0])
     w2 = max(len(header[1]), *(len(v) for _, v in rows)) if rows else len(header[1])
 
-    # 选择风格字符
+    # Choose glyphs based on the style
     if style == "ascii":
         H, V = "-", "|"
         TL, TR, BL, BR = "+", "+", "+", "+"
@@ -334,7 +336,7 @@ def print_box_composition(
     def hline(left: str, mid: str, right: str) -> str:
         return f"{left}{H*(w1+2)}{mid}{H*(w2+2)}{right}"
 
-    # 打印
+    # Print the table
     print(title, file=stream)
     print(hline(TL, T, TR), file=stream)
     print(f"{V} {header[0]:<{w1}} {V} {header[1]:>{w2}} {V}", file=stream)
