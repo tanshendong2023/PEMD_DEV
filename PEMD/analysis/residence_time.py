@@ -39,7 +39,7 @@ def calc_neigh_corr(run, distance_dict, select_dict, run_start, run_end, center_
                 else:
                     raise ValueError("Invalid species selection")
 
-                # 获取这些原子所属的分子ID
+                # Retrieve the molecule IDs for these atoms
                 # mols = set(i.residue for i in shell)
 
                 # for mol in mols:

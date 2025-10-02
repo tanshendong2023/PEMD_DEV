@@ -54,14 +54,17 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     edit_m2 = Chem.EditableMol(input_mol)
     edit_m3 = Chem.EditableMol(input_mol)
 
-    edit_m1.RemoveAtom(dum2) # Delete dum2
+    # Remove the second dummy atom to build the left fragment
+    edit_m1.RemoveAtom(dum2)
     mol_without_dum1 = Chem.Mol(edit_m1.GetMol())
 
-    edit_m2.RemoveAtom(dum1) # Delete dum1
+    # Remove the first dummy atom to build the right fragment
+    edit_m2.RemoveAtom(dum1)
     mol_without_dum2 = Chem.Mol(edit_m2.GetMol())
 
-    edit_m3.RemoveAtom(dum1) # Delete dum1 and dum2
-    if dum1 < dum2: # If dum1 < dum2, then the index of dum2 is dum2 - 1
+    # Build the monomer unit without either dummy atom
+    edit_m3.RemoveAtom(dum1)
+    if dum1 < dum2:  # If dum1 < dum2, then the index of dum2 is dum2 - 1
         edit_m3.RemoveAtom(dum2 - 1)
     else:
         edit_m3.RemoveAtom(dum2)
@@ -95,7 +98,7 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
     elif length > 1:
 
         if length > 2:
-            for i in range(1, length - 2):      # Fist connect middle n-2 units
+            for i in range(1, length - 2):      # First connect the middle n-2 units
                 combo = Chem.CombineMols(inti_mol, monomer_mol)
                 edcombo = Chem.EditableMol(combo)
                 edcombo.AddBond(
@@ -145,8 +148,9 @@ def gen_smiles_nocap(dum1, dum2, atom1, atom2, smiles_each, length, ):
 
 def _kabsch_rotation(P, Q):
     """
-    利用 Kabsch 算法计算最佳旋转矩阵，使得 P 旋转后与 Q 尽可能匹配。
-    P, Q 均为 (n, 3) 数组。
+    Compute the optimal rotation matrix with the Kabsch algorithm so that rotating
+    ``P`` aligns it with ``Q`` as closely as possible. Both ``P`` and ``Q`` are
+    expected to be ``(n, 3)`` arrays.
     """
     C = np.dot(P.T, Q)
     V, S, Wt = np.linalg.svd(C)
@@ -157,7 +161,8 @@ def _kabsch_rotation(P, Q):
 
 def rotate_mol_around_axis(mol, axis, anchor, angle_rad):
     """
-    将整个分子绕给定单位向量 axis，以 anchor 为中心旋转 angle_rad 弧度。
+    Rotate the entire molecule around ``axis`` (a unit vector) by ``angle_rad``
+    radians, using ``anchor`` as the rotation center.
     """
     conf = mol.GetConformer()
     rot = R.from_rotvec(axis * angle_rad)
@@ -383,10 +388,10 @@ def Init_info_Cap(unit_name, smiles_each_ori):
 
 
 def read_energy_from_xtb(filename):
-    """从xtb的输出文件中读取能量值"""
+    """Read the energy value from an xTB output file."""
     with open(filename, 'r') as f:
         lines = f.readlines()
-    # 假设能量在输出文件的第二行
+    # Assume the energy is stored on the second line of the output file
     energy_line = lines[1]
     energy = float(energy_line.split()[1])
     return energy
@@ -453,11 +458,13 @@ def extract_volume(partition, module_soft, edr_file, output_file='volume.xvg', o
     else:
         command = f"module load {module_soft} && echo {option_id} | gmx_mpi energy -f {edr_file} -o {output_file}"
 
-    # 使用subprocess.run执行命令，由于这里使用bash -c，所以stdin的传递方式需要调整
+    # Execute the command with subprocess.run; using ``bash -c`` requires adjusting
+    # how stdin is passed.
     try:
-        # Capture_output=True来捕获输出，而不是使用PIPE
+        # Use ``capture_output=True`` to collect stdout instead of PIPE
         process = subprocess.run(['bash', '-c', command], capture_output=True, text=True, check=True)
-        # 检查输出，无需单独检查returncode，因为check=True时如果命令失败会抛出异常
+        # ``check=True`` raises an exception when the command fails, so no explicit
+        # return-code check is required.
         print(f"Output: {process.stdout}")
         return process.stdout
     except subprocess.CalledProcessError as e:
@@ -495,22 +502,22 @@ def extract_structure(partition, module_soft, tpr_file, xtc_file, save_gro_file,
         command = (f"module load {module_soft} && echo 0 | gmx_mpi trjconv -s {tpr_file} -f {xtc_file} -o {save_gro_file} "
                    f"-dump {frame_time} -quiet")
 
-    # 使用 subprocess.run 执行命令，以更安全地处理外部命令
+    # Use subprocess.run for safer external command execution
     try:
-        # 使用 subprocess.run，避免使用shell=True以增强安全性
+        # Avoid ``shell=True`` and rely on subprocess.run for better security
         process = subprocess.run(['bash', '-c', command], capture_output=True, text=True, check=True)
         print(f"Output: {process.stdout}")
         return process.stdout
     except subprocess.CalledProcessError as e:
-        # 错误处理：打印错误输出并返回None
+        # Error handling: print stderr and return ``None``
         print(f"Error executing command: {e.stderr}")
         return None
 
 
-# RDKit mol 转换为 NetworkX 图
+# Convert an RDKit ``mol`` object into a NetworkX graph
 def mol_to_networkx_rdkit(mol, include_h=True):
     """
-    将 RDKit 的 mol 对象转换为 networkx 图
+    Convert an RDKit ``mol`` object into a NetworkX graph.
     """
     G = nx.Graph()
     for atom in mol.GetAtoms():
@@ -522,29 +529,29 @@ def mol_to_networkx_rdkit(mol, include_h=True):
     return G
 
 
-# Open Babel mol 转换为 NetworkX 图
+# Convert an Open Babel ``mol`` object into a NetworkX graph
 def mol_to_networkx_ob(mol, include_h=True):
     """
-    将 Open Babel 的 mol 对象转换为 networkx 图
+    Convert an Open Babel ``mol`` object into a NetworkX graph.
     """
     G = nx.Graph()
 
-    # 添加原子节点，调整索引从1开始到0开始
+    # Add atom nodes and change indices from one-based to zero-based
     for atom in ob.OBMolAtomIter(mol):
-        atomic_num = atom.GetAtomicNum()  # 获取原子序数
+        atomic_num = atom.GetAtomicNum()  # Retrieve the atomic number
         if 1 <= atomic_num <= len(const.PERIODIC_TABLE):
             element = const.PERIODIC_TABLE[atomic_num - 1]
         else:
             element = 'Unknown'
         if not include_h and element == 'H':
             continue
-        # 添加节点，索引减1
+        # Add the node with the adjusted index
         G.add_node(atom.GetIdx() - 1, element=element)
 
-    # 添加化学键边，调整原子索引从1开始到0开始
+    # Add bond edges with indices converted from one-based to zero-based
     for bond in ob.OBMolBondIter(mol):
         bond_order = bond.GetBondOrder()
-        # 统一键类型
+        # Normalize the bond type representation
         if bond_order == 1:
             bond_type = 'SINGLE'
         elif bond_order == 2:
@@ -552,8 +559,8 @@ def mol_to_networkx_ob(mol, include_h=True):
         elif bond_order == 3:
             bond_type = 'TRIPLE'
         else:
-            bond_type = 'SINGLE'  # 默认处理
-        # Open Babel 的 GetBeginAtomIdx() 和 GetEndAtomIdx() 从1开始，需要减1
+            bond_type = 'SINGLE'  # Default handling
+        # ``GetBeginAtomIdx`` and ``GetEndAtomIdx`` are one-based in Open Babel
         G.add_edge(bond.GetBeginAtomIdx() - 1, bond.GetEndAtomIdx() - 1, bond_type=str(bond_type))
 
     return G
@@ -561,30 +568,30 @@ def mol_to_networkx_ob(mol, include_h=True):
 
 def get_atom_mapping(mol1, mol2, include_h=True):
     """
-    获取两个 mol 对象的原子对应关系
-    返回 mapping: dict 从 mol1 节点索引到 mol2 节点索引
+    Retrieve the atom correspondence between two ``mol`` objects.
+    Returns a mapping dict from ``mol1`` node indices to ``mol2`` node indices.
     """
-    # 将 mol1 和 mol2 分别转换为 NetworkX 图
-    G1 = mol_to_networkx_rdkit(mol1, include_h=include_h)  # 对 RDKit mol 对象生成 NetworkX 图
-    G2 = mol_to_networkx_ob(mol2, include_h=include_h)  # 对 Open Babel mol 对象生成 NetworkX 图
+    # Convert ``mol1`` and ``mol2`` to NetworkX graphs
+    G1 = mol_to_networkx_rdkit(mol1, include_h=include_h)  # NetworkX graph from RDKit mol
+    G2 = mol_to_networkx_ob(mol2, include_h=include_h)  # NetworkX graph from Open Babel mol
 
-    # 打印图的信息（调试输出）
+    # Debug output for graph information
     print(f"G1 nodes: {G1.nodes(data=True)}")
     print(f"G2 nodes: {G2.nodes(data=True)}")
     print(f"G1 edges: {G1.edges(data=True)}")
     print(f"G2 edges: {G2.edges(data=True)}")
 
-    # 定义节点匹配函数，基于原子元素
+    # Define node matching based on atomic elements
     def node_match(n1, n2):
         return (n1['element'] == n2['element']) and (n1.get('charge', 0) == n2.get('charge', 0))
 
     def bond_match(b1, b2):
         return b1['bond_type'] == b2['bond_type']
 
-    # 创建同构匹配对象
+    # Create the graph isomorphism matcher
     gm = isomorphism.GraphMatcher(G1, G2, node_match=node_match, edge_match=bond_match)
     if gm.is_isomorphic():
-        # 返回一个可能的匹配字典，从 G1 节点到 G2 节点
+        # Return a possible mapping dict from G1 nodes to G2 nodes
         mapping = gm.mapping
         return mapping
     else:
@@ -592,23 +599,23 @@ def get_atom_mapping(mol1, mol2, include_h=True):
 
 def reorder_atoms(mol_3D, mapping):
     """
-    根据 mapping（mol1_idx -> mol2_idx），
-    让 mol1 的原子顺序与 mol2 相同。
+    Reorder ``mol_3D`` so that its atom order matches the mapping from
+    ``mol1_idx`` to ``mol2_idx``.
     """
-    # 创建反向映射：mol2_idx -> mol1_idx
+    # Create the reverse mapping: mol2_idx -> mol1_idx
     reverse_mapping = {v: k for k, v in mapping.items()}
 
-    # 确保 mol2 的原子数量不超过 mol1
+    # Ensure mol2 does not contain more atoms than mol1
     num_atoms = mol_3D.GetNumAtoms()
     new_order = []
     for i in range(num_atoms):
         if i in reverse_mapping:
             new_order.append(reverse_mapping[i])
         else:
-            # 如果某个 mol2 的原子在 mol1 中没有对应，则保留原顺序
+            # If mol2 has no corresponding atom, keep the original order
             new_order.append(i)
 
-    # 调整 mol_3D 中的原子顺序
+    # Reorder atoms in ``mol_3D``
     reordered_mol_3D = Chem.RenumberAtoms(mol_3D, new_order)
 
     return reordered_mol_3D

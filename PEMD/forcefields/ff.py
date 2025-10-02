@@ -161,9 +161,7 @@ def gen_ff_from_data(work_dir, compound_name, corr_factor, target_sum_chg):
 
 
 def assign_partial_charges(mol_poly, sub_mol, matches):
-    """
-    将sub_mol的部分电荷赋值到mol_poly中的对应原子
-    """
+    """Assign partial charges from ``sub_mol`` to the corresponding atoms in ``mol_poly``."""
     for match in matches:
         for sub_atom_idx, poly_atom_idx in enumerate(match):
             sub_atom = sub_mol.GetAtomWithIdx(sub_atom_idx)
@@ -176,14 +174,14 @@ def mol_to_charge_df(mol):
     for atom in mol.GetAtoms():
         atom_idx = atom.GetIdx()
         atom_symbol = atom.GetSymbol()
-        # 检查原子是否具有 'partial_charge' 属性
+        # Check whether the atom has a ``partial_charge`` property
         if atom.HasProp('partial_charge'):
             charge = float(atom.GetProp('partial_charge'))
         else:
-            charge = None  # 或者设置为 0.0 或其他默认值
+            charge = None  # Or fall back to 0.0 or another default
         data.append({'atom_index': atom_idx, 'atom': atom_symbol, 'charge': charge})
 
-    # 创建 DataFrame 并按原子索引排序
+    # Build a DataFrame sorted by atom index
     df = pd.DataFrame(data)
     df = df.sort_values('atom_index').reset_index(drop=True)
 
@@ -215,7 +213,7 @@ def apply_chg_to_poly(
     Chem.SanitizeMol(mol_long)
     mol_poly = Chem.AddHs(mol_long)
 
-    # 将left_mol匹配到mol_poly中
+    # Match ``left_mol`` within ``mol_poly``
     left_matches = []
     rw_mol = Chem.RWMol(mol_poly)
     used_atoms = set()
@@ -225,9 +223,9 @@ def apply_chg_to_poly(
         left_match = min(all_left, key=lambda m: sum(m)/len(m))
         left_matches.append(left_match)
         used_atoms.update(left_match)
-    # print(f"left_mol 的匹配位置: {left_matches}")
+    # print(f"Matches for left_mol: {left_matches}")
 
-    # 将right_mol匹配到mol_poly中
+    # Match ``right_mol`` within ``mol_poly``
     right_matches = []
     rw_mol = Chem.RWMol(mol_poly)
     all_right = list(rw_mol.GetSubstructMatches(right_mol, uniquify=True, useChirality=False))
@@ -236,44 +234,44 @@ def apply_chg_to_poly(
         if not any(atom_idx in used_atoms for atom_idx in right_match):
             right_matches.append(right_match)
             used_atoms.update(right_match)
-    # print(f"right_mol 的匹配位置: {right_matches}")
+    # print(f"Matches for right_mol: {right_matches}")
 
-    # 赋值部分电荷给mol_poly中的对应原子
+    # Assign partial charges for the matching atoms in ``mol_poly``
     assign_partial_charges(mol_poly, left_mol, left_matches)
     assign_partial_charges(mol_poly, right_mol, right_matches)
 
-    # 将 mid_mol 匹配到 mol_poly 中的重复单元并赋值电荷
+    # Match ``mid_mol`` to the repeating units in ``mol_poly`` and assign charges
     mid_matches = []
     for match in rw_mol.GetSubstructMatches(mid_mol, uniquify=True, useChirality=False):
         if any(atom_idx in used_atoms for atom_idx in match):
-            continue  # 跳过有重叠的匹配
+            continue  # Skip overlapping matches
         mid_matches.append(match)
-        used_atoms.update(match)  # 标记已使用的原子
-    # print(f"mid_mol 的匹配位置: {mid_matches}")
+        used_atoms.update(match)  # Mark atoms as used
+    # print(f"Matches for mid_mol: {mid_matches}")
 
-    # 赋值部分电荷给 mol_poly 中的 mid_mol 匹配位置
+    # Assign partial charges to the ``mid_mol`` matches
     assign_partial_charges(mol_poly, mid_mol, mid_matches)
 
-    # 提取电荷为 DataFrame
+    # Extract the updated charges into a DataFrame
     charge_update_df = mol_to_charge_df(mol_poly)
     # print(charge_update_df)
 
-    # charge neutralize and scale
+    # Charge neutralize and scale
     charge_update_df_cor = charge_neutralize_scale(charge_update_df, scale, charge, )
 
-    # update the itp file
+    # Update the itp file
     update_itp_file(MD_dir, itp_file, charge_update_df_cor)
 
 
 def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
-    # 1. 从多聚物 SMILES 生成分子并加氢
+    # 1. Generate the polymer molecule from SMILES and add hydrogens
     # mol_poly = Chem.Mol(mol_poly)
     # Chem.SanitizeMol(mol_poly)
     # mol_poly = Chem.AddHs(mol_poly)
     # print("mol_poly SMILES:", Chem.MolToSmiles(mol_poly))
     # Chem.MolToPDBFile(mol_poly, "test.pdb")
 
-    # 2. 将 RESP 电荷写入到 mol_poly 中
+    # 2. Write RESP charges into ``mol_poly``
     resp_chg_df = resp_chg_df.copy()
     max_idx = resp_chg_df['position'].max()
     if max_idx == mol_poly.GetNumAtoms():
@@ -286,9 +284,9 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
             # Skip invalid index
             continue
         atom = mol_poly.GetAtomWithIdx(pos)
-        atom.SetDoubleProp('partial_charge', charge)  # 使用 SetDoubleProp 存储电荷
+        atom.SetDoubleProp('partial_charge', charge)  # Store the charge via SetDoubleProp
         # if not atom.HasProp('partial_charge'):
-        #     print(f"Atom {pos} 没有属性！")
+        #     print(f"Atom {pos} has no attribute!")
         # else:
         #     print(f"Atom {pos} partial_charge = {atom.GetDoubleProp('partial_charge')}")
 
@@ -298,26 +296,26 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     ]
     mol_poly.SetProp("partial_charges", ','.join(map(str, partial_charges)))
 
-    # ==========  生成正向 mol_unit_fwd  ==========
+    # ==========  Generate forward mol_unit_fwd  ==========
     mol_unit_fwd = Chem.MolFromSmiles(repeating_unit)
     mol_unit_fwd = Chem.AddHs(mol_unit_fwd)
-    # 移除星号原子
+    # Remove star atoms
     edit_fwd = Chem.EditableMol(mol_unit_fwd)
     for atom in reversed(list(mol_unit_fwd.GetAtoms())):
         if atom.GetSymbol() == '*':
             edit_fwd.RemoveAtom(atom.GetIdx())
     mol_unit_fwd = edit_fwd.GetMol()
 
-    # ==========  生成逆向 mol_unit_rev  ==========
-    # 在 mol_unit_fwd 的基础上进行原子重排
+    # ==========  Generate reverse mol_unit_rev  ==========
+    # Rearrange atoms based on mol_unit_fwd
     num_atoms_fwd = mol_unit_fwd.GetNumAtoms()
     new_order = list(range(num_atoms_fwd - 1, -1, -1))
     mol_unit_rev = Chem.RenumberAtoms(mol_unit_fwd, new_order)
 
-    # ==========  对 mol_poly 分别进行子结构匹配  ==========
+    # ==========  Perform substructure matching on mol_poly  ==========
     rw_mol = Chem.RWMol(mol_poly)
 
-    # 正向匹配
+    # Forward matches
     fwd_used_atoms = set()
     fwd_matches = []
     for match in rw_mol.GetSubstructMatches(mol_unit_fwd, uniquify=True, useChirality=False):
@@ -326,7 +324,7 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
         fwd_matches.append(match)
         fwd_used_atoms.update(match)
 
-    # 逆向匹配
+    # Reverse matches
     rev_used_atoms = set()
     rev_matches = []
     for match in rw_mol.GetSubstructMatches(mol_unit_rev, uniquify=True, useChirality=False):
@@ -338,8 +336,8 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     # print("fwd_matches:", fwd_matches)
     # print("rev_matches:", rev_matches)
 
-    # ==========  选择最佳匹配  ==========
-    # 这里以“哪个匹配数更多”作为衡量标准，实际可根据需要调整
+    # ==========  Select the best match  ==========
+    # Use the match with the highest atom count as the metric; adjust as needed
     if len(fwd_matches) >= len(rev_matches):
         best_matches = fwd_matches
         best_mol_unit = mol_unit_fwd
@@ -351,13 +349,13 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
 
     # print(f"Best direction: {best_direction}, matches found: {len(best_matches)}")
 
-    # 如果没有匹配到，就直接返回
+    # Return immediately if no matches are found
     if not best_matches:
         print("No matches found in either direction!")
         return None, None, None
 
-    # ==========  后续操作就基于 best_matches 和 best_mol_unit  ==========
-    # 下面基本沿用你原本的逻辑，但要注意把变量替换为 “最佳匹配” 相关的
+    # ==========  Subsequent operations rely on best_matches and best_mol_unit  ==========
+    # The following logic mirrors the original but uses the selected best match variables
     matched_atoms = set()
     for match in best_matches:
         matched_atoms.update(match)
@@ -367,16 +365,16 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
         if atom.GetIdx() not in matched_atoms
     ]
 
-    # 初始化端原子列表
+    # Initialize the terminal atom list
     left_end_atoms = []
     right_end_atoms = []
 
-    # 确保 best_matches 不为空
+    # Ensure best_matches is not empty
     if best_matches:
         left_neighbor = set(best_matches[0])
         right_neighbor = set(best_matches[-1])
 
-        # 使用列表副本迭代，以避免修改原列表
+        # Iterate over a copy to avoid mutating the original list
         for idx in no_matched_atoms[:]:
             atom = mol_poly.GetAtomWithIdx(idx)
             neighbors = atom.GetNeighbors()
@@ -395,7 +393,7 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     # print(f"Left end atoms: {left_end_atoms}")
     # print(f"Right end atoms: {right_end_atoms}")
 
-    # 组装左右端原子
+    # Assemble the left and right terminal atoms
     left_atoms = left_end_atoms + [
         atom_idx for match in best_matches[:end_repeating] for atom_idx in match
     ]
@@ -404,36 +402,36 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     ]
     # print("left_end_atoms:", left_end_atoms, "right_end_atoms:", right_end_atoms)
 
-    # 这里假设你有一个函数 `gen_molfromindex(mol, index_list)` 用于通过原子索引提取子分子
+    # Assume a helper ``gen_molfromindex(mol, index_list)`` extracts submolecules by atom indices
     left_mol = gen_molfromindex(mol_poly, left_atoms)
     right_mol = gen_molfromindex(mol_poly, right_atoms)
 
-    # 打印并获取部分电荷，赋值给 left_mol / right_mol
+    # Print and fetch partial charges, assigning them to left_mol / right_mol
     for i, atom_idx in enumerate(left_atoms):
         charge = mol_poly.GetAtomWithIdx(atom_idx).GetDoubleProp('partial_charge')
         if i < left_mol.GetNumAtoms():
             left_mol.GetAtomWithIdx(i).SetDoubleProp('partial_charge', charge)
-        # print(f"left位置 {atom_idx} 的平均电荷: {charge}")
+        # print(f"Average charge at left position {atom_idx}: {charge}")
 
     for i, atom_idx in enumerate(right_atoms):
         charge = mol_poly.GetAtomWithIdx(atom_idx).GetDoubleProp('partial_charge')
         if i < right_mol.GetNumAtoms():
             right_mol.GetAtomWithIdx(i).SetDoubleProp('partial_charge', charge)
-        # print(f"right位置 {atom_idx} 的平均电荷: {charge}")
+        # print(f"Average charge at right position {atom_idx}: {charge}")
 
-    # 假设每个 match 在中间（best_matches 的中段）代表一个重复单元
+    # Assume each match in the middle of best_matches represents a repeating unit
     mid_atoms = best_matches[1:-1]
     num_repeats = len(mid_atoms)
-    # print(f"中间重复单元数量: {num_repeats}")
+    # print(f"Number of repeating units in the middle: {num_repeats}")
 
-    # 确定每个重复单元中的原子数量
+    # Determine the atom count per repeating unit
     if num_repeats > 0:
         atoms_per_unit = len(mid_atoms[0])
-        # print(f"每个重复单元的原子数量: {atoms_per_unit}")
+        # print(f"Atoms per repeating unit: {atoms_per_unit}")
     else:
         atoms_per_unit = 0
 
-    # 计算中间重复单元各位置的平均电荷
+    # Compute the average charge for each position within the middle units
     charge_dict = defaultdict(list)
     for repeat_idx, match in enumerate(mid_atoms):
         for pos, atom_idx in enumerate(match):
@@ -444,15 +442,15 @@ def apply_chg2mol(resp_chg_df, mol_poly, repeating_unit, end_repeating):
     for pos, charges in charge_dict.items():
         avg_charge = sum(charges) / len(charges)
         avg_charges[pos] = avg_charge
-        # print(f"位置 {pos} 的平均电荷: {avg_charge}")
+        # print(f"Average charge at position {pos}: {avg_charge}")
 
-    # 选取第一个重复单元作为模板
+    # Use the first repeating unit as the template
     if num_repeats > 0:
         template_match = mid_atoms[0]
         template_atoms = list(template_match)
         mid_mol = gen_molfromindex(mol_poly, template_atoms)
 
-        # 重新分配部分电荷到 mid_mol
+        # Reassign partial charges to mid_mol
         for pos, atom in enumerate(mid_mol.GetAtoms()):
             atom.SetDoubleProp('partial_charge', avg_charges[pos])
     else:
@@ -486,8 +484,8 @@ def update_itp_file(MD_dir, itp_file, charge_update_df_cor):
     with open(itp_filepath, 'r') as file:
         lines = file.readlines()
 
-    # 找到[ atoms ]部分的开始和结束
-    in_section = False  # 标记是否处于指定部分
+    # Locate the start and end of the [ atoms ] section
+    in_section = False  # Flag whether we are inside the section
     start_index = end_index = 0
     for i, line in enumerate(lines):
         if line.strip().startswith("[") and 'atoms' in line.split():
@@ -495,19 +493,19 @@ def update_itp_file(MD_dir, itp_file, charge_update_df_cor):
             continue
         if in_section:
             if line.strip().startswith(";"):
-                start_index = i + 1  # 跳过部分标题和列标题
+                start_index = i + 1  # Skip the section header and column names
                 continue
             if line.strip() == "":
                 end_index = i
                 break
 
     # update the charge value in the [ atoms ] section
-    charge_index = 0  # 用于跟踪DataFrame中当前的电荷索引
+    charge_index = 0  # Track the current index within the charge DataFrame
     for i in range(start_index, end_index):
         parts = lines[i].split()
         if charge_index < len(charge_update_df_cor):
             new_charge = charge_update_df_cor.iloc[charge_index]['charge']
-            parts[6] = f'{new_charge:.8f}'  # 更新电荷值，假设电荷值在第7个字段
+            parts[6] = f'{new_charge:.8f}'  # Update the charge value (assumed in column 7)
             lines[i] = ' '.join(parts) + '\n'
             charge_index += 1
 
@@ -518,19 +516,19 @@ def update_itp_file(MD_dir, itp_file, charge_update_df_cor):
 
 
 def ave_end_chg(df, N):
-    # 处理端部原子的电荷平均值
+    # Process average charges for terminal atoms
     top_N_df = df.head(N)
     tail_N_df = df.tail(N).iloc[::-1].reset_index(drop=True)
     average_charge = (top_N_df['charge'].reset_index(drop=True) + tail_N_df['charge']) / 2
     average_df = pd.DataFrame({
-        'atom': top_N_df['atom'].reset_index(drop=True),  # 保持原子名称
+        'atom': top_N_df['atom'].reset_index(drop=True),  # Preserve atom names
         'charge': average_charge
     })
     return average_df
 
 
 def ave_mid_chg(df, atom_count):
-    # 处理中间原子的电荷平均值
+    # Process average charges for interior atoms
     average_charges = []
     for i in range(atom_count):
         same_atoms = df[df.index % atom_count == i]
@@ -542,7 +540,7 @@ def ave_mid_chg(df, atom_count):
 def smiles_to_df(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        raise ValueError("无效的SMILES字符串")
+        raise ValueError("Invalid SMILES string")
 
     mol = Chem.AddHs(mol)
     atoms = [atom.GetSymbol() for atom in mol.GetAtoms()]
@@ -554,7 +552,7 @@ def smiles_to_df(smiles):
 def gen_molfromindex(mol, idx):
     editable_mol = Chem.EditableMol(Chem.Mol())
 
-    atom_map = {}  # 原始索引到新索引的映射
+    atom_map = {}  # Map from original to new indices
     for old_idx in idx:
         atom = mol.GetAtomWithIdx(old_idx)
         new_idx = editable_mol.AddAtom(atom)
@@ -598,18 +596,18 @@ def scale_chg_itp(work_dir, filename, corr_factor, target_sum_chg):
 
     with open(filename, 'r') as file:
         for line in file:
-            if line.strip().startswith("[") and 'atoms' in line.split():  # 找到原子信息开始的地方
+            if line.strip().startswith("[") and 'atoms' in line.split():  # Locate the start of the atom data
                 start_reading = True
                 continue
             if start_reading:
-                if line.strip() == "":  # 遇到空行，停止读取
+                if line.strip() == "":  # Stop when encountering a blank line
                     break
-                if line.strip().startswith(";"):  # 忽略注释行
+                if line.strip().startswith(";"):  # Skip comment lines
                     continue
                 parts = line.split()
-                if len(parts) >= 7:  # 确保行包含足够的数据
-                    atom_id = parts[4]  # 假设原子类型在第5列
-                    charge = float(parts[6])  # 假设电荷在第7列
+                if len(parts) >= 7:  # Ensure the row has sufficient data
+                    atom_id = parts[4]  # Assume atom type is in column 5
+                    charge = float(parts[6])  # Assume charge is in column 7
                     atoms.append([atom_id, charge])
 
     # create DataFrame
@@ -621,8 +619,8 @@ def scale_chg_itp(work_dir, filename, corr_factor, target_sum_chg):
     with open(filename, 'r') as file:
         lines = file.readlines()
 
-    # 找到[ atoms ]部分的开始和结束
-    in_section = False  # 标记是否处于指定部分
+    # Locate the start and end of the [ atoms ] section
+    in_section = False  # Flag whether we are inside the section
     start_index = end_index = 0
     for i, line in enumerate(lines):
         if line.strip().startswith("[") and 'atoms' in line.split():
@@ -630,19 +628,19 @@ def scale_chg_itp(work_dir, filename, corr_factor, target_sum_chg):
             continue
         if in_section:
             if line.strip().startswith(";"):
-                start_index = i + 1  # 跳过部分标题和列标题
+                start_index = i + 1  # Skip the section header and column names
                 continue
             if line.strip() == "":
                 end_index = i
                 break
 
     # update the charge value in the [ atoms ] section
-    charge_index = 0  # 用于跟踪DataFrame中当前的电荷索引
+    charge_index = 0  # Track the current index within the charge DataFrame
     for i in range(start_index, end_index):
         parts = lines[i].split()
         if charge_index < len(charge_update_df_cor):
             new_charge = charge_update_df_cor.iloc[charge_index]['charge']
-            parts[6] = f'{new_charge:.8f}'  # 更新电荷值，假设电荷值在第7个字段
+            parts[6] = f'{new_charge:.8f}'  # Update the charge value (assumed in column 7)
             lines[i] = ' '.join(parts) + '\n'
             charge_index += 1
 

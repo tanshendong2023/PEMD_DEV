@@ -95,15 +95,15 @@ def plot_rdf_coordination(
     rdf,
     coord_numbers,
 ):
-    # 字体和配色
+    # Font sizes and color palette
     font_list = {"label": 18, "ticket": 18, "legend": 16}
     color_list = ["#DF543F", "#2286A9", "#FBBF7C", "#3C3846"]
 
-    # 创建画布
+    # Create the plotting canvas
     fig, ax1 = plt.subplots()
     fig.set_size_inches(5.5, 4)
 
-    # 绘制 RDF 曲线
+    # Plot the RDF curve
     ax1.plot(
         bins,
         rdf,
@@ -121,7 +121,7 @@ def plot_rdf_coordination(
         labelsize=font_list["ticket"]
     )
 
-    # 创建第二个 y 轴，绘制配位数
+    # Add a second y-axis for the coordination number
     ax2 = ax1.twinx()
     ax2.plot(
         bins,
@@ -139,7 +139,7 @@ def plot_rdf_coordination(
         labelsize=font_list["ticket"]
     )
 
-    # 坐标轴范围 & 网格
+    # Axis range and grid styling
     ax1.set_xlim(0, 10)
     ax1.grid(True, linestyle='--')
 
@@ -222,16 +222,16 @@ def num_of_neighbor(
 
 
 def write_out(center_pos, neighbors, path):
-    # 计算相对坐标，处理周期性边界条件
+    # Compute relative coordinates while accounting for periodic boundary conditions
     box = neighbors.dimensions
     half_box = box[:3] / 2.0
     new_positions = neighbors.positions - center_pos
-    # 应用最小镜像原理
+    # Apply the minimum image convention
     new_positions = np.where(new_positions > half_box, new_positions - box[:3], new_positions)
     new_positions = np.where(new_positions < -half_box, new_positions + box[:3], new_positions)
     neighbors.positions = new_positions
 
-    # 写入 PDB 文件
+    # Write the PDB file
     neighbors.write(path)
 
 
@@ -271,32 +271,32 @@ def pdb2mol(work_dir, pdb_filename):
 
     pdb_filepath = os.path.join(work_dir, pdb_filename)
 
-    # 列表用于存储原子标签、坐标和残基名称
+    # Collect atom labels, coordinates, and residue names
     atoms_data = []
 
-    # 读取 PDB 文件
+    # Read the PDB file
     with open(pdb_filepath, 'r') as f:
         for line in f:
             if line.startswith(('ATOM', 'HETATM')):
-                # PDB 格式列：
-                # 列 13-16: 原子名称
-                # 列 17: 替代位置指示符
-                # 列 18-20: 残基名称
-                # 列 22: 链标识符
-                # 列 23-26: 残基序列号
-                # 列 31-38: X 坐标
-                # 列 39-46: Y 坐标
-                # 列 47-54: Z 坐标
+                # Relevant PDB columns:
+                #   columns 13-16: atom name
+                #   column 17: alternate location indicator
+                #   columns 18-20: residue name
+                #   column 22: chain identifier
+                #   columns 23-26: residue sequence number
+                #   columns 31-38: X coordinate
+                #   columns 39-46: Y coordinate
+                #   columns 47-54: Z coordinate
                 atom_name = line[12:17].strip()
                 res_name = line[17:20].strip()
                 x = float(line[30:38].strip())
                 y = float(line[38:46].strip())
                 z = float(line[46:54].strip())
 
-                # 从原子名称中推断元素符号，如果元素符号列为空
+                # Infer the element symbol from the atom name if the element field is blank
                 element = line[76:78].strip()
                 if not element:
-                    # 从原子名称中提取首字母作为元素符号
+                    # Use the first alphabetical character(s) of the atom name as the element symbol
                     element = ''.join([char for char in atom_name if char.isalpha()])[0]
 
                 element = label_to_element.get(element, element)
@@ -305,40 +305,40 @@ def pdb2mol(work_dir, pdb_filename):
 
     num_atoms = len(atoms_data)
     if num_atoms == 0:
-        print("PDB 文件中未找到原子信息。")
+        print("No atom information found in the PDB file.")
         return None
 
-    # 创建一个新的 RDKit 分子
+    # Create a new RDKit molecule
     mol = Chem.RWMol()
 
-    # 添加原子到分子，并存储 resname 作为原子属性
+    # Add atoms to the molecule and store residue names as atom properties
     for atom_info in atoms_data:
         label, res_name, atom_name, coords = atom_info
         atomic_num = Chem.GetPeriodicTable().GetAtomicNumber(label)
         if atomic_num == 0:
-            print(f"无法识别的元素符号 '{label}'，跳过该原子。")
+            print(f"Unrecognized element symbol '{label}', skipping this atom.")
             continue
         atom = Chem.Atom(atomic_num)
-        # 设置原子属性 'resname' 为残基名称
+        # Set the 'resname' atom property
         atom.SetProp("resname", res_name)
         atom.SetProp("name", atom_name)
         mol.AddAtom(atom)
 
-    # 生成 3D 构象
+    # Generate a 3D conformer
     conf = Chem.Conformer(num_atoms)
     for i, atom_info in enumerate(atoms_data):
         _, _, _, (x, y, z) = atom_info
         conf.SetAtomPosition(i, Chem.rdGeometry.Point3D(x, y, z))
     mol.AddConformer(conf)
 
-    # 添加键，基于距离和共价半径
+    # Add bonds based on interatomic distances and covalent radii
     tolerance = 0.4  # Å
     pt = Chem.GetPeriodicTable()
     for i in range(num_atoms):
         atom_i = mol.GetAtomWithIdx(i)
         for j in range(i + 1, num_atoms):
             atom_j = mol.GetAtomWithIdx(j)
-            # 计算原子之间的距离
+            # Calculate the distance between atoms
             pos_i = np.array([conf.GetAtomPosition(i).x,
                               conf.GetAtomPosition(i).y,
                               conf.GetAtomPosition(i).z])
@@ -346,24 +346,24 @@ def pdb2mol(work_dir, pdb_filename):
                               conf.GetAtomPosition(j).y,
                               conf.GetAtomPosition(j).z])
             distance = np.linalg.norm(pos_i - pos_j)
-            # 获取原子的共价半径
+            # Retrieve the covalent radii
             radius_i = pt.GetRcovalent(atom_i.GetSymbol())
             radius_j = pt.GetRcovalent(atom_j.GetSymbol())
             if radius_i == 0 or radius_j == 0:
-                continue  # 如果半径不可用，则跳过
-            # 检查距离是否在共价半径之和加上容差范围内
+                continue  # Skip if a radius is unavailable
+            # Check whether the distance falls within the sum of radii plus tolerance
             if distance <= (radius_i + radius_j + tolerance):
                 try:
                     mol.AddBond(i, j, order=Chem.rdchem.BondType.SINGLE)
                 except Exception as e:
-                    print(f"添加键失败：{e}")
+                    print(f"Failed to add bond: {e}")
 
-    # 转换为 Mol 对象并进行净化
+    # Convert to an RDKit ``Mol`` and sanitize the result
     mol = mol.GetMol()
     try:
         Chem.SanitizeMol(mol)
     except Chem.rdchem.KekulizeException as e:
-        print(f"分子净化失败：{e}")
+        print(f"Molecule sanitization failed: {e}")
         return None
 
     return mol
@@ -371,7 +371,7 @@ def pdb2mol(work_dir, pdb_filename):
 
 def parse_selection_string(selection_str):
 
-    # 使用正则表达式分割 'and'，并提取键值对
+    # Split on "and" with a regular expression and extract key-value pairs
     conditions = re.split(r'\s+and\s+', selection_str.strip(), flags=re.IGNORECASE)
     criteria = {}
     for condition in conditions:
@@ -380,15 +380,17 @@ def parse_selection_string(selection_str):
             key, value = match.groups()
             criteria[key.lower()] = value
         else:
-            raise ValueError(f"无法解析的选择条件: '{condition}'")
+            raise ValueError(f"Unable to parse selection condition: '{condition}'")
     return criteria
 
 
 def bfs_traverse(mol, start_idx, max_steps=None, ignore_H=False):
     """
-    从 start_idx 出发做广度优先遍历，返回访问到的原子索引集合。
-    - max_steps: 最大深度（None 表示不限制）
-    - ignore_H: 是否跳过氢原子
+    Perform a breadth-first traversal starting from ``start_idx`` and return the
+    set of visited atom indices.
+
+    - ``max_steps``: Maximum depth (``None`` means unlimited)
+    - ``ignore_H``: Whether to skip hydrogen atoms
     """
     visited = {start_idx}
     queue = deque([(start_idx, 0)])
@@ -409,8 +411,8 @@ def bfs_traverse(mol, start_idx, max_steps=None, ignore_H=False):
 
 def select_atoms_by_criteria(mol, criteria):
     """
-    根据给定的属性字典 criteria（如 {'atom_name': 'C1', 'resname': 'PEO'}）
-    从 mol 中选出所有满足的 Atom.
+    Return all atoms in ``mol`` that satisfy the provided ``criteria`` dictionary
+    (e.g., ``{'atom_name': 'C1', 'resname': 'PEO'}``).
     """
     return [
         atom for atom in mol.GetAtoms()
@@ -428,28 +430,28 @@ def get_cluster_index(
     length
 ):
 
-    # 将重复单元中的 '*' 替换为 '[H]'，并创建相应的 RDKit 分子
+    # Replace ``*`` with ``[H]`` in the repeating unit and build the RDKit molecule
     unit_smi_with_h1 = repeating_unit.replace('*', '[H]')
     unit_mol_with_h1 = Chem.MolFromSmiles(unit_smi_with_h1)
     unit_mol = Chem.RemoveHs(unit_mol_with_h1)
     num_unit = unit_mol.GetNumAtoms()
     max_steps = num_unit * (length - 1)
 
-    # 获取分子的构象
+    # Retrieve the molecular conformer
     conf = mol.GetConformer()
     center_criteria = parse_selection_string(center_atom_name)
     select_criteria = parse_selection_string(select_dict[poly_name])
 
-    # Step 1: 根据选择条件选择中心原子（假设只有一个）
+    # Step 1: Select the center atom based on the criteria (assuming a single match)
     center_atoms_list = select_atoms_by_criteria(mol, center_criteria)
     center_atom = center_atoms_list[0]
     n_idx = center_atom.GetIdx()
 
-    # 获取选定原子的列表和坐标，基于选择条件
+    # Gather the selected atoms and their coordinates using the criteria
     select_atoms_list = select_atoms_by_criteria(mol, select_criteria)
     select_positions = np.array([conf.GetAtomPosition(atom.GetIdx()) for atom in select_atoms_list])
 
-    # Step 3: 找到与中心原子最近的选定原子，并确认键连接
+    # Step 3: Find the selected atom closest to the center and confirm bonding
     n_pos = np.array([conf.GetAtomPosition(n_idx).x,
                       conf.GetAtomPosition(n_idx).y,
                       conf.GetAtomPosition(n_idx).z])
@@ -460,7 +462,7 @@ def get_cluster_index(
         min_dist_idx = np.argmin(distances)
         closest_select_atom = select_atoms_list[min_dist_idx]
 
-        # 获取与最近的选定原子相连的特定原子
+        # Identify the non-hydrogen neighbor bonded to the closest selected atom
         bonded_c = [nbr for nbr in closest_select_atom.GetNeighbors() if nbr.GetSymbol() != 'H']
         c_idx_list = [bonded_c[0].GetIdx()]
     else:
@@ -470,7 +472,7 @@ def get_cluster_index(
         idxs = np.where(mask)[0]
         c_idx_list = [select_atoms_list[i].GetIdx() for i in idxs]
 
-    # 6. BFS 限定步数找聚合物片段（忽略 H）
+    # 6. Use BFS with a depth limit to locate the polymer fragment (ignoring hydrogens)
     selected_atom_indices = set()
     for start_idx in c_idx_list:
         selected_atom_indices |= bfs_traverse(
@@ -481,7 +483,7 @@ def get_cluster_index(
         )
     selected_atom_indices = sorted(selected_atom_indices)
 
-    # 7. 找到其他原子索引
+    # 7. Gather other atom indices
     other_atom_indices = []
     for name, sel_str in select_dict.items():
         if name != poly_name:
@@ -520,7 +522,7 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
     main_smi = Chem.MolToSmiles(inti_mol3, canonical=False)
     mol_test = Chem.MolFromSmiles(main_smi)
 
-    # 一行把所有 * 原子邻居的索引收集到列表
+    # Collect the indices of all neighbors of ``*`` atoms in a single comprehension
     connected_idxs = [
         nbr.GetIdx()
         for atom in mol_test.GetAtoms() if atom.GetSymbol() == '*'
@@ -551,24 +553,24 @@ def find_poly_match_subindex(poly_name, repeating_unit, length, mol, selected_at
 def pick_most_central_match(matches, c_idx_list, selected_atom_idxs):
     best_match = None
     best_score = float("inf")
-    # 这里假设所有 match 长度都相同
+    # Assume all matches have the same length
     L = len(matches[0]) if matches else 0
     center = (L - 1) / 2
 
     for match in matches:
-        # 基本筛选：c_idx_list 中的每个元素都在 match 里，
-        # 且 match 里的每个 idx 都在 selected_atom_idxs 里
+        # Basic filtering: every element of ``c_idx_list`` must appear in the match
+        # and each index in the match must be present in ``selected_atom_idxs``
         if not all(c in match for c in c_idx_list):
             continue
         if not all(idx in selected_atom_idxs for idx in match):
             continue
 
-        # 因为 c_idx_list 这里只含一个元素 c
+        # ``c_idx_list`` currently contains a single element ``c``
         p_c = len(c_idx_list)//2
         c = c_idx_list[p_c]
         pos = match.index(c)
 
-        # 距离中心的“偏离度”
+        # Deviation from the center of the match
         score = abs(pos - center)
         if score < best_score:
             best_score = score
@@ -579,13 +581,13 @@ def pick_most_central_match(matches, c_idx_list, selected_atom_idxs):
 
 def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_indices, start_atom, end_atom, out_xyz_filename):
 
-    # 1. 先把 center_atom_idx 规范成列表
+    # 1. Normalize ``center_atom_idx`` to a list
     if isinstance(center_atom_idx, int):
         center_idxs = [center_atom_idx]
     else:
         center_idxs = list(center_atom_idx)
 
-    # 2. 如果 other_atom_indices 是 dict，就 flatten
+    # 2. Flatten ``other_atom_indices`` if it is a dict
     if isinstance(other_atom_indices, dict):
         other_idxs = []
         for lst in other_atom_indices.values():
@@ -614,11 +616,11 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
         new_idx = new_mol.AddAtom(new_atom)
         index_map[old_idx] = new_idx
 
-    # 创建一个反向索引映射（新分子索引到原始原子索引）
+    # Build a reverse index map (new molecule index -> original atom index)
     # reverse_index_map = {v: k for k, v in index_map.items()}
     reverse_index_map = {new_idx: old_idx for old_idx, new_idx in index_map.items()}
 
-    # 添加原子间的键（如果两个原子都在要提取的列表中）
+    # Add bonds between atoms when both are part of the extracted subset
     for bond in mol.GetBonds():
         begin = bond.GetBeginAtomIdx()
         end = bond.GetEndAtomIdx()
@@ -632,7 +634,7 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
     end_atom_new = index_map[end_atom_old]
     terminal_atoms = [start_atom_new, end_atom_new]
 
-    # 定义要添加的封端基团信息
+    # Define the capping fragments to add
     capping_info = []
     for terminal_idx in terminal_atoms:
         atom = new_mol.GetAtomWithIdx(terminal_idx)
@@ -642,11 +644,11 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
         else:
             capping_info.append({'type': 'CH3', 'atom_idx': terminal_idx})
 
-    # 定义键长（以 Å 为单位）
+    # Bond lengths in Ångström
     C_H_bond_length = 1.09
     C_C_bond_length = 1.50
 
-    # 获取原始分子的构象
+    # Retrieve the conformer of the original molecule
     orig_conf = mol.GetConformer()
     new_atom_positions = {}
 
@@ -654,11 +656,11 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
         terminal_idx = cap['atom_idx']
         terminal_atom = new_mol.GetAtomWithIdx(terminal_idx)
 
-        # 获取对应的原始分子中的原子索引
+        # Look up the corresponding atom index in the original molecule
         terminal_old_idx = reverse_index_map[terminal_idx]
         terminal_pos = np.array(orig_conf.GetAtomPosition(terminal_old_idx))
 
-        # 获取连接到端基原子的非氢原子，用于计算方向
+        # Identify non-hydrogen neighbors for orientation
         neighbor_indices = [nbr.GetIdx() for nbr in terminal_atom.GetNeighbors()
                             if nbr.GetAtomicNum() > 1 and nbr.GetIdx() != terminal_idx]
 
@@ -668,13 +670,13 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
             neighbor_pos = np.array(orig_conf.GetAtomPosition(neighbor_old_idx))
             bond_vec = terminal_pos - neighbor_pos
         else:
-            # 如果没有非氢原子邻居，使用默认方向
+            # Fall back to a default direction if no heavy neighbor exists
             bond_vec = np.array([0.0, 0.0, 1.0])
 
-        # 归一化方向向量
+        # Normalize the direction vector
         bond_vec = bond_vec / np.linalg.norm(bond_vec)
 
-        # 计算垂直于 bond_vec 的两个正交向量
+        # Compute two orthogonal vectors perpendicular to ``bond_vec``
         perp_vec1 = np.cross(bond_vec, np.array([1.0, 0.0, 0.0]))
         if np.linalg.norm(perp_vec1) < 1e-3:
             perp_vec1 = np.cross(bond_vec, np.array([0.0, 1.0, 0.0]))
@@ -703,32 +705,32 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
             mid_h_vec = (h1_vec + h2_vec) / 2
             norm_mid_h_vec = np.linalg.norm(mid_h_vec)
             if norm_mid_h_vec < 1e-6:
-                # 如果 mid_h_vec 过小，使用 perp_vec1
+                # Use ``perp_vec1`` if ``mid_h_vec`` is too small
                 mid_h_vec = perp_vec1
             else:
                 mid_h_vec /= norm_mid_h_vec
 
-            # 投影 mid_h_vec 到垂直于 bond_vec 的平面上
+            # Project ``mid_h_vec`` onto the plane perpendicular to ``bond_vec``
             proj_mid_h_vec = mid_h_vec - np.dot(mid_h_vec, bond_vec) * bond_vec
             norm_proj_mid_h_vec = np.linalg.norm(proj_mid_h_vec)
             if norm_proj_mid_h_vec < 1e-6:
-                # 如果投影后的向量太小，使用 perp_vec1
+                # Use ``perp_vec1`` if the projection is too small
                 proj_mid_h_vec = perp_vec1
             else:
                 proj_mid_h_vec /= norm_proj_mid_h_vec
 
-            # 计算新氢原子的方向，确保与 bond_vec 形成四面体角度
-            theta = np.deg2rad(360-109.5)  # 四面体键角
+            # Determine the direction for the new hydrogen to maintain a tetrahedral angle
+            theta = np.deg2rad(360-109.5)  # Tetrahedral bond angle
             direction = (
                 np.cos(theta) * (-bond_vec) +
                 np.sin(theta) * proj_mid_h_vec
             )
             direction /= np.linalg.norm(direction)
 
-            # 计算新氢原子的位置
+            # Compute the position of the new hydrogen atom
             H_pos = terminal_pos + direction * C_H_bond_length
 
-            # 添加新氢原子到分子中
+            # Add the new hydrogen atom to the molecule
             new_H = Chem.Atom(1)
             new_H_idx = new_mol.AddAtom(new_H)
             new_atom_positions[new_H_idx] = H_pos
@@ -761,12 +763,12 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
             new_atom_positions[new_C_idx] = C_pos
             new_mol.AddBond(terminal_idx, new_C_idx, Chem.BondType.SINGLE)
 
-            # 添加三个氢原子，排列为正四面体
-            # 计算新的键向量
+            # Add three hydrogens arranged in a tetrahedral geometry
+            # Recompute the bond vector for the new carbon
             bond_vec_new = C_pos - terminal_pos
             bond_vec_new = bond_vec_new / np.linalg.norm(bond_vec_new)
 
-            # 重新计算垂直于 bond_vec_new 的两个正交向量
+            # Recompute the two orthogonal vectors perpendicular to ``bond_vec_new``
             perp_vec1_new = np.cross(bond_vec_new, np.array([1.0, 0.0, 0.0]))
             if np.linalg.norm(perp_vec1_new) < 1e-3:
                 perp_vec1_new = np.cross(bond_vec_new, np.array([0.0, 1.0, 0.0]))
@@ -774,10 +776,10 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
             perp_vec2_new = np.cross(bond_vec_new, perp_vec1_new)
             perp_vec2_new = perp_vec2_new / np.linalg.norm(perp_vec2_new)
 
-            # 定义三个氢原子的角度（以度为单位）
+            # Define the azimuthal angles (degrees) for the three hydrogens
             angles = [0, 120, 240]
             for angle in angles:
-                theta = np.deg2rad(109.5)  # 四面体键角
+                theta = np.deg2rad(109.5)  # Tetrahedral bond angle
                 phi = np.deg2rad(angle)
                 direction = (
                         np.cos(theta) * (-bond_vec_new) +
@@ -789,23 +791,23 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
                 new_atom_positions[new_H_idx] = H_pos
                 new_mol.AddBond(new_C_idx, new_H_idx, Chem.BondType.SINGLE)
 
-    # 创建新的构象（Conformer）
+    # Create a new conformer
     num_atoms_new = new_mol.GetNumAtoms()
     conf = Chem.Conformer(num_atoms_new)
 
-    # 设置原始原子的坐标
+    # Populate coordinates for the original atoms
     for old_idx, new_idx in index_map.items():
         pos = orig_conf.GetAtomPosition(old_idx)
         conf.SetAtomPosition(new_idx, pos)
 
-    # 设置新添加的原子的坐标
+    # Populate coordinates for the newly added atoms
     for idx, pos in new_atom_positions.items():
         conf.SetAtomPosition(idx, Point3D(*pos))
 
-    # 将构象添加到分子中
+    # Attach the conformer to the molecule
     new_mol.AddConformer(conf)
 
-    # 更新属性缓存并进行分子规范化
+    # Update cached properties and optionally sanitize
     # new_mol.UpdatePropertyCache(strict=False)
     # Chem.SanitizeMol(new_mol)
 
@@ -816,7 +818,8 @@ def get_cluster_withcap(work_dir, mol, match_list, center_atom_idx, other_atom_i
 
 def rotate_vector_around_axis(v, axis, theta):
     """
-    使用Rodrigues旋转公式将向量v围绕单位向量axis旋转theta弧度。
+    Rotate vector ``v`` about the unit vector ``axis`` by ``theta`` radians using
+    the Rodrigues rotation formula.
     """
     axis = axis / np.linalg.norm(axis)
     v_parallel = np.dot(v, axis) * axis
@@ -838,7 +841,7 @@ def merge_xyz_files(xyz_dir: str,
         for idx, path in enumerate(xyz_paths, 1):
             with open(path, 'r') as fr:
                 lines = fr.readlines()
-                # 可选：覆盖注释行，写上帧编号
+                # Optionally overwrite the comment line with the frame index
                 lines[1] = f"Frame {idx}: {os.path.basename(path)}\n"
                 fw.writelines(lines)
 
@@ -943,7 +946,7 @@ def analyze_coordination_structure(
         ax.set_ylabel("Percentage (%)")
         ax.grid(axis="y", linestyle=":", alpha=0.35)
 
-        # 顶端标注
+        # Annotate the top of each bar
         for rect, v in zip(bars, plot_vals):
             ax.text(
                 rect.get_x() + rect.get_width() / 2.0,
@@ -1036,8 +1039,8 @@ def calc_population_parallel(run, run_start, run_end, select_cations, select_ani
 def plot_population_heatmap(avg_population):
 
     n = min(21, avg_population.shape[0], avg_population.shape[1])
-    matrix = avg_population[:n, :n].T          # x: cation, y: anion -> 图中 x 轴为阳离子
-    matrix = np.flipud(matrix)                 # 上下翻转，让 y 轴从下到上递增
+    matrix = avg_population[:n, :n].T          # x: cation, y: anion -> x-axis represents cations
+    matrix = np.flipud(matrix)                 # Flip vertically so the y-axis increases upward
 
     mat_plot = matrix.copy()
     mat_plot[mat_plot <= 0] = 1e-12
@@ -1084,8 +1087,8 @@ def plot_population_heatmap(avg_population):
 
     ax.plot([0, n], [n, 0], ls='-', lw=1, color="#172C51")
 
-    plt.xlabel(r'$\mathrm{n_{+}}$')   # 阳离子数
-    plt.ylabel(r'$\mathrm{n_{-}}$')   # 阴离子数
+    plt.xlabel(r'$\mathrm{n_{+}}$')   # Number of cations
+    plt.ylabel(r'$\mathrm{n_{-}}$')   # Number of anions
 
     plt.tight_layout()
     plt.show()
